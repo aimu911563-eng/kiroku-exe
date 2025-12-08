@@ -30,6 +30,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "tsx src/server.ts"
+    "server": "tsx src/server.ts",
+    "start": "npm run server"
   }
 }

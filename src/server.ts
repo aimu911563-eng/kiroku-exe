@@ -25,6 +25,21 @@ app.get('/api/debug-env', (c) => c.json({
   hasAnon: !!process.env.SUPABASE_ANON_KEY
 }));
 
+import { cors } from 'hono/cors';
+
+// これを一番最初の方に追加
+app.use(
+  '*',
+  cors({
+    origin: 'https://kiroku-exe.pages.dev',
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+// ここから下は今まで通りのルーティング…
+
+
 // 固定データで DB へ書き込むテスト（問題の切り分け用）
 app.post('/api/test-insert', async (c) => {
   const { error } = await supabase.from('leaves').insert({
