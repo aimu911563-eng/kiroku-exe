@@ -1,0 +1,1719 @@
+:root {
+  --bg: #0b0c10;
+  --card: #111318;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #8ab4f8;
+  --border: #2a2e35;
+}
+
+/* すべての要素を border-box にそろえる（はみ出し対策の基本） */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+
+* {
+  box-sizing: border-box;
+}
+
+/* レイアウトをきっちりカード内に収める用 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box; /* 念押し */
+}
+
+input[type="date"] {
+  width: 100%;
+  max-width: 100%;
+  padding-right: 0.75rem;  /* 右側をちょい控えめに */
+}
+
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue',
+    Arial, 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo,
+    sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #0b0c10, #0e1117 40%, #0b0c10);
+}
+
+.container {
+  max-width: 860px;
+  margin: 40px auto;
+  padding: 0 16px 32px;
+}
+
+h1 {
+  font-size: clamp(20px, 3vw, 28px);
+  font-weight: 700;
+  margin: 0 0 8px;
+  letter-spacing: 0.02em;
+}
+
+.preview-title {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ===== カード ===== */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 16px 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== フォームレイアウト ===== */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 16px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.full {
+  grid-column: 1 / -1;
+  margin-top: 14px;
+}
+
+/* ===== 入力系 ===== */
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #0f1117;
+  color: var(--text);
+  outline: none;
+  font-size: 14px;
+}
+
+/* 読み取り専用（従業員番号・氏名）を少しトーンダウン */
+input[readonly] {
+  background: #111318;
+  color: #cbd5f5;
+  border-style: dashed;
+  cursor: default;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.15);
+}
+
+/* ===== ボタン周り ===== */
+.actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: #0b0c10;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 0.05s ease, box-shadow 0.05s ease,
+    background-color 0.1s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--text);
+}
+
+/* ===== 補助テキスト ===== */
+.helper {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* ===== プレビュー ===== */
+.preview {
+  margin-top: 4px;
+  padding: 12px;
+  background: #0f1117;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+/* ===== Toast ===== */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-weight: 600;
+}
+
+#toast.success {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid #38bdf8;
+  color: #e0f2fe;
+}
+
+#toast.error {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid #f87171;
+  color: #fee2e2;
+}
+
+#toast.show {
+  display: block;
+  animation: toast-in 0.2s ease, toast-out 0.2s ease 1.8s forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+}
+
+/* ===== スマホ対応 ===== */
+@media (max-width: 600px) {
+  .container {
+    margin-top: 24px;
+  }
+
+  .card {
+    padding: 14px 12px 16px;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+.paid-info {
+  background: #0f1117;
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 12px;
+  margin: 10px 0 0;
+}
+
+.paid-title {
+  font-size: 13px;
+  color: var(--accent);
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.paid-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  font-size: 13px;
+}
+
+.paid-grid .label {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+}
+
+.login-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: end;
+}
+
+.login-actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+  .login-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .login-actions {
+    width: 100%;
+  }
+}
+
+.history-title {
+  margin: 24px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.history-empty {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 4px;
+}
+
+.history-item {
+  background: #111318;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+}
+
+.history-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-meta {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+
+.history-type {
+  font-weight: 600;
+}
+
+.history-date {
+  font-size: 12px;
+}
+
+.history-reason {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+  white-space: pre-wrap;
+}
+
+/* --- 申請履歴 ---*/
+
+.history-title {
+  margin-top: 24px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: .08em;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  background: #0f1117;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.history-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 区分ごとの色分け */
+.history-type[data-type="有給"] {
+  background: rgba(74, 222, 128, .12);
+  color: #4ade80;
+}
+.history-type[data-type="欠勤"] {
+  background: rgba(248, 113, 113, .12);
+  color: #f87171;
+}
+.history-type[data-type="代休"] {
+  background: rgba(56, 189, 248, .12);
+  color: #38bdf8;
+}
+.history-type[data-type="特別休暇"] {
+  background: rgba(244, 114, 182, .12);
+  color: #f472b6;
+}
+
+.history-date {
+  color: var(--muted);
+}
+
+.history-reason {
+  margin-top: 2px;
+  color: var(--text);
+}
+
+.history-meta {
+  text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 120px;
+}
+
+.history-empty {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* --- 管理者用 申請一覧 --- */
+
+.admin-title {
+  margin-top: 32px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+.admin-card {
+  margin-top: 4px;
+}
+
+.admin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.admin-controls label {
+  min-width: 180px;
+}
+
+.admin-controls button {
+  align-self: flex-end;
+}
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 4px;
+}
+
+.admin-item {
+  background: #0f1117;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  font-size: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr);
+  gap: 4px 12px;
+}
+
+.admin-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* 区分ごとの色は履歴と合わせる */
+.admin-badge[data-type='有給'] {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+}
+.admin-badge[data-type='欠勤'] {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+}
+.admin-badge[data-type='代休'] {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+}
+.admin-badge[data-type='特別休暇'] {
+  background: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
+}
+
+.admin-employee {
+  font-weight: 600;
+}
+
+.admin-meta {
+  text-align: right;
+  color: var(--muted);
+}
+
+.admin-reason {
+  grid-column: 1 / -1;
+  color: var(--text);
+}
+
+.admin-empty {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.admin-status[data-status='pending'] {
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15; /* 黄色っぽい */
+}
+
+.admin-status[data-status='approved'] {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80; /* 緑 */
+}
+
+.admin-status[data-status='rejected'] {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171; /* 赤 */
+}
+
+.admin-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.admin-actions button {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tab {
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid #555;
+  background: #222;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.tab.active {
+  background: #fff;
+  color: #000;
+}
+
+.hidden {
+  display: none;
+}
+
+.admin-section-title {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.history-status {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.status-approved {
+  background: #2ecc71;
+  color: #000;
+}
+
+.status-rejected {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.status-pending {
+  background: #f1c40f;
+  color: #000;
+}
+
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.history-filter {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #555;
+  background: #222;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.history-filter.active {
+  background: #fff;
+  color: #000;
+}
+
+.history-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.history-filter {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #555;
+  background: #222;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.history-filter.active {
+  background: #fff;
+  color: #000;
+}
+
+.history-sorts {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.history-sort {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid #555;
+  background: #222;
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.history-sort.active {
+  background: #fff;
+  color: #000;
+}
+
+/* ===== ステータスカラー統一 ===== */
+.admin-status[data-status="pending"] {
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: bold;
+}
+
+.admin-status[data-status="approved"] {
+  background: #d1e7dd;
+  color: #0f5132;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: bold;
+}
+
+.admin-status[data-status="rejected"] {
+  background: #f8d7da;
+  color: #842029;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: bold;
+}
+
+/* 区分バッジ */
+.badge[data-type="有給"] { background: #e7f1ff; color: #084298; }
+.badge[data-type="欠勤"] { background: #f8d7da; color: #842029; }
+.badge[data-type="代休"] { background: #fff3cd; color: #856404; }
+.badge[data-type="特別休暇"] { background: #e2e3e5; color: #41464b; }
+
+/* ===== カードの余白と影 ===== */
+.card {
+  padding: 16px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+}
+
+/* 管理者の各申請カード */
+.admin-item {
+  padding: 14px;
+  border-radius: 10px;
+  background: #fff;
+  margin-bottom: 12px;
+  border: 1px solid #eee;
+}
+
+/* 管理者ヘッダー */
+.admin-item-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+/* 管理者理由 */
+.admin-reason {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #555;
+}
+
+/* ===== スマホ最適化 ===== */
+@media (max-width: 768px) {
+
+  body {
+    font-size: 14px;
+  }
+
+  .container {
+    padding: 10px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .admin-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+  }
+
+  .admin-sorts {
+    display: flex;
+    gap: 8px;
+  }
+
+  .admin-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/*管理者確認カードを白に
+.admin-item {
+  background: #1f1f24;
+  border: 1px solid #333;
+}
+*/
+
+.submit-message {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.submit-message.success {
+  color: #0b7a3b; /* 緑系（おまかせで変えてOK） */
+}
+
+.submit-message.error {
+  color: #c0392b; /* 赤系 */
+}
+
+/* 共通のカード */
+.history-item {
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-left: 4px solid #ddd;
+  background: #fafafa;
+}
+
+/* 承認済み：緑 */
+.history-item.history-approved {
+  border-left-color: #2e7d32;
+  background: #eef8f0;
+}
+
+/* 却下：赤 */
+.history-item.history-rejected {
+  border-left-color: #c62828;
+  background: #fdecec;
+}
+
+/* 申請中：グレー */
+.history-item.history-pending {
+  border-left-color: #888;
+  background: #f3f3f3;
+}
+
+.history-status {
+  font-weight: bold;
+}
+
+/* 理由の共通 */
+.history-reason {
+  font-size: 0.95rem;
+  color: #222;
+  font-weight: 500;
+}
+
+
+/* 却下理由だけちょい強調 */
+.history-reason.is-rejected {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border-left: 3px solid #c62828;
+  font-size: 0.9rem;
+}
+
+.history-body {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-item.history-approved {
+  border-left-color: #2e7d32;
+  background: #f3fbf5;  /* ← 今より少し薄く */
+}
+
+/* 申請履歴のカード全体レイアウトを縦並びにする */
+.history-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.history-body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;  /* 念のため左寄せに固定 */
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-date {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.history-reason {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.history-meta {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.notice-card {
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.notice-title {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.notice-list {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.notice-list li + li {
+  margin-top: 0.3rem;
+}
+
+/* === 管理画面全体 === */
+.admin-page {
+  max-width: 1200px;
+  margin: 24px auto 80px;
+  padding: 0 24px;
+}
+
+/* タイトル + ログイン状態 */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.admin-login-state {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* セクション共通 */
+.admin-section {
+  margin-top: 32px;
+}
+
+.admin-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* カード共通 */
+.admin-card {
+  background: #020617;       /* 少し濃いめのカード */
+  border-radius: 14px;
+  padding: 16px 20px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  border: 1px solid #111827;
+}
+
+/* --- ツールバー（絞り込み・並び替え） --- */
+.admin-toolbar {
+  margin-bottom: 12px;
+}
+
+.admin-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+/* ボタンの行がバラけないように */
+.admin-toolbar button {
+  margin-right: 0;
+}
+
+/* --- 有給マスタカード --- */
+.admin-balance-card {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 説明文の箇条書きをちょっと読みやすく */
+.admin-balance-card ul {
+  margin: 0 0 12px 1.2em;
+}
+
+.admin-balance-card li + li {
+  margin-top: 2px;
+}
+
+/* マスタ一覧の行 */
+.balance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.5fr) repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #030712;
+  border: 1px solid #111827;
+  margin-top: 8px;
+}
+
+.balance-row:first-of-type {
+  margin-top: 12px;
+}
+
+/* 入力欄を少し小さめに */
+.balance-row input[type="number"],
+.balance-row input[type="text"] {
+  width: 90px;
+  padding: 4px 6px;
+  font-size: 13px;
+}
+
+/* 残り日数表示 */
+.balance-remain {
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+/* 保存ボタン */
+.balance-save {
+  padding-inline: 12px;
+  font-size: 13px;
+}
+
+/* --- 申請カード一覧 --- */
+.admin-requests-wrapper {
+  padding: 12px 16px;
+}
+
+/* 全体を真ん中寄せ + 幅を絞る */
+.admin-requests-wrapper {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* 申請カード1枚 */
+.leave-card {
+  background: #030712;
+  border-radius: 12px;
+  padding: 10px 14px;
+  border: 1px solid #111827;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.leave-card-main {
+  font-size: 13px;
+}
+
+.leave-card-meta {
+  text-align: right;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* 承認 / 却下ボタン行 */
+.leave-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* ステータスピルを少しコンパクトに */
+.status-pill {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+/* ========== 管理画面レイアウト ========== */
+
+body {
+  background: #020617;
+  color: #f9fafb;
+}
+
+/* 全体コンテナ */
+.admin-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+  box-sizing: border-box;
+}
+
+/* ヘッダー周り */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: 0.03em;
+}
+
+/* ログインボックス */
+.admin-login-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #020617;
+  border: 1px solid #1f2937;
+}
+
+.admin-login-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #111827;
+}
+
+/* 共通カード風セクション */
+.admin-section,
+.admin-toolbar {
+  background: #020617;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.8);
+  border: 1px solid #1f2937;
+}
+
+/* 見出し & 説明 */
+.admin-section h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.admin-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #9ca3af;
+}
+
+/* ボタン系（既存のボタンスタイルがあればそれを優先してOK） */
+.admin-button,
+.admin-toolbar button {
+  border-radius: 999px;
+  padding: 8px 16px;
+  border: none;
+  background: #2563eb;
+  color: #f9fafb;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.admin-toolbar button.ghost {
+  background: transparent;
+  border: 1px solid #374151;
+}
+
+.admin-button:hover,
+.admin-toolbar button:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.admin-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
+/* 有給マスタのリスト */
+.balance-list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 有給マスタ 1 行レイアウト */
+.balance-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  /* 名前 | 付与 | 使用済 | 残り | 保存 */
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #0f172a;  /* ちょい明るめにして行として見せる */
+  border: 1px solid #1e293b;
+}
+
+.balance-row strong {
+  font-size: 15px;
+}
+
+/* 入力欄を横に並べやすいように */
+.balance-row input {
+  width: 70px;
+  text-align: right;
+}
+
+/* 残り日数のフォーマット */
+.balance-remain {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* 保存ボタンだけ右端に固定 */
+.balance-row .balance-save {
+  justify-self: flex-end;
+  white-space: nowrap;
+}
+
+
+/* ラベル・入力の細かいところは既存の共通スタイルをそのまま使う */
+.balance-row label {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* 残り日数表示 */
+.balance-remain {
+  font-size: 13px;
+}
+
+/* 保存ボタン（マスタ行の右端） */
+.balance-row .balance-save {
+  white-space: nowrap;
+}
+
+/* ========== フィルタ・ソートの並び ========== */
+
+.admin-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.admin-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+/* ソートボタンのグループ */
+.admin-sort-group {
+  display: inline-flex;
+  background: #020617;
+  border-radius: 999px;
+  padding: 2px;
+  border: 1px solid #1f2937;
+}
+
+.admin-sort-group .admin-sort {
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #e5e7eb;
+}
+
+.admin-sort-group .admin-sort.active {
+  background: #2563eb;
+  color: #f9fafb;
+}
+
+/* 読み込み / CSV ボタンを横並び */
+.admin-action-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* ========== タブ & 申請一覧 ========== */
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-tabs .tab {
+  border-radius: 999px;
+  border: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #020617;
+  color: #e5e7eb;
+  border: 1px solid #1f2937;
+}
+
+.admin-tabs .tab.active {
+  background: #22c55e;
+  color: #022c22;
+  border-color: #22c55e;
+}
+
+/* 申請カード一覧 */
+.admin-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* 子要素をカードっぽく（クラス名が何でもある程度効くように汎用指定） */
+.admin-list > div {
+  background: #020617;
+  border-radius: 14px;
+  padding: 12px 14px;
+  border: 1px solid #111827;
+}
+
+/* ========== レスポンシブ調整 ========== */
+
+@media (max-width: 900px) {
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .balance-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .balance-row .balance-save {
+    grid-column: 1 / -1;
+    justify-self: flex-end;
+  }
+
+  .admin-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-action-row {
+    align-self: flex-start;
+  }
+}
+
+/* 有給マスタ 1行レイアウト */
+.balance-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  /* 名前 | 付与 | 使用済 | 残り | 保存 */
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+}
+
+/* 名前部分 */
+.balance-name {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  align-items: baseline;
+  font-size: 14px;
+}
+
+/* 付与／使用済のブロックを横並びに */
+.balance-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-start;
+  font-size: 13px;
+}
+
+.balance-label {
+  min-width: 2.5em;
+}
+
+.balance-unit {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* 数値入力をコンパクトに */
+.balance-field input.balance-given,
+.balance-field input.balance-used {
+  width: 70px;
+  text-align: right;
+}
+
+/* 残り表示 */
+.balance-remain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  justify-content: center;
+}
+
+/* 保存ボタンは右端に */
+.balance-row .balance-save {
+  justify-self: flex-end;
+  white-space: nowrap;
+}
+
+.balance-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.balance-field .unit {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.balance-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+}
+
+.balance-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.balance-label {
+  opacity: 0.8;
+  font-size: 14px;
+}
+
+.balance-unit {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.balance-save {
+  padding: 6px 16px;
+  background: #60a5fa;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.balance-save:hover {
+  background: #3b82f6;
+}
+
+/* ===========================
+   スマホ用レイアウト調整
+   画面幅 768px 以下のときだけ適用
+=========================== */
+@media (max-width: 768px) {
+  /* 画面全体の余白を少し詰める */
+  .admin-page {
+    padding: 16px 12px;
+  }
+
+  /* 有給マスタの1行（社員ごとのカード） */
+  .balance-row {
+    flex-direction: column;      /* 縦並びにする */
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* 名前の下に項目を出したいので、左右の幅を詰める */
+  .balance-main {
+    width: 100%;
+    flex-direction: column;      /* ここも縦に */
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* 付与 / 使用済 / 残り の横並びグループ */
+  .balance-fields {
+    flex-wrap: wrap;             /* はみ出しそうなら折り返しOK */
+    gap: 8px 16px;
+  }
+
+  .balance-field input {
+    width: 64px;                 /* 入力欄を少し細く */
+  }
+
+  /* 残り日数はちょっと目立たせるだけ */
+  .balance-remain {
+    margin-top: 4px;
+  }
+
+  /* 保存ボタンは右下に寄せる感じに */
+  .balance-save {
+    align-self: flex-end;
+    margin-top: 4px;
+  }
+
+  /* 上のフィルタ部分も詰めて表示 */
+  .admin-toolbar {
+    padding: 16px 12px;
+  }
+
+  .admin-controls {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-action-row {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  .balance-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .balance-fields {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .balance-field {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .balance-save {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* ===== 有給マスタ：PC(デフォルト)レイアウト ===== */
+.balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 24px;
+  border-radius: 16px;
+  background: #0e1729;
+}
+
+.balance-name {
+  font-size: 16px;
+  font-weight: 600;
+  min-width: 220px;
+}
+
+.balance-name .balance-id {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/* 名前の右側一帯（付与・使用済・残り） */
+.balance-fields {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+}
+
+.balance-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.balance-field input {
+  width: 64px;
+  text-align: right;
+}
+
+.balance-remain {
+  font-weight: 600;
+}
+
+.balance-save {
+  padding: 10px 24px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+/* スマホ幅で date input をはみ出さないようにする */
+@media (max-width: 600px) {
+
+  #leaveForm input[type="date"] {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* grid の列幅調整（2列 → 自動的に1列）*/
+  #leaveForm .grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* 従業員側の休暇申請フォーム用 */
+#leaveForm label {
+  width: 100%;
+}
+
+#leaveForm input,
+#leaveForm select,
+#leaveForm textarea {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;   /* 横の margin で飛び出さないように */
+}
+
+/* スマホ幅のときだけ、日付入力をほんの少しだけ縮める */
+@media (max-width: 480px) {
+  #leaveForm input[type="date"] {
+    width: calc(100% - 24px);   /* 右に 4px × 2 ぐらい余白を作るイメージ */
+  }
+}
+
+#adminLoginStatus {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 12px;
+  font-size: 14px;
+}

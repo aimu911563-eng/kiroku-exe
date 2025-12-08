@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>休暇申請フォーム（管理者画面）</title>
+    <link rel="stylesheet" href="src/style.css" />
+    <!-- 管理者用スクリプト -->
+    <script type="module" src="/src/admin.ts" defer></script>
+  </head>
+  <body>
+    <main class="admin-page">
+      <header class="admin-header">
+        <h1>有給申請・管理画面</h1>
+        <div class="admin-login-box">
+          <span id="adminLoginStatus" class="admin-login-status">
+            未ログイン
+          </span>
+          <input
+            type="password"
+            id="adminPass"
+            placeholder="管理者パスワード"
+          />
+          <button id="adminLoginBtn">ログイン</button>
+        </div>
+      </header>
+        <!-- 有給マスタ管理 -->
+        <section class="admin-section admin-balance-section">
+          <h2>有給マスタの管理</h2>
+          <p id="balanceHelp" class="admin-note">
+            ・各従業員の「付与日数」「使用済日数」を編集できます。<br>
+            ・有給の付与日になった従業員がいれば、システムから自動でリマインドメールが送信されます。<br>
+            ・付与日から３日以上更新されていない場合は、催促メールが一回だけ送信されます。<br>
+            ・この画面では、「付与数」「使用済日数」だけ更新をしてください（付与日やリマインド日は自動管理されます）。
+          </p>
+          <p id="balance-error" style="color: #ff8080; margin-bottom: 8px; display: none;"></p>
+          <button id="balanceReloadBtn" class="admin-button" type="button">
+            有給マスタを読み込み
+          </button>
+          <div id="balanceList" class="balance-list">
+            <!-- ここに一覧が表示される -->
+          </div>
+        </section>
+        
+      <section class="admin-toolbar">
+        <div class="admin-controls">
+          <label>
+            従業員で絞り込み
+            <input
+              id="adminFilterEmployeeId"
+              type="text"
+              inputmode="numeric"
+              placeholder="72490001"
+            />
+          </label>
+
+          <label>
+            区分
+            <select id="adminFilterType">
+              <option value="">すべて</option>
+              <option value="有給">有給</option>
+              <option value="欠勤">欠勤</option>
+              <option value="代休">代休</option>
+              <option value="特別休暇">特別休暇</option>
+            </select>
+          </label>
+
+          <div class="admin-sort-group">
+            <button
+              type="button"
+              class="admin-sort active"
+              data-order="desc"
+            >
+              新しい順
+            </button>
+            <button type="button" class="admin-sort" data-order="asc">
+              古い順
+            </button>
+          </div>
+
+          <div class="admin-action-row">
+            <button type="button" id="adminReloadBtn">読み込み</button>
+            <button
+              type="button"
+              id="adminExportCsvBtn"
+              class="ghost"
+            >
+              CSVダウンロード
+            </button>           
+          </div>
+
+        </div>
+
+        <!-- 申請一覧タブ -->
+        <div class="admin-tabs">
+          <button class="tab active" data-tab="pending" type="button">
+            承認待ち
+          </button>
+          <button class="tab" data-tab="history" type="button">
+            履歴
+          </button>
+        </div>
+
+        <!-- 申請一覧 -->
+        <div id="adminList" class="admin-list"></div>
+        <!-- （必要なら historyList / pendingList をあとで足す） -->
+      </section>
+
+      <div
+        id="toast"
+        aria-live="polite"
+        style="display: none;"
+      ></div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>休暇申請フォーム</title>
+    <link rel="stylesheet" href="src/style.css" />
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>休暇申請フォーム</h1>
+      <div id="toast" aria-live="polite" style="display: none;"></div>
+      <section class="card notice-card">
+        <h2 class="notice-title">運用とルールと注意事項</h2>
+        <ul class="notice-List">
+          <li>
+            <strong>有給の申請期限</strong>
+            原則として、取得日の<strong>前日まで</strong>に申請お願いします。
+          </li>
+          <li>
+            <strong>時季変更について：</strong>
+            有給休暇は労働基準法第39条により、会社は原則として
+            <strong>「人手不足」「忙しい」だけを理由に却下できません</strong>
+            事業の正常な運営を妨げる場合のみ、日程の変更（時季変更権）が認められます。
+          </li>
+          <li>
+            <strong>システム上の締切：</strong>
+            このフォームでは<strong>締切を強制していません</strong>が、
+            直前の申請はシフト調整が難しくなるため、できるだけ早めに申請にご協力ください。
+          </li>
+          <li>
+            <strong>却下された場合：</strong>
+            却下理由は必ず表示されます。内容に不明点がある場合は、
+            オーナーまたは管理者まで直接相談してください。
+          </li>
+        </ul>
+        </ul>
+      </section>
+
+      <!-- 従業員ログイン -->
+      <section class="card" id="loginCard">
+        <form id="loginForm" class="login-grid">
+          <label>
+            従業員番号
+            <input
+              id="loginEmployeeId"
+              name="loginEmployeeId"
+              type="text"
+              inputmode="numeric"
+              placeholder="例 72490001"
+              required
+            />
+          </label>
+          <label>
+            暗証番号 (4桁)
+            <input
+              id="loginPin"
+              type="password"
+              inputmode="numeric"
+              maxlength="4"
+              required
+            />
+          </label>
+          <div class="actions login-actions">
+            <button type="submit">ログイン</button>
+          </div>
+        </form>
+        <p class="helper">※ 従業員番号を入力して有給残数を読み込みます。</p>
+      </section>
+
+      <!-- 休暇申請フォーム -->
+      <form id="leaveForm" class="card" aria-disabled="true">
+        <section class="grid">
+          <label>
+            従業員番号
+            <input id="employeeId" name="employeeId" type="text" readonly />
+          </label>
+
+          <label>
+            氏名
+            <input id="employeeName" name="employeeName" type="text" readonly />
+          </label>
+
+          <label>
+            区分
+            <select id="leaveType" name="leaveType" required>
+              <option value="有給">有給</option>
+              <option value="欠勤">欠勤</option>
+              <option value="代休">代休</option>
+              <option value="特別休暇">特別休暇</option>
+            </select>
+          </label>
+
+          <label>
+            休暇取得日
+            <input id="date" name="date" type="date" required />
+          </label>
+
+          <label>
+            連絡先 (任意)
+            <input
+              id="contact"
+              name="contact"
+              type="tel"
+              inputmode="tel"
+              placeholder="090-1234-5678"
+            />
+          </label>
+        </section>
+
+        <!-- 有給の利用状況 -->
+        <div id="paidInfo" class="paid-info" style="display: none;">
+          <h3 class="paid-title">有給の利用状況</h3>
+          <div>
+            <span class="label">有給更新日</span>
+            <span id="nextGrant"></span>
+          </div>
+          <div class="paid-grid">
+            <div>
+              <span class="label">付与数</span>
+              <span id="paidGiven">- 日</span>
+            </div>
+            <div>
+              <span class="label">使用済</span>
+              <span id="paidUsed">- 日</span>
+            </div>
+            <div>
+              <span class="label">残り</span>
+              <span id="paidRemain">- 日</span>
+            </div>
+            <div>
+              <span class="label">取得後残り</span>
+              <span id="paidRemainAfter">- 日</span>
+            </div>
+          </div>
+        </div>
+
+        <label class="full">
+          理由(任意)
+          <textarea
+            id="reason"
+            name="reason"
+            rows="4"
+            placeholder="事情・メモなど"
+          ></textarea>
+        </label>
+
+        <div class="actions">
+          <button type="submit" id="submitBtn">送信</button>
+          <button type="reset" class="ghost">リセット</button>
+        </div>
+        <div id="submitMessage" class="submit-message" aria-live="polite"></div>
+
+        <p id="helper" class="helper">
+          送信すると、入力内容がブラウザのコンソールに出力されます。
+        </p>
+      </form>
+
+      <!-- プレビュー -->
+      <h2 class="preview-title">送信のプレビュー</h2>
+      <pre id="preview" class="preview" aria-live="polite"></pre>
+
+      <!-- 履歴フィルタ -->
+      <div class="history-filters">
+        <button type="button" class="history-filter active" data-status="all">
+          すべて
+        </button>
+        <button type="button" class="history-filter" data-status="pending">
+          承認待ち
+        </button>
+        <button type="button" class="history-filter" data-status="approved">
+          承認済み
+        </button>
+        <button type="button" class="history-filter" data-status="rejected">
+          却下
+        </button>
+      </div>
+      <div class="history-sorts">
+        <button type="button" class="history-sort active" data-order="desc">
+          新しい順
+        </button>
+        <button type="button" class="history-sort" data-order="asc">
+          古い順
+        </button>
+      </div>
+
+      <!-- 申請履歴 -->
+      <h2 class="history-title">申請履歴</h2>
+      <div id="history" class="history-list" aria-live="polite"></div>
+    </main>
+  </body>
+</html>
