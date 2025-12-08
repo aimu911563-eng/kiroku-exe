@@ -471,7 +471,7 @@ async function updateLeaveStatus(
   rejectReason?: string
 ) {
   const res = await fetch(
-    `${API_BASE}/admin/leaves${encodeURIComponent(id)}/status`,
+    `${API_BASE}/admin/leaves/${encodeURIComponent(id)}/status`,
     {
       method: 'PATCH',
       headers: {
