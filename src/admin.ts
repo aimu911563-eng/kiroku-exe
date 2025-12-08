@@ -1,4 +1,4 @@
-import { NOTIMP } from "dns";
+
 
 console.log('admin.ts が読み込まれた');
 
@@ -27,6 +27,7 @@ type LeaveBalanceItem = {
 
 type AdminLeaveItem = LeaveHistoryItem;
 
+import { API_BASE } from './config';
 
 // =========================
 // DOM 取得
@@ -199,7 +200,7 @@ if (adminLoginBtn && adminPassInput) {
     }
 
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch(`${API_BASE}/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -256,7 +257,7 @@ async function loadAdminLeaves() {
 
   params.set('status', getAdminStatusQuery());
 
-  let url = '/api/admin/leaves';
+  let url = `${API_BASE}/admin/leaves`;
   const qs = params.toString();
   if (qs) url += `?${qs}`;
 
@@ -425,7 +426,7 @@ async function loadAdminLeaves() {
           btn.disabled = true;
 
           const res = await fetch(
-            `/api/admin/leaves/${encodeURIComponent(id)}/status`,
+            `${API_BASE}/admin/leaves/${encodeURIComponent(id)}/status`,
             {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json', ...getAdminAuthHeader(), },
@@ -470,7 +471,7 @@ async function updateLeaveStatus(
   rejectReason?: string
 ) {
   const res = await fetch(
-    `/api/admin/leaves/${encodeURIComponent(id)}/status`,
+    `${API_BASE}/admin/leaves${encodeURIComponent(id)}/status`,
     {
       method: 'PATCH',
       headers: {
@@ -523,7 +524,7 @@ async function loadBalances() {
   balanceList.innerHTML = '<div class="admin-empty">読み込み中…</div>';
 
   try {
-    const res = await fetch('/api/admin/balances', {
+    const res = await fetch(`${API_BASE}/admin/balances`, {
       headers: {
         ...getAdminAuthHeader(),
       },
@@ -639,7 +640,7 @@ async function loadBalances() {
           btn.textContent = '保存中…';
 
           const res = await fetch(
-            `/api/admin/balances/${encodeURIComponent(employeeId)}`,
+            `${API_BASE}/admin/balances/${encodeURIComponent(employeeId)}`,
             {
               method: 'PATCH',
               headers: {
@@ -701,7 +702,7 @@ async function exportAdminCsv() {
 
   params.set('status', getAdminStatusQuery());
 
-  let url = '/api/admin/leaves';
+  let url = `${API_BASE}/admin/leaves`;
   const qs = params.toString();
   if (qs) url += `?${qs}`;
 

@@ -38,6 +38,8 @@ const nextGrantEl = document.getElementById('nextGrant') as HTMLElement;
 // 履歴
 const historyContainer = document.getElementById('history') as HTMLElement;
 
+import { API_BASE } from './config';
+
 // ===== 取得日：今日以降しか選べないように =====
 if (!dateInput) {
   throw new Error('日付入力の要素が見つかりません');
@@ -66,7 +68,7 @@ loginForm.addEventListener('submit', async (e) => {
   }
 
   try {
-    const res = await fetch('/api/login', {
+    const res = await fetch(`${API_BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ employeeId: id, pin }),
@@ -248,7 +250,7 @@ form.addEventListener('submit', async (e) => {
   console.log('[leave:submit]', payload);
 
   try {
-    const res = await fetch('/api/leaves', {
+    const res = await fetch(`${API_BASE}/leaves`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -401,7 +403,7 @@ async function loadHistory(employeeId: string) {
 
   try {
     const res = await fetch(
-      `/api/leaves?employeeId=${encodeURIComponent(employeeId)}`
+      `${API_BASE}/leaves?employeeId=${encodeURIComponent(employeeId)}`
     );
 
     if (!res.ok) {
