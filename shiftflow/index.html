@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ShiftFlow - シフト提出</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <main id="app">
+      <h1>ShiftFlow - シフト提出フォーム</h1>
+
+      <!-- シフト提出フォーム -->
+      <form id="shiftForm">
+
+        <!-- ここは後でログインに置き換える想定。今はデバッグ用表示だけ -->
+        <div>
+          <label for="employeeId">従業員番号（デバッグ用）</label>
+          <input
+            id="employeeId"
+            name="employeeId"
+            type="text"
+            placeholder="例: 7249xxxx"
+          />
+          <p id="storePreview" class="hint"></p>
+        </div>
+
+        <!-- 対象週（週の開始日＝月曜日） -->
+        <div>
+          <label for="weekStart">対象週（週の開始日：月曜日）</label>
+          <input id="weekStart" name="weekStart" type="date" required />
+          <p id="weekLabel" class="hint"></p>
+        </div>
+
+        <!-- シフト入力テーブル -->
+        <section>
+          <h2>シフト入力</h2>
+          <table id="shiftTable">
+            <thead>
+              <tr>
+                <th>曜日</th>
+                <th>希望時間帯（例: 17:00-21:00）</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>月</td>
+                <td class="time-cell">
+                  <div class="time-range">
+                    <input type="time" data-day="mon" data-kind="start" step="300" />
+                    <span class="time-separator">~</span>
+                    <input type="time" data-day="mon" data-kind="end" step="300" />
+                  </div>
+                </td>
+              </tr>
+                <td>火</td>
+                <td class="time-cell">
+                  <div class="time-range">
+                    <input type="time" data-day="tue" data-kind="start" step="300" />
+                    <span class="time-separator">~</span>
+                    <input type="time" data-day="tue" data-kind="end" step="300" />
+                  </div>
+                </td>
+              </tr>
+                <td>水</td>
+                <td class="time-cell">
+                  <div class="time-range">
+                    <input type="time" data-day="wed" data-kind="start" step="300" />
+                    <span class="time-separator">~</span>
+                    <input type="time" data-day="wed" data-kind="end" step="300" />
+                  </div>
+                </td>
+              </tr>
+                <td>木</td>
+                <td class="time-cell">
+                  <div class="time-range">
+                    <input type="time" data-day="thu" data-kind="start" step="300" />
+                    <span class="time-separator">~</span>
+                    <input type="time" data-day="thu" data-kind="end" step="300" />
+                  </div>
+                </td>
+              </tr>
+                <td>金</td>
+                <td class="time-cell">
+                  <div class="time-range">
+                    <input type="time" data-day="fri" data-kind="start" step="300" />
+                    <span class="time-separator">~</span>
+                    <input type="time" data-day="fri" data-kind="end" step="300" />
+                  </div>
+                </td>
+              </tr>
+                <td>土</td>
+                <td class="time-cell">
+                  <div class="time-range">
+                    <input type="time" data-day="sat" data-kind="start" step="300" />
+                    <span class="time-separator">~</span>
+                    <input type="time" data-day="sat" data-kind="end" step="300" />
+                  </div>
+                </td>
+              </tr>
+                <td>日</td>
+                <td class="time-cell">
+                  <div class="time-range">
+                    <input type="time" data-day="sun" data-kind="start" step="300" />
+                    <span class="time-separator">~</span>
+                    <input type="time" data-day="sun" data-kind="end" step="300" />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <button type="submit">シフトを提出する</button>
+      </form>
+
+      <!-- 送信内容のプレビュー -->
+      <section>
+        <h2>送信プレビュー</h2>
+        <pre id="preview">{}</pre>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+
+
+</html>
