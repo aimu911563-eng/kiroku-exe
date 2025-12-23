@@ -1,0 +1,1 @@
+console.log ("admin.tsを読み込みできた：）")

@@ -1,0 +1,7 @@
+開発サーバー起動
+cd /Users/rekokeshimo/kiroku-exe/shiftflow
+npm run dev
+
+
+cd /Users/rekokeshimo/kiroku-exe/shiftflow
+npm run dev:api

@@ -1,7 +1,17 @@
+
 console.log("ShiftFlow main.ts 読み込み完了:)");
 
 type ShiftDayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 type ShiftData = Record<ShiftDayKey, string>;
+
+type ShiftSubmission = {
+  store_id: string;
+  employee_id: string;
+  employee_name: string;
+  week_start: string;
+  data: Record<string, string>;
+};
+
 
 // DOM要素
 const shiftForm = document.getElementById("shiftForm") as HTMLFormElement;
@@ -176,6 +186,19 @@ async function updateEmployeeAutoFill() {
     storePreview.textContent = `店舗: ${currentEmployee.store_id}`;
 
   currentEmployee = result.employee;
+
+  let lastLoadedKey = ""
+
+  async function loadExistingSubmissionIfAny() {
+    if (!currentEmployee) return;
+    const weekStart = weekStartInput.value
+    if (!weekStart) return;
+
+    const key = `${currentEmployee.employee_id}_${weekStart}`;
+    if (key === lastLoadedKey) return;
+    lastLoadedKey = key;
+  }
+  
   await loadExistingSubmissionIfAny();
 }
 
@@ -229,14 +252,15 @@ async function loadExistingSubmissionIfAny() {
       currentEmployee.employee_id
     )}&week_start=${encodeURIComponent(weekStart)}`
   );
-  const json = await res.json();
+
+  type GetShiftRes = 
+    | { ok: true; submission: ShiftSubmission }
+    | { ok: false; error: string }
+
+  const json = (await res.json()) as GetShiftRes;
 
   if (!json.ok) {
-    //404は「未提出」なので何もしない
-    if (res.status === 404) {
-      //未提出→フォームクリアする？　検討
-      return;
-    }
+    if (res.status === 404) return ;
     console.error("loadExistingSubmission error:", json);
     return;
   }
@@ -323,7 +347,7 @@ function normalizeToMondayISO(anyDateISO: string): string {
 let isNormalizingWeek = false;
 
 weekStartInput.addEventListener("change", async () => {
-  if (!isNormalizingWeek) return;
+  if (isNormalizingWeek) return;
 
   const picked = weekStartInput.value; //例　2025-12-17
   const mondayISO = normalizeToMondayISO(picked); //例　2025-12-15
@@ -336,6 +360,11 @@ weekStartInput.addEventListener("change", async () => {
 
     isNormalizingWeek = false;
   }
+
+  updateWeekLabel(weekStartInput.value);
+
+  //週が確定したら既存提出を読み込む
+  await loadExistingSubmissionIfAny();
 });
 
 initWeekStart();
