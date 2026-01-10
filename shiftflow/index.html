@@ -31,6 +31,11 @@
           <input id="weekStart" name="weekStart" type="date" required />
           <p id="weekLabel" class="hint"></p>
         </div>
+        <label style="display: flex; gap: 8px; align-items: center; margin: 8px 0;">
+          <input id="holidayToggle" type="checkbox" />
+          祝日扱い（営業時間を「金土日祝」にする）
+        </label>
+        <p id="hoursPreview" style="margin: 4px 0; color: #666; font-size: 12px;"></p>
 
         <!-- シフト入力テーブル -->
         <section>
@@ -50,6 +55,7 @@
                     <input type="time" data-day="mon" data-kind="start" step="300" />
                     <span class="time-separator">~</span>
                     <input type="time" data-day="mon" data-kind="end" step="300" />
+                    <button type="button" data-clear-day="mon">削除</button>
                   </div>
                 </td>
               </tr>
@@ -59,6 +65,7 @@
                     <input type="time" data-day="tue" data-kind="start" step="300" />
                     <span class="time-separator">~</span>
                     <input type="time" data-day="tue" data-kind="end" step="300" />
+                    <button type="button" data-clear-day="tue">削除</button>
                   </div>
                 </td>
               </tr>
@@ -68,6 +75,7 @@
                     <input type="time" data-day="wed" data-kind="start" step="300" />
                     <span class="time-separator">~</span>
                     <input type="time" data-day="wed" data-kind="end" step="300" />
+                    <button type="button" data-clear-day="wed">削除</button>
                   </div>
                 </td>
               </tr>
@@ -77,6 +85,7 @@
                     <input type="time" data-day="thu" data-kind="start" step="300" />
                     <span class="time-separator">~</span>
                     <input type="time" data-day="thu" data-kind="end" step="300" />
+                    <button type="button" data-clear-day="thu">削除</button>
                   </div>
                 </td>
               </tr>
@@ -86,6 +95,7 @@
                     <input type="time" data-day="fri" data-kind="start" step="300" />
                     <span class="time-separator">~</span>
                     <input type="time" data-day="fri" data-kind="end" step="300" />
+                    <button type="button" data-clear-day="fri">削除</button>
                   </div>
                 </td>
               </tr>
@@ -95,6 +105,7 @@
                     <input type="time" data-day="sat" data-kind="start" step="300" />
                     <span class="time-separator">~</span>
                     <input type="time" data-day="sat" data-kind="end" step="300" />
+                    <button type="button" data-clear-day="sat">削除</button>
                   </div>
                 </td>
               </tr>
@@ -104,12 +115,15 @@
                     <input type="time" data-day="sun" data-kind="start" step="300" />
                     <span class="time-separator">~</span>
                     <input type="time" data-day="sun" data-kind="end" step="300" />
+                    <button type="button" data-clear-day="sun">削除</button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </section>
+        <h3>連絡事項（任意）</h3>
+        <textarea id="comment" rows="3" placeholder="例：テスト期間なので平日は短め希望です" style="width: 100%; max-width: 420px;"></textarea>
 
         <button type="submit">シフトを提出する</button>
       </form>
@@ -120,7 +134,21 @@
         <pre id="preview">{}</pre>
       </section>
     </main>
+    
+    <div id="confirmOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 9999;">
+      <div style="max-width: 720px; margin: 8vh auto; background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <h3 style="margin: 0; font-size: 18px;">この内容で提出しますか？</h3>
+          <button id="confirmCloseBtn" type="button" style="padding: 8px 12px;">閉じる</button>
+        </div>
 
+        <div id="confirmSummary" style="margin-top: 12px; font-size: 14px;"></div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px;">
+          <button id="confirmCancelBtn" type="button" style="padding: 10px 14px;">戻る</button>
+          <button id="confirmSubmitBtn" type="button" style="padding: 10px 14px;">この内容で提出</button>
+        </div>
+      </div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 

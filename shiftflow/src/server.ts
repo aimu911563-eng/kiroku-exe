@@ -4,14 +4,56 @@ import "dotenv/config";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { createClient } from "@supabase/supabase-js";
+//import { base64, base64url, z } from "zod";
+import "dotenv/config";
+import crypto from "crypto";
 import { z } from "zod";
+is_holiday: z.boolean().optional();
 
-const app = new Hono();
+
+
+
+//const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+//管理者トークン　HMACでstore_idを発行、検証
+function base64url(input: string) {
+  return Buffer.from(input).toString("base64url");
+}
+
+function sign(payloadB64: string) {
+  const secret = (process.env.ADMIN_TOKEN_SECRET ?? "").trim();
+  if (!secret) throw new Error("ADMIN_TOKEN_SECRET is missing");
+  return crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
+}
+
+function issueAdminToken(payload: { store_id: string }) {
+  const body = base64url(JSON.stringify(payload));
+  const sig = sign(body);
+  return `${body}.${sig}`;
+}
+
+function verifyAdminToken(token: string): { store_id: string } | null {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const expected = sign(body);
+  if (sig !== expected) return null;
+
+  try {
+    const json = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    return { store_id: String(json.store_id) };
+  } catch {
+    return null;
+  }
+}
+
+
 
 // 受信データの最低限スキーマ
 const shiftSchema = z.object({
@@ -146,31 +188,107 @@ app.get('/api/shifts', async (c) => {
 });
 
 //＝＝＝＝＝＝＝＝＝　管理者 (admin) ＝＝＝＝＝＝＝＝＝
- 
+app.use("/api/*", async (c, next) => {
+  console.log("[API HIT]", c.req.method, c.req.path);
+  await next();
+});
+
 import bcrypt from 'bcryptjs'
+import type { MiddlewareHandler } from "hono";
+
+type Variables = {
+  admin_store_id: string;
+};
+
+
+const requireAdmin: MiddlewareHandler<{ Bindings: Env; Variables: Variables }> = async (c, next) => {
+  const auth = c.req.header("Authorization") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+
+  const payload = verifyAdminToken(token); // { store_id } or null
+  if (!payload) return c.json({ ok: false, error: "Unauthorized" }, 401);
+
+  c.set("admin_store_id", payload.store_id);
+  await next();
+};
+
+
 
 // 　週✖️店舗の提出一覧
-app.get('/api/admin/submissions', async (c) => {
-  const storeId = c.req.query('store_id')?.trim();
-  const weekStart = c.req.query('week_start')?.trim();
+app.get('/api/admin/submissions', requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const weekStart = c.req.query("week_start")?.trim();
 
-  if (!storeId || !weekStart) {
-    return c.json({ ok: false, error: 'store_id and week_start required' }, 400)
+  if (!weekStart) {
+    return c.json({ ok: false, error: "week_start required" }, 400);
+  }
+
+  //employees (在籍者)
+  const empRes = await supabase
+    .from("employees")
+    .select("employee_id, employee_name")
+    .eq("store_id", storeId)
+    .eq("is_active", true)
+    .order("employee_id", { ascending: true });
+
+  if (empRes.error) { 
+    return c.json ({ ok: false, error: empRes.error.message }, 500);
+  }
+
+  //submissions (その週だけ)
+  const subRes = await supabase
+    .from("shift_submissions")
+    .select("employee_id, status, submitted_at, updated_at, created_at")
+    .eq("store_id", storeId)
+    .eq("week_start", weekStart);
+
+  if (subRes.error) {
+    return c.json({ ok: false, error: subRes.error.message }, 500);
+  }
+
+  const subMap = new Map((subRes.data ?? []).map((s) => [s.employee_id, s]));
+
+  const rows = (empRes.data ?? []).map((e) => {
+    const s = subMap.get(e.employee_id);
+    return {
+      employee_id: e.employee_id,
+      employee_name: e.employee_name,
+      status: s?.status ?? "not_submitted",
+      submitted_at: s?.submitted_at ?? null,
+      updated_at: s?.updated_at ?? null,
+      created_at: s?.created_at ?? null,
+    };
+  });
+
+  return c.json({ ok: true, rows});
+});
+
+//提出内容取得（１人）
+app.get("/api/admin/submission", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id") as string;
+  const employeeId = c.req.query("employee_id")?.trim();
+  const weekStart = c.req.query("week_start")?.trim();
+
+  if (!employeeId || !weekStart) {
+    return c.json({ ok: false, error: "employee_id and week_start required" }, 400);
   }
 
   const { data, error } = await supabase
-    .from('shift_submissions')
-    .select('id, store_id, employee_id, employee_name, week_start, status, submitted_at, updated_at, created_at')
-    .eq('store_id', storeId)
-    .eq('week_start', weekStart)
-    .order('employee_id', { ascending: true })
+    .from("shift_submissions")
+    .select("store_id, employee_id, employee_name, week_start, data, status, submitted_at, updated_at, created_at")
+    .eq("store_id", storeId)
+    .eq("employee_id", employeeId)
+    .eq("week_start", weekStart)
+    .maybeSingle();
 
-  if (error) {
-    return c.json({ ok: false, error: error.message }, 500)
-  }
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  if (!data) return c.json({ ok: false, error: "not found" }, 404);
 
-  return c.json({ ok: true, submissions: data ?? [] })
-})
+  return c.json({ ok: true, submission: data });
+});
+
+
+
 
 //簡易トークン
 function generateToken() {
@@ -218,6 +336,99 @@ app.post('/api/login', async (c) => {
 })
 
 //server.ts (4) から　
+type Env = {
+  ADMIN_PASSWORD: string;
+  ADMIN_TOKEN: string;
+};
+
+app.get("/api/public/stores", async (c) => {
+  const { data, error } = await supabase
+    .from("stores")
+    .select("id, name")
+    .order("id", { ascending: true });
+
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, stores: data ?? [] });
+});
+
+/*function requireAdmin(c: any, next: any) {
+  const auth = c.req.header("Authorization") ?? ""; // ← header()
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  const verified = token ? verifyAdminToken(token) : null;
+
+  if (!verified) {
+    return c.json({ ok: false, error: "Unauthorized" }, 401);
+  }
+
+  c.set("admin_store_id", verified.store_id);
+  return next();
+
+
+}*/
+
+//店舗一覧API
+app.get("/api/admin/stores", async (c) => {
+  const { data, error } = await supabase
+    .from("stores")
+    .select("id, name")
+    .order("id", {ascending: true});
+  
+    if (error) return c.json({ ok: false, error: error.message }, 500);
+    return c.json({ ok: true, stores: data ?? [] });
+});
+
+
+
+//ログイン
+app.post("/api/admin/login", async (c) => {
+  const body = (await c.req.json().catch(() => null)) as
+    | { password?: string; store_id?: string }
+    | null;
+  
+    const password = (body?.password ?? "").trim();
+    const storeId = (body?.store_id ?? "").trim();
+    const expectedPw = (process.env.ADMIN_PASSWORD ?? "").trim();
+
+    if (!storeId) return c.json({ ok: false, error: "店舗を選択してください" }, 400);
+    if (!password) return c.json({ ok: false, error: "パスワードが必要です" }, 400);
+    if (password !== expectedPw) return c.json({ ok: false, error: "パスワードが違います" }, 401);
+
+    console.log("[admin/login] expectedPw=", JSON.stringify(expectedPw), "len=", expectedPw.length);
+    console.log("[admin/login] gotPw     =", JSON.stringify(password), "len=", password.length);
+
+    //store_id　が実在するかチェック（不正store_idでトークン発酵させない）
+    const { data: store, error } = await supabase
+      .from("stores")
+      .select("id")
+      .eq("id", storeId)
+      .maybeSingle();
+
+    if (error) return c.json({ ok: false, error: error.message }, 500);
+    if (!store) return c.json({ ok: false, error: "不正な店舗です" }, 400);
+
+    const got = password.trim();
+    const exp = expectedPw.trim();
+
+    console.log("[admin/login] expTrimLen=", exp.length, "gotTrimLen=", got.length);
+
+
+    const token = issueAdminToken({ store_id: storeId });
+    return c.json({ ok: true, token});
+});
+
+
+
+// エラー確認
+app.onError((err, c) => {
+  console.error(err);
+  return c.json({ error: "Internal Server Error", detail: String(err) }, 500);
+});
+
+
+
+
+export default app;
+
 
 
 

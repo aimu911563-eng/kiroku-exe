@@ -1,8 +1,34 @@
+//import { Style } from "hono/css";
+//import { resolve } from "node:dns";
+//import { escape } from "node:querystring";
 
 console.log("ShiftFlow main.ts 読み込み完了:)");
 
 type ShiftDayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 type ShiftData = Record<ShiftDayKey, string>;
+type StoreId = "terajima" | "kosai" | "hamakita"; //寺島、湖西、浜北
+type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+const BUSINESS_HOURS: Record<StoreId, {
+  weekday: { open: string; close: string };
+  weekendHoliday: { open: string; close: string };
+}> = {
+  "terajima": { weekday:{open:"10:00",close:"23:00"}, weekendHoliday:{open:"10:00",close:"24:00"} },
+  "hamakita": { weekday:{open:"10:00",close:"21:00"}, weekendHoliday:{open:"10:00",close:"22:00"} },
+  "kosai": { weekday:{open:"15:00",close:"22:00"}, weekendHoliday:{open:"10:00",close:"22:00"} },
+} satisfies Record<StoreId, {
+  weekday: { open: string; close: string };
+  weekendHoliday: { open: string; close: string };
+}>;
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 type ShiftSubmission = {
   store_id: string;
@@ -11,7 +37,6 @@ type ShiftSubmission = {
   week_start: string;
   data: Record<string, string>;
 };
-
 
 // DOM要素
 const shiftForm = document.getElementById("shiftForm") as HTMLFormElement;
@@ -33,6 +58,18 @@ const storePreview = document.getElementById(
 const shiftInputs = document.querySelectorAll<HTMLInputElement>(
   "input[data-day][data-kind]"
 );
+
+const holidayToggle = document.getElementById("holidayToggle") as HTMLInputElement | null;
+const hoursPreview = document.getElementById("hoursPreview") as HTMLParagraphElement | null;
+
+const confirmOverlay = document.getElementById("confirmOverlay") as HTMLDivElement | null;
+const confirmSummary = document.getElementById("confirmSummary") as HTMLDivElement | null;
+const confirmCloseBtn = document.getElementById("confirmCloseBtn") as HTMLButtonElement | null;
+const confirmCancelBtn = document.getElementById("confirmCancelBtn") as HTMLButtonElement | null;
+const commentEl = document.getElementById("comment") as HTMLTextAreaElement | null;
+const confirmSubmitBtn = document.getElementById("confirmSubmitbtn") as HTMLButtonElement 
+
+
 
 // 今週の月曜
 function getThisMonday(date = new Date()): Date {
@@ -98,6 +135,171 @@ shiftInputs.forEach((input) => {
   input.addEventListener("change", () => snapToFiveMinutes(input));
   input.addEventListener("blur", () => snapToFiveMinutes(input));
 });
+
+//週表示＋曜日一覧
+function formatWeekRange(weekStartISO: string) {
+  const d = new Date(weekStartISO);
+  if (Number.isNaN(d.getTime())) return "";
+  const end = new Date(d);
+  end.setDate(end.getDate() + 6);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}~${pad(end.getMonth() + 1)}/${pad(end.getDate())}`;
+}
+
+function buildConfirmHtml(payload: {
+  store_id: string;
+  employee_id: string;
+  employee_name: string;
+  week_start: string;
+  data: Record<string, string>;
+  is_holiday: boolean;
+  comment: string,
+}) {
+  const days = [
+    ["mon", "月"], ["tue", "火"], ["wed", "水"], ["thu", "木"], ["fri", "金"], ["sat", "土"], ["sun", "日"],
+  ] as const;
+
+  const rows = days.map(([k, label]) => {
+    const v = (payload.data?.[k] ?? "").trim() || "-";
+    return `
+      <tr>
+        <td style="border: 1px solid #ddd; padding: 8px; width: 90px;">${label}</td>
+        <td style="border: 1px solid #ddd; padding: 8px;">${v}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const range = formatWeekRange(payload.week_start);
+  const comment = (payload.comment ?? "").trim();
+
+  return `
+    <div style="display: flex; gap:12px; flex-wrap:wrap; margin-bottom: 10px;">
+      <div><b>従業員</b>: ${payload.employee_name} (${payload.employee_id}) </div>
+      <div><b>店舗</b>: ${payload.store_id}</div>
+      <div><b>週</b>: ${payload.week_start} (${range}) </div>
+      <div><b>祝日扱い</b>: ${payload.is_holiday ? "ON" : "OFF"}</div>
+    </div>
+    
+    <table style="width: 100px; border-collapse:collaose;">
+      <thead>
+        <tr>
+          <th style="border: 1px solid #ddd; padding: 8px;">曜日</th>
+          <th style="border: 1px solid #ddd; padding: 8px;">時間</th>
+        </th>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top: 10px";>
+      <b>コメント</b><br/>
+      <div style="white-space-wrap; border: 1px solid #ddd padding: 8px; border-redius: 8px;">
+        ${escapeHtml(comment)}
+      </div>
+    </div>
+    <p style="margin-top: 10px; font-size: 12px; color: #666;">
+      *間違っていたら「戻る」で修正してから提出してください
+    </p>
+  `;
+}
+
+//モーダルの開閉
+function openConfirm(payload: any): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!confirmOverlay || !confirmSummary || !confirmSubmitBtn ||  !confirmCancelBtn || !confirmCloseBtn) {
+      resolve(window.confirm("この内容で提出しますか？"));
+      return;
+    }
+
+    confirmSummary.innerHTML = buildConfirmHtml(payload);
+
+    const cleanup = () => {
+      confirmOverlay.style.display = "none";
+      confirmSubmitBtn.onclick = null;
+      confirmCancelBtn.onclick = null;
+      confirmCloseBtn.onclick = null;
+      confirmOverlay.onclick = null;
+      document.removeEventListener("keydown", onkeydown);
+    };
+
+    const onkeydown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        cleanup();
+        resolve(false);
+      }
+    };
+
+    confirmSubmitBtn.onclick = () => { cleanup(); resolve(true); };
+    confirmCancelBtn.onclick = () => { cleanup(); resolve(false); };
+    confirmCloseBtn.onclick= () => { cleanup(); resolve(false); };
+
+    //背景クリックで閉じる
+    confirmOverlay.onclick = (e) => {
+      if (e.target === confirmOverlay) {
+        cleanup();
+        resolve(false);
+      }
+    };
+
+    document.addEventListener("keydown", onkeydown);
+    confirmOverlay.style.display = "block";
+  });
+}
+
+
+// 営業時間　金土日祝変更可能
+function isWeekend(day: DayKey) {
+  return day === "sat" || day === "sun";
+}
+ function applyBusinessHoursToTimeInputs(storeId: string, isHoliday: boolean) {
+  const def = BUSINESS_HOURS[storeId as StoreId];
+  if (!def) return;
+
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+  days.forEach((day) => {
+    const rule = (isWeekend(day) || isHoliday) ? def.weekendHoliday : def.weekday;
+    const min = rule.open;
+    const max = rule.close === "24:00" ? "23:59" : rule.close;
+
+    document.querySelectorAll<HTMLInputElement>(`input[type="time"][data-day="${day}"][data-kind]`)
+      .forEach((el) => {
+        el.min = min;
+        el.max = max;
+        el.step = "300";
+      });
+  });
+
+  if (hoursPreview) {
+    const w = def.weekday, h = def.weekendHoliday;
+    hoursPreview.textContent = `営業時間（平日 ${w.open}~${w.close} / 金土日祝 ${h.open}~${h.close} ` +
+    (isHoliday ? " ← 祝日ON" : "");
+  }
+}
+
+holidayToggle?.addEventListener("change", () => {
+  if (!currentEmployee) return;
+  applyBusinessHoursToTimeInputs(currentEmployee.store_id, holidayToggle.checked);
+});
+
+//削除ボタン
+function clearDay(day: DayKey) {
+  document.querySelectorAll<HTMLInputElement>(
+    `input[type="time"][data-day="${day}"][data-kind]`
+  ).forEach((el) => {
+    el.value = "";
+    el.setCustomValidity("");
+  });
+}
+
+document.querySelectorAll<HTMLButtonElement>("[data-clear-day]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const day = btn.dataset.clearDay as DayKey | undefined;
+    if (!day) return;
+    clearDay(day)
+  })
+})
+
+
+
 
 // シフトデータ収集
 function collectShiftData(): ShiftData {
@@ -187,6 +389,13 @@ async function updateEmployeeAutoFill() {
 
   currentEmployee = result.employee;
 
+  // 従業員が確定したら営業時間の制限を適用
+  applyBusinessHoursToTimeInputs(
+    currentEmployee.store_id as StoreId,
+    !!holidayToggle?.checked
+  );
+
+
   let lastLoadedKey = ""
 
   async function loadExistingSubmissionIfAny() {
@@ -198,12 +407,21 @@ async function updateEmployeeAutoFill() {
     if (key === lastLoadedKey) return;
     lastLoadedKey = key;
   }
-  
+
+  const prevEmployeeId = currentEmployee?.employee_id;
+
+  currentEmployee = result.employee;
+
+  //従業員が変わったら一旦クリア
+  if (prevEmployeeId && prevEmployeeId !== currentEmployee.employee_id) {
+    clearShiftInputs();
+  }
+
   await loadExistingSubmissionIfAny();
 }
 
 //shiftDate → time inputへ反映
-function applyShiftDataToInputs(data: Record<string, string>) {
+function applyBusinessHoursToInputs(data: Record<string, string>) {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
   days.forEach((day) => {
@@ -260,13 +478,16 @@ async function loadExistingSubmissionIfAny() {
   const json = (await res.json()) as GetShiftRes;
 
   if (!json.ok) {
-    if (res.status === 404) return ;
+    if (res.status === 404) {
+      clearShiftInputs();
+      return;
+    }
     console.error("loadExistingSubmission error:", json);
     return;
   }
 
   const submission = json.submission;
-  applyShiftDataToInputs(submission.data ?? {});
+  applyBusinessHoursToInputs(submission.data ?? {});
   updatePreview(submission);
 }
 
@@ -295,45 +516,67 @@ shiftForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  // まだDB取得できてないなら、送信前に一回取得して確定させる
   if (!currentEmployee || currentEmployee.employee_id !== employeeId) {
     await updateEmployeeAutoFill();
   }
-
   if (!currentEmployee) {
     alert("従業員番号が見つからないので送信できません");
     return;
   }
 
-  const weekStart = weekStartInput.value;
-  const shifts = collectShiftData();
-
   const payload = {
     store_id: currentEmployee.store_id,
     employee_id: currentEmployee.employee_id,
     employee_name: currentEmployee.employee_name,
-    week_start: weekStart,
-    data: shifts,
+    week_start: weekStartInput.value,
+    data: collectShiftData(),
+    is_holiday: !!holidayToggle?.checked,
+    comment: (commentEl?.value ?? "").trim(), 
   };
 
-  updatePreview(payload);
+  const ok = await openConfirm(payload);
+  if (!ok) return;
 
-  const res = await fetch("/api/shifts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+  const submitBtn = shiftForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+  submitBtn && (submitBtn.disabled = true);
+
+  try {
+    const res = await fetch("/api/shifts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.ok) {
+      alert(`送信に失敗しました: ${json?.error ?? `HTTP ${res.status}`}`);
+      return;
+    }
+
+    alert("シフト提出完了:)");
+  } finally {
+    submitBtn && (submitBtn.disabled = false);
+  }
+});
+
+
+//従業員が切り替わった時に全入力クリア⇨既存提出があれば上書き
+function clearShiftInputs() {
+  const days = ["mon","tue","wed","thu","fri","sat","sun"] as const;
+
+  days.forEach((day) => {
+    const startEl = document.querySelector<HTMLInputElement>(
+      `input[type="time"][data-day="${day}"][data-kind="start"]`
+    );
+    const endEl = document.querySelector<HTMLInputElement>(
+      `input[type="time"][data-day="${day}"][data-kind="end"]`
+    );
+    if (startEl) startEl.value = "";
+    if (endEl) endEl.value = "";
   });
 
-  const json = await res.json();
-  console.log("api result:", json);
-
-  if (!json.ok) {
-    alert(`送信に失敗しました: ${json.error ?? "unknown error"}`);
-    return;
-  }
-
-  alert("シフト提出完了:)");
-});
+  updatePreview({}); 
+}
 
 // 初期化
 function normalizeToMondayISO(anyDateISO: string): string {
@@ -366,6 +609,7 @@ weekStartInput.addEventListener("change", async () => {
   //週が確定したら既存提出を読み込む
   await loadExistingSubmissionIfAny();
 });
+
 
 initWeekStart();
 
