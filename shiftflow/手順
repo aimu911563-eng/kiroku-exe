@@ -9,3 +9,5 @@ npm run dev:api
 
 git config user.name "aimu911563"
 git config user.email "aimu911563@gmail.com"
+
+updateEmployeeAutoFill()

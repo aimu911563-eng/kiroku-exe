@@ -1,0 +1,339 @@
+.linkLike { 
+    text-decoration: underline; 
+    cursor: pointer; 
+    background: none; 
+    border: none; 
+    padding: 0; 
+}
+
+* { box-sizing: border-box; }
+
+.modalOverlay { 
+    position: fixed; 
+    inset: 0; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    background: rgba(251, 250, 250, 0.45); 
+}
+.modalCard { 
+    width: min(520px, 92vw); 
+    background: #000000; 
+    color: #fff; 
+    border-radius: 14px; 
+    padding: 16px; 
+}
+
+.modalCard label { 
+    display: block; 
+    margin-top: 10px; 
+}
+.modalCard input { 
+    width: 100%; 
+    padding: 10px; 
+    border-radius: 10px; 
+    border: 1px solid #333; 
+    background: #0b0b0b; 
+    color: #fff; 
+}
+.modalActions { 
+    display: flex; 
+    gap: 8px; 
+    justify-content: flex-end; 
+    margin-top: 14px; 
+}
+.errorText { 
+    color: #ff6b6b; 
+    margin-top: 10px; 
+}
+.hidden { 
+    display: none; 
+}
+tr.is-not-submitted td {
+  background: #fff5f5;
+}
+tr.is-not-submitted:hover td {
+  filter: brightness(0.98);
+}
+
+tbody tr:hover td {
+  background: #f7f9fb;
+}
+tbody tr:hover td:last-child {
+  color: #333;
+}
+
+.toolbarRight {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn:hover {
+  filter: brightness(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn, .input {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.input {
+  display: inline-flex;
+  align-items: center;
+  /* date inputは中身が特殊だから line-height 指定しない */
+  line-height: normal;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.btnPrimary {
+  background: #2e7d32;
+  color: #fff;
+  border-color: #2e7d32;
+}
+
+.btnGhost {
+  background: #f7f7f7;
+  color: #555;
+}
+
+/* 従業員側 */
+
+/* ページ全体 */
+.page {
+  max-width: 720px;      /* ← ここがキモ */
+  margin: 32px auto;     /* 中央寄せ */
+  padding: 0 16px;
+}
+
+/* カード */
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  margin: 16px 0;
+}
+
+/* タイトルだけは軽く中央寄せもアリ */
+.title {
+  text-align: center;
+}
+
+/* フォーム中身は左揃え */
+.card label,
+.card input,
+.card textarea,
+.card table {
+  text-align: left;
+}
+
+/* 提出ボタンだけ少し目立たせる */
+.card button[type="submit"] {
+  margin-top: 16px;
+}
+
+.submitWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.page {
+  max-width: 640px; 
+  margin: 32px auto;
+}
+
+.section {
+  background: #fafafa;
+  border-radius: 16px;
+  padding: 16px;
+  margin: 20px 0;
+}
+
+#shiftTable td:first-child {
+  font-weight: 600;
+  color: #444;
+  width: 32px;
+}
+
+.time-range button {
+  background: #f3f3f3;
+  color: #555;
+  font-size: 12px;
+}
+
+.loginWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}
+
+/* カード本体 */
+.loginCard {
+  max-width: 320px;   
+  text-align: left;   
+}
+
+/* ラベル */
+.loginCard label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+/* 入力 */
+.loginCard input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.loginCard input {
+  width: 100%;
+  height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+/* ボタンエリア */
+.loginActions {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* ログインボタンは小さめ */
+.loginActions button {
+  padding: 8px 20px;
+  font-size: 14px;
+}
+
+
+#shiftTable td:first-child {
+  white-space: nowrap;
+}
+#shiftTable td:first-child .date {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #666;
+}
+
+#tableWrap{
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#tableWrap table{
+  min-width: 700px;
+  width: 100%;
+}
+
+
+
+/* スマホ */
+@media (max-width: 700px){
+  .toolbarLeft{ flex: 1 1 100%; }
+  .toolbarRight{
+    flex: 1 1 100%;
+    justify-content:flex-end;
+  }
+
+  /* 入力が縮みすぎないように */
+  .toolbarRight .input{
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 700px){
+  .toolbar{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .toolbarLeft,
+  .toolbarRight{
+    width: 100%;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* 上段：サマリ/ログアウトは左寄せ */
+  .toolbarLeft{ justify-content: flex-start; }
+
+  /* 下段：日付 + 提出一覧は右寄せ（見た目が安定） */
+  .toolbarRight{ justify-content: flex-end; }
+
+  /* 日付入力が潰れないように最低幅 */
+  .toolbarRight .input{
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 700px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbarLeft,
+  .toolbarRight {
+    width: 100%;
+    margin-left: 0;   /* ← これが超重要 */
+  }
+
+  .toolbarLeft {
+    justify-content: flex-start;
+  }
+
+  .toolbarRight {
+    justify-content: flex-end;
+  }
+}
+
+
+

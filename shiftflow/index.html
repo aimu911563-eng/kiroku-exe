@@ -4,153 +4,238 @@
     <meta charset="UTF-8" />
     <title>ShiftFlow - シフト提出</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css" />
   </head>
+
   <body>
-    <main id="app">
-      <h1>ShiftFlow - シフト提出フォーム</h1>
+    <main id="app" class="page">
+      <header class="topbar">
+        <h1 class="title">ShiftFlow</h1>
+
+        <div id="userBar" class="userbar" style="display: none; margin: 8px 0;">
+          <span id="loginUserLabel"></span>
+          <button id="employeeLogoutBtn" type="button" class="btn btnGhost" style="margin-left: 8px;">
+            ログアウト
+          </button>
+        </div>
+      </header>
 
       <!-- シフト提出フォーム -->
       <form id="shiftForm">
+        <p id="submitStatus" style="margin: 8px 0; font-weight: bold;"></p>
 
-        <!-- ここは後でログインに置き換える想定。今はデバッグ用表示だけ -->
-        <div>
-          <label for="employeeId">従業員番号（デバッグ用）</label>
-          <input
-            id="employeeId"
-            name="employeeId"
-            type="text"
-            placeholder="例: 7249xxxx"
-          />
-          <input id="employeeName" type="text" placeholder="自動反映" readonly />
-          <p id="storePreview" class="hint"></p>
+        <!-- ログイン -->
+        <section class="loginWrap">
+        <section id="loginArea" class="cord loginCard">
+          <div>
+            <label for="employeeId">従業員番号</label>
+            <input
+              id="employeeId"
+              name="employeeId"
+              type="text"
+              class="input"
+              placeholder="例: 7249xxxx"
+            />
+            <p id="storePreview" class="hint"></p>
+
+            <label style="display:block; margin: 8px 0 4px;">パスワード（4桁）</label>
+            <div class="row" style="display:flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <input
+                id="pinInput"
+                class="input"
+                inputmode="numeric"
+                maxlength="4"
+                placeholder="例: 0123"
+              />
+              <div class="loginActions">
+                <button id="employeeLoginBtn" type="button" class="btn btnPrimary loginButton">
+                  ログイン
+                </button>
+              </div>
+            </div>
+
+            <p id="employeeAuthMsg" style="margin: 8px 0; color: #b00;"></p>
+          </div>
+        </section>
+        </section>
+
+
+        <hr style="margin: 12px 0;" />
+
+        <div id="deadlineBox" style="margin:12px 0; font-size: 14px;">
+          <div id="deadlineLine" style="color: #333;"></div>
+          <div id="deadlineWarn" class="hidden" style="margin-top: 6px; color: #b00; font-weight: 600;"></div>
         </div>
 
         <!-- 対象週（週の開始日＝月曜日） -->
-        <div>
-          <label for="weekStart">対象週（週の開始日：月曜日）</label>
-          <input id="weekStart" name="weekStart" type="date" required />
-          <p id="weekLabel" class="hint"></p>
-        </div>
-        <label style="display: flex; gap: 8px; align-items: center; margin: 8px 0;">
-          <input id="holidayToggle" type="checkbox" />
-          祝日扱い（営業時間を「金土日祝」にする）
-        </label>
-        <p id="hoursPreview" style="margin: 4px 0; color: #666; font-size: 12px;"></p>
+        <section id="shiftArea" class="card" style="display: none;">
+          <div>
+            <label for="weekStart">対象週（週の開始日：月曜日）</label>
+            <input id="weekStart" name="weekStart" type="date" class="input" required />
+            <p id="weekLabel" class="hint"></p>
+          </div>
 
-        <!-- シフト入力テーブル -->
-        <section>
-          <h2>シフト入力</h2>
-          <table id="shiftTable">
-            <thead>
-              <tr>
-                <th>曜日</th>
-                <th>希望時間帯（例: 17:00-21:00）</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>月</td>
-                <td class="time-cell">
-                  <div class="time-range">
-                    <input type="time" data-day="mon" data-kind="start" step="300" />
-                    <span class="time-separator">~</span>
-                    <input type="time" data-day="mon" data-kind="end" step="300" />
-                    <button type="button" data-clear-day="mon">削除</button>
-                  </div>
-                </td>
-              </tr>
-                <td>火</td>
-                <td class="time-cell">
-                  <div class="time-range">
-                    <input type="time" data-day="tue" data-kind="start" step="300" />
-                    <span class="time-separator">~</span>
-                    <input type="time" data-day="tue" data-kind="end" step="300" />
-                    <button type="button" data-clear-day="tue">削除</button>
-                  </div>
-                </td>
-              </tr>
-                <td>水</td>
-                <td class="time-cell">
-                  <div class="time-range">
-                    <input type="time" data-day="wed" data-kind="start" step="300" />
-                    <span class="time-separator">~</span>
-                    <input type="time" data-day="wed" data-kind="end" step="300" />
-                    <button type="button" data-clear-day="wed">削除</button>
-                  </div>
-                </td>
-              </tr>
-                <td>木</td>
-                <td class="time-cell">
-                  <div class="time-range">
-                    <input type="time" data-day="thu" data-kind="start" step="300" />
-                    <span class="time-separator">~</span>
-                    <input type="time" data-day="thu" data-kind="end" step="300" />
-                    <button type="button" data-clear-day="thu">削除</button>
-                  </div>
-                </td>
-              </tr>
-                <td>金</td>
-                <td class="time-cell">
-                  <div class="time-range">
-                    <input type="time" data-day="fri" data-kind="start" step="300" />
-                    <span class="time-separator">~</span>
-                    <input type="time" data-day="fri" data-kind="end" step="300" />
-                    <button type="button" data-clear-day="fri">削除</button>
-                  </div>
-                </td>
-              </tr>
-                <td>土</td>
-                <td class="time-cell">
-                  <div class="time-range">
-                    <input type="time" data-day="sat" data-kind="start" step="300" />
-                    <span class="time-separator">~</span>
-                    <input type="time" data-day="sat" data-kind="end" step="300" />
-                    <button type="button" data-clear-day="sat">削除</button>
-                  </div>
-                </td>
-              </tr>
-                <td>日</td>
-                <td class="time-cell">
-                  <div class="time-range">
-                    <input type="time" data-day="sun" data-kind="start" step="300" />
-                    <span class="time-separator">~</span>
-                    <input type="time" data-day="sun" data-kind="end" step="300" />
-                    <button type="button" data-clear-day="sun">削除</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <label style="display: flex; gap: 8px; align-items: center; margin: 8px 0;">
+            <input id="holidayToggle" type="checkbox" />
+            祝日扱い（営業時間を「金土日祝」にする）
+          </label>
+
+          <p id="hoursPreview" style="margin: 4px 0; color: #666; font-size: 12px;"></p>
+
+          <!-- シフト入力テーブル -->
+          <section>
+            <div class="section">
+            <h2 style="margin: 12px 0 8px;">シフト入力</h2>
+
+            <table id="shiftTable">
+              <thead>
+                <tr>
+                  <th>曜日</th>
+                  <th>希望時間帯（例: 17:00-21:00）</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr>
+                  <td>月</td>
+                  <td class="time-cell">
+                    <div class="time-range">
+                      <input type="time" data-day="mon" data-kind="start" step="300" class="input" />
+                      <span class="time-separator">~</span>
+                      <input type="time" data-day="mon" data-kind="end" step="300" class="input" />
+                      <button type="button" data-clear-day="mon" class="btn btnGhost">削除</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>火</td>
+                  <td class="time-cell">
+                    <div class="time-range">
+                      <input type="time" data-day="tue" data-kind="start" step="300" class="input" />
+                      <span class="time-separator">~</span>
+                      <input type="time" data-day="tue" data-kind="end" step="300" class="input" />
+                      <button type="button" data-clear-day="tue" class="btn btnGhost">削除</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>水</td>
+                  <td class="time-cell">
+                    <div class="time-range">
+                      <input type="time" data-day="wed" data-kind="start" step="300" class="input" />
+                      <span class="time-separator">~</span>
+                      <input type="time" data-day="wed" data-kind="end" step="300" class="input" />
+                      <button type="button" data-clear-day="wed" class="btn btnGhost">削除</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>木</td>
+                  <td class="time-cell">
+                    <div class="time-range">
+                      <input type="time" data-day="thu" data-kind="start" step="300" class="input" />
+                      <span class="time-separator">~</span>
+                      <input type="time" data-day="thu" data-kind="end" step="300" class="input" />
+                      <button type="button" data-clear-day="thu" class="btn btnGhost">削除</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>金</td>
+                  <td class="time-cell">
+                    <div class="time-range">
+                      <input type="time" data-day="fri" data-kind="start" step="300" class="input" />
+                      <span class="time-separator">~</span>
+                      <input type="time" data-day="fri" data-kind="end" step="300" class="input" />
+                      <button type="button" data-clear-day="fri" class="btn btnGhost">削除</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>土</td>
+                  <td class="time-cell">
+                    <div class="time-range">
+                      <input type="time" data-day="sat" data-kind="start" step="300" class="input" />
+                      <span class="time-separator">~</span>
+                      <input type="time" data-day="sat" data-kind="end" step="300" class="input" />
+                      <button type="button" data-clear-day="sat" class="btn btnGhost">削除</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>日</td>
+                  <td class="time-cell">
+                    <div class="time-range">
+                      <input type="time" data-day="sun" data-kind="start" step="300" class="input" />
+                      <span class="time-separator">~</span>
+                      <input type="time" data-day="sun" data-kind="end" step="300" class="input" />
+                      <button type="button" data-clear-day="sun" class="btn btnGhost">削除</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </section>
+
+          <h3 style="margin: 14px 0 8px;">連絡事項（任意）</h3>
+          <textarea
+            id="comment"
+            rows="3"
+            placeholder="例：テスト期間なので平日は短め希望です"
+            maxlength="300"
+            class="input"
+            style="width: 100%; max-width: 520px;"
+          ></textarea>
+          <div id="commentCount" class="muted">0/300</div>
+
+          <div class="submitWrap">
+            <div id="deadlineLine" style="margin: 6px 0; font-size: 13px; color: #333;"></div>
+            <div id="deadlineWarn" class="hidden" style="margin:6px 0; color:#b00; font-size:13px;"></div>
+            <div style="margin-top: 12px;">
+              <button type="submit" class="btn btnPrimary">シフトを提出する</button>
+            </div>
+          </div>
         </section>
-        <h3>連絡事項（任意）</h3>
-        <textarea id="comment" rows="3" placeholder="例：テスト期間なので平日は短め希望です" style="width: 100%; max-width: 420px;"></textarea>
-
-        <button type="submit">シフトを提出する</button>
       </form>
 
-      <!-- 送信内容のプレビュー -->
-      <section>
-        <h2>送信プレビュー</h2>
-        <pre id="preview">{}</pre>
+      <!-- 送信内容のプレビュー（デバッグ） -->
+      <section class="card">
+        <details>
+          <summary class="muted">送信プレビュー（デバッグ）</summary>
+          <pre id="preview">{}</pre>
+        </details>
       </section>
     </main>
-    
-    <div id="confirmOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 9999;">
-      <div style="max-width: 720px; margin: 8vh auto; background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.2);">
+
+    <!-- 確認モーダル -->
+    <div
+      id="confirmOverlay"
+      style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 9999;"
+    >
+      <div
+        style="max-width: 720px; margin: 8vh auto; background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.2);"
+      >
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
           <h3 style="margin: 0; font-size: 18px;">この内容で提出しますか？</h3>
-          <button id="confirmCloseBtn" type="button" style="padding: 8px 12px;">閉じる</button>
+          <button id="confirmCloseBtn" type="button" class="btn btnGhost">閉じる</button>
         </div>
 
         <div id="confirmSummary" style="margin-top: 12px; font-size: 14px;"></div>
 
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px;">
-          <button id="confirmCancelBtn" type="button" style="padding: 10px 14px;">戻る</button>
-          <button id="confirmSubmitBtn" type="button" style="padding: 10px 14px;">この内容で提出</button>
+          <button id="confirmCancelBtn" type="button" class="btn btnGhost">戻る</button>
+          <button id="confirmSubmitBtn" type="button" class="btn btnPrimary">この内容で提出</button>
         </div>
       </div>
+    </div>
+
     <script type="module" src="./src/main.ts"></script>
   </body>
-
-
 </html>

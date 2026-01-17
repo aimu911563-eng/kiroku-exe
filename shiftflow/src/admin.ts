@@ -1,4 +1,3 @@
-//import { combineAfterGenerateHooks } from "hono/ssg";
 
 const TOKEN_KEY = "shiftflow_admin_token";
 console.log("admin.tsを読み込みできた：）", TOKEN_KEY);
@@ -22,6 +21,31 @@ const detailModal = document.getElementById("detailModal") as HTMLDivElement;
 const detailCloseBtn = document.getElementById("detailCloseBtn") as HTMLButtonElement;
 const detailTitle = document.getElementById("detailTitle") as HTMLHeadingElement;
 const detailBody = document.getElementById("detailBody") as HTMLDivElement;
+//const commentWrap = document.getElementById("commentWrap") as HTMLDivElement | null;
+//const commentBox = document.getElementById("commentBox") as HTMLDivElement | null;
+const summaryLine = document.getElementById("summaryLine") as HTMLDivElement | null;
+
+function renderSummary(rows: Row[]) {
+  if (!summaryLine) return;
+
+  const counts = { not_submitted: 0, submitted: 0, updated: 0, other: 0 };
+  for (const r of rows) {
+    if (r.status === "not_submitted") counts.not_submitted++;
+    else if (r.status === "submitted") counts.submitted++;
+    else if (r.status === "updated") counts.updated++;
+    else counts.other++;
+  }
+
+  const parts = [
+    `未提出: <b>${counts.not_submitted}</b>`,
+    `提出済: <b>${counts.submitted}</b>`,
+    `更新済: <b>${counts.updated}</b>`,
+  ];
+  if (counts.other) parts.push(`その他: <b>${counts.other}</b>`);
+
+  summaryLine.innerHTML = `合計: <b>${rows.length}</b> | ${parts.join(" | ")}`;
+}
+
 
 function openModal() {
   detailModal.style.display = "flex";
@@ -34,6 +58,23 @@ detailCloseBtn.addEventListener("click", closeModal);
 detailModal.addEventListener("click", (e) => {
   if (e.target === detailModal) closeModal(); // 背景クリックで閉じる
 });
+
+function renderComment( 
+  wrap: HTMLDivElement | null,
+  box: HTMLDivElement | null,
+  comment: string | null,
+) {
+    if (!wrap || !box) return;
+
+    const text = (comment ?? "").trim();
+    if (text) {
+        wrap.style.display = "block";
+        box.textContent = text;
+    } else {
+        wrap.style.display = "none";
+        box.textContent = "";
+    }
+}
 
 //日時フォーマッタ（JST固定）
 function formatJPDateTime(iso?: string) {
@@ -51,35 +92,40 @@ function formatJPDateTime(iso?: string) {
   return `${y}/${m}/${day}(${w}) ${hh}:${mm}`;
 }
 
-
 //今週の月曜日に合わせる
-function getThisMonday(date = new Date()): Date {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = d.getDay();
-  const diff = (day + 6) % 7;
-  d.setDate(d.getDate() - diff);
-  return d;
-}
-function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-function normalizeToMondayISO(anyDateISO: string): string {
-  const d = new Date(anyDateISO);
-  if (Number.isNaN(d.getTime())) return anyDateISO;
-  return toISODate(getThisMonday(d));
+
+function normalizeToMondayISO(ymd: string) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const base = new Date(y, m - 1, d); // ローカル日付で作る
+
+  const day = base.getDay(); // 0=日, 1=月
+  const diff = (day === 0 ? -6 : 1 - day); // 月曜に寄せる
+  base.setDate(base.getDate() + diff);
+
+  const yy = base.getFullYear();
+  const mm = String(base.getMonth() + 1).padStart(2, "0");
+  const dd = String(base.getDate()).padStart(2, "0");
+
+  return `${yy}-${mm}-${dd}`; // ★これだけ返す
 }
 
+
+const STATUS_ORDER: Record<string, number> = {
+    not_submitted: 0,
+    submitted: 1,
+    updated: 2,
+};
+function statusRank(status: string) {
+    return STATUS_ORDER[status] ?? 99;
+}
 
 //ステータス色付け
 function renderStatusBadge(status: string) {
   const map: Record<string, { label: string; color: string }> = {
     submitted: { label: "提出済", color: "#2e7d32" },
-    updated: { label: "更新済", color: "#1565c0" },
+    updated: { label: "更新済 🔒", color: "#1565c0" },
     not_submitted: { label: "未提出", color: "#757575" },
-  };
+  }
 
   const s = map[status] ?? { label: status, color: "#555" };
 
@@ -98,10 +144,6 @@ function renderStatusBadge(status: string) {
   `;
 }
 
-
-
-
-
 type Row = {
     employee_id: string;
     employee_name: string;
@@ -109,14 +151,11 @@ type Row = {
     submitted_at: string;
     updated_at: string;
     created_at: string;
+    comment?: string | null;
 };
+
 //週開始
 let isNormalizingWeek = false;
-
-/*function initWeekStart() {
-  const monday = getThisMonday();
-  weekStartEl.value = toISODate(monday);
-}*/
 
 weekStartEl.addEventListener("change", () => {
   if (isNormalizingWeek) return;
@@ -138,13 +177,28 @@ function esc(s: string) {
 }
 
 function renderTable(rows: Row[]) {
+  const sorted = [...rows].sort((a, b) => {
+    const d = statusRank(a.status) - statusRank(b.status);
+    if (d !== 0) return d;
+    // 同ランク内は従業員IDで安定ソート（見やすい）
+    return a.employee_id.localeCompare(b.employee_id);
+  });
+
+  renderSummary(sorted);
+
   const html = `
-  <div style="overflow:auto; max-width:100%;">
+  <div style="
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  "> 
     <table style="
-      width:100%;
-      min-width:520px;
-      border-collapse:collapse;
-      table-layout:fixed;
+      min-width: 700px;
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
     ">
       <thead>
         <tr>
@@ -152,11 +206,16 @@ function renderTable(rows: Row[]) {
           <th style="border:1px solid #ddd; padding:8px; width:140px;">名前</th>
           <th style="border:1px solid #ddd; padding:8px; width:110px;">ステータス</th>
           <th style="border:1px solid #ddd; padding:8px; width:120px;">更新</th>
+          <th style="border:1px solid #ddd; padding:8px; width:40px;"></th>
         </tr>
       </thead>
       <tbody>
-        ${rows.map((r) => `
-          <tr data-employee-id="${esc(r.employee_id)}" style="cursor:pointer;">
+        ${sorted.map((r) => `
+          <tr
+            data-employee-id="${esc(r.employee_id)}"
+            class="${r.status === "not_submitted" ? "is-not-submitted" : ""}"
+            style="cursor:pointer;"
+          >
             <td style="border:1px solid #ddd; padding:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
               ${esc(r.employee_id)}
             </td>
@@ -168,6 +227,9 @@ function renderTable(rows: Row[]) {
             </td>
             <td style="border:1px solid #ddd; padding:8px; white-space:nowrap;">
               ${esc(formatJPDateTime(r.updated_at ?? r.submitted_at ?? ""))}
+            </td>
+            <td style="border: 1px solid #ddd;; padding: 8px; text-align: center; color: #999; font-size: 18px;">
+              >
             </td>
           </tr>
         `).join("")}
@@ -186,6 +248,7 @@ function renderTable(rows: Row[]) {
     });
   });
 }
+
 
 
 //詳細とってoutにだす（試し）
@@ -260,6 +323,14 @@ async function openSubmissionDetail(employeeId: string) {
       <tbody>${rowsHtml}</tbody>
     </table>
 
+    <div id="commentWrap" style="display:none; margin-top: 12px;">
+      <div style="display: flex; gap: 6px; algin-items: center; margin-bottom 4px;">
+        <span aria-hidden="true">💬</span>
+          <b>コメント</b>
+        </div>
+        <div id="commentBox" style="white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 8px; font-size: 14px;"></div>
+    </div>
+
     <div style="margin-top:12px; font-size:12px; color:#666;">
       提出された時: ${formatJPDateTime(sub.submitted_at)}<br/>
       更新された時: ${formatJPDateTime(sub.updated_at)}<br/>
@@ -267,11 +338,99 @@ async function openSubmissionDetail(employeeId: string) {
     </div>
   `;
 
+  const commentWrap = detailBody.querySelector("#commentWrap") as HTMLDivElement | null;
+  const commentBox = detailBody.querySelector("#commentBox") as HTMLDivElement | null;
+
+
+  renderComment(commentWrap, commentBox, sub.comment);
   openModal();
 }
 
+//新人登録モーダル
+
+function $(id: string) {
+    const el = document.getElementById(id);
+    if (!el) throw new Error(`Missng element: #${id}`);
+    return el;
+}
+
+function show(el: HTMLElement) { el.classList.remove("hidden"); }
+function hide(el: HTMLElement) { el.classList.add("hidden"); }
+
+function normalizeDigits(v: string) {
+    return (v ?? "").replace(/\D/g, "");
+}
+
+function setModalError(msg: string | null) {
+    const el = $("employeeModalError") as HTMLElement;
+
+    if (!msg) {
+        el.textContent = "";
+        el.classList.add("hidden");
+        return;
+    }
+
+    el.textContent = msg;
+    el.classList.remove("hidden");
+}
+
+function openEmployeeModal() {
+    setModalError(null);
+    ( $("empIdInput") as HTMLInputElement ).value = "";
+    ( $("empNameInput") as HTMLInputElement ).value = "";
+    ( $("empPinInput") as HTMLInputElement ).value = "";
+    show($("employeeModalOverlay") as HTMLElement);
+}
+
+function closeEmployeeMadal() {
+    hide($("employeeModalOverlay") as HTMLElement);
+}
 
 
+async function submitEmployee() {
+    setModalError(null);
+
+    const employee_id = normalizeDigits(( $("empIdInput") as HTMLInputElement ). value);
+    const employee_name = ( $("empNameInput") as HTMLInputElement ).value.trim();
+    const pin = normalizeDigits(( $("empPinInput") as HTMLInputElement ).value);
+
+    if (employee_id.length !== 8) return setModalError("従業員番号は８桁で入力してね");
+    if (!employee_name) return setModalError("氏名を入力してね");
+    if (pin.length !== 4) return setModalError("PINは4桁で入力してね");
+
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return setModalError("管理者トークンがないよ。ログインし直してね");
+
+    const res = await fetch("/api/admin/employees", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Authorization": `Bearer ${token}`,},
+        body: JSON.stringify({ employee_id, employee_name, pin }),
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        return setModalError(`登録に失敗: ${res.status} ${text}`);
+    }
+
+    closeEmployeeMadal();
+
+    //ここで一覧呼びたい時は呼ぶ
+}; 
+
+function wireEmployeeModal() {
+    $("openEmployeeModal").addEventListener("click", openEmployeeModal);
+    $("closeEmployeeModal").addEventListener("click", closeEmployeeMadal);
+
+    //クリックで閉じる
+    $("employeeModalOverlay").addEventListener("click", (e) => {
+        if (e.target === $("employeeModalOverlay")) closeEmployeeMadal();
+    });
+
+    $("submitEmployeeModal").addEventListener("click", async () => {
+        console.log("submit clicked")
+        await submitEmployee();
+    });
+}
 
 
 function getToken() {
@@ -376,9 +535,20 @@ loadBtn.addEventListener("click", async () => {
   }
 });
 
-
-
 // ログイン
+// iOS Safari対策：display切替直後はvalueが描画されないため再セット
+
+function setWeekStartValue(ymd: string) {
+  weekStartEl.value = ymd;
+  weekStartEl.setAttribute("value", ymd);
+
+  // iOS Safari 対策：次フレームで再セット
+  requestAnimationFrame(() => {
+    weekStartEl.value = ymd;
+    weekStartEl.setAttribute("value", ymd);
+  });
+}
+
 loginBtn.addEventListener("click", async () => {
   const password = pwEl.value.trim();
   const store_id = storeEl.value;
@@ -409,6 +579,9 @@ loginBtn.addEventListener("click", async () => {
 
     localStorage.setItem(TOKEN_KEY, token);
     setLoggedInUI(true);
+    const mondayISO = normalizeToMondayISO(new Date().toISOString().slice(0, 10));
+    setWeekStartValue(mondayISO)
+
     loginMsg.textContent = "";
   } catch {
     loginMsg.textContent = "通信エラーです";
@@ -429,5 +602,6 @@ logoutBtn.addEventListener("click", () => {
 
 
 // 初期表示
+wireEmployeeModal();
 loadStoresToSelect();
 setLoggedInUI(!!getToken());
