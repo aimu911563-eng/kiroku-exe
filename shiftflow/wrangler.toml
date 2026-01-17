@@ -1,0 +1,7 @@
+name = "shiftflow-api"
+main = "src/server.ts"
+compatibility_date = "2026-01-17"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+SUPABASE_URL ="https://wrrdondtrybuuazprhtk.supabase.co"

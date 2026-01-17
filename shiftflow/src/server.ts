@@ -2,7 +2,6 @@
 
 import "dotenv/config";
 import { Hono } from "hono";
-import { serve } from "@hono/node-server";
 import { createClient } from "@supabase/supabase-js";
 //import { base64, base64url, z } from "zod";
 import "dotenv/config";
@@ -12,7 +11,6 @@ is_holiday: z.boolean().optional();
 
 //const app = new Hono<{ Bindings: Env }>();
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
-
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -549,6 +547,11 @@ app.onError((err, c) => {
 
 export default app;
 
-serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 8787) });
-console.log("ShiftFlow API running on http://localhost:8787");
+//serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 8787) });
+//console.log("ShiftFlow API running on http://localhost:8787");
 
+if (process.env.NODE_ENV !== "production") {
+  const { serve } = await import("@hono/node-server");
+  serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 8787) });
+  console.log("ShiftFlow API running on http://localhost:8787");
+}
