@@ -9,7 +9,16 @@ export default defineConfig({
       },
     },
   },
-});
 
+  // 👇 これを追加するだけ
+  build: {
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        admin: "admin.html",
+      },
+    },
+  },
+});
 
 
