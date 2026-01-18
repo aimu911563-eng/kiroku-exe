@@ -505,7 +505,7 @@ function collectShiftData(): ShiftData {
 }*/
 
 async function employeeLogin(employee_id: string, pin: string) {
-  const res = await fetch(`${API_BASE}/api/employee/login`, {
+  const res = await fetch("/api/employee/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ employee_id, pin }),
