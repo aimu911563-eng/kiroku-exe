@@ -27,6 +27,24 @@ const summaryLine = document.getElementById("summaryLine") as HTMLDivElement | n
 
 const API_BASE = "https://shiftflow-api.aimu911563.workers.dev";
 
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+
+const app = new Hono();
+
+app.use(
+  "*",
+  cors({
+    origin: "https://shiftflow-e14.pages.dev",
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// preflight
+app.options("*", (c) => c.body(null, 204));
+
+
 function renderSummary(rows: Row[]) {
   if (!summaryLine) return;
 
