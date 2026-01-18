@@ -25,7 +25,7 @@ const detailBody = document.getElementById("detailBody") as HTMLDivElement;
 //const commentBox = document.getElementById("commentBox") as HTMLDivElement | null;
 const summaryLine = document.getElementById("summaryLine") as HTMLDivElement | null;
 
-const API_BASE = "https://shiftflow-api.aimu911563.workers.dev";
+const API_BASE = "";
 
 import { Hono } from "hono";
 import { cors } from "hono/cors";

@@ -6,7 +6,7 @@ type ShiftData = Record<ShiftDayKey, string>;
 type StoreId = "terajima" | "kosai" | "hamakita"; //寺島、湖西、浜北
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
-const API_BASE = "https://shiftflow-api.aimu911563.workers.dev";
+const API_BASE = ""
 
 const BUSINESS_HOURS: Record<StoreId, {
   weekday: { open: string; close: string };
