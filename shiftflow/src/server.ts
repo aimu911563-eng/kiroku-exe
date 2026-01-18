@@ -1,21 +1,51 @@
 // frontend/shiftflow/src/server.ts
 
-import "dotenv/config";
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
-//import { base64, base64url, z } from "zod";
-import "dotenv/config";
 import crypto from "crypto";
 import { z } from "zod";
 is_holiday: z.boolean().optional();
 
-//const app = new Hono<{ Bindings: Env }>();
-const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+//const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+type Env = {
+  SUPABASE_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  PUBLIC_DEMO?: string;
+  DEMO_STORE_ID?: string;
+};
+
+const app = new Hono<{ Bindings: Env }>();
+
+app.get("/", (c) => c.text("shiftflow-api ok"));
+app.get("/api/health", (c) => c.json({ ok: true }));
+
+
+const getSupabase = (c: any) => {
+  return createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+};
+
+app.get("/api/example", async (c) => {
+  const supabase = getSupabase(c);
+
+  const { data, error } = await supabase
+    .from("shift_submissions")
+    .select("*");
+
+  return c.json({ data, error });
+});
+
+
 
 //管理者トークン　HMACでstore_idを発行、検証
 function base64url(input: string) {
@@ -251,12 +281,6 @@ app.post('/api/login', async (c) => {
 
   return c.json({ ok: true, token, employee: sessionToken.get(token) })
 })
-
-//server.ts (4) から　
-type Env = {
-  ADMIN_PASSWORD: string;
-  ADMIN_TOKEN: string;
-};
 
 app.get("/api/public/stores", async (c) => {
   const { data, error } = await supabase
