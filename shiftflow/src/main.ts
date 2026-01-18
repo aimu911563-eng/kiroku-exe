@@ -6,6 +6,8 @@ type ShiftData = Record<ShiftDayKey, string>;
 type StoreId = "terajima" | "kosai" | "hamakita"; //寺島、湖西、浜北
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
+const API_BASE = "https://shiftflow-api.aimu911563.workers.dev";
+
 const BUSINESS_HOURS: Record<StoreId, {
   weekday: { open: string; close: string };
   weekendHoliday: { open: string; close: string };
@@ -503,7 +505,7 @@ function collectShiftData(): ShiftData {
 }*/
 
 async function employeeLogin(employee_id: string, pin: string) {
-  const res = await fetch("/api/employee/login", {
+  const res = await fetch("${API_BASE}/api/employee/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ employee_id, pin }),
