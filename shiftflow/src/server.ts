@@ -5,10 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { z } from "zod";
 is_holiday: z.boolean().optional();
-
-//const app = new Hono<{ Bindings: Env; Variables: Variables }>();
-
-
+import "dotenv/config";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -124,6 +121,7 @@ app.use("/api/*", async (c, next) => {
 
 import bcrypt from 'bcryptjs'
 import type { MiddlewareHandler } from "hono";
+//import { create } from "domain";
 
 type Variables = {
   admin_store_id: string;
@@ -391,7 +389,7 @@ app.post("/api/employee/login", async (c) => {
 
   const empRes = await supabase 
     .from("employees")
-    .select("employee_id, employee_name, store_id, pin_hash, is_active")
+    .select("employee_id, employee_name, store_id, pin_hash, is_active, monthly_target_minutes")
     .eq("employee_id", employee_id)
     .maybeSingle();
 
@@ -420,7 +418,14 @@ app.post("/api/employee/login", async (c) => {
   }
 
   const token = signToken(payload, secret);
-  return c.json({ ok: true, token, employee_id, employee_name: empRes.data.employee_name, store_id: empRes.data.store_id });
+  return c.json({ ok: true, 
+    token, 
+    employee_id, 
+    employee_name: empRes.data.employee_name, 
+    store_id: empRes.data.store_id,
+    monthly_target_minutes: empRes.data.monthly_target_minutes ?? null 
+  });
+
 });
 
 const requireEmployee: MiddlewareHandler<{ Bindings: Env; Variables: Variables }> = async (c, next) => {
@@ -526,6 +531,155 @@ app.post("/api/shifts", requireEmployee, async (c) => {
 
 });
 
+//worktime用　API
+app.get("/api/worktime", requireEmployee, async (c) => {
+  const employee_id = c.get("employee_id") as string;
+  const store_id = c.get("employee_store_id") as string;
+
+  const week_start = c.req.query("week_start") || "";
+  if (!week_start) {
+    return c.json({ ok: false, error: "week_start is required" }, 400);
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
+    return c.json({ ok: false, error: "week_start must be YYYY-MM-DD" }, 400);
+  }
+
+  const { data, error } = await supabase
+    .from("worktime_submissions")
+    .select("week_start, data, status, total_minutes, updated_at")
+    .eq("store_id", store_id)
+    .eq("employee_id", employee_id)
+    .eq("week_start", week_start)
+    .maybeSingle();
+
+  if (error) {
+    return c.json( { ok: false, error: "not found" }, 404);
+  }
+
+  if (!data) {
+    //未提出
+    return c.json({ error: "not found" }, 404);
+  }
+
+  return c.json({
+    week_start: data.week_start,
+    data: data.data,
+    status: data.status,
+    total_minutes: data.total_minutes,
+    updated_at: data.updated_at,
+  })
+
+})
+
+type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+const DAY_KEYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+function sanitizeMinutesData(input: any): Record<DayKey, number> {
+  const out = {} as Record<DAY_KEYS, number>;
+
+  for (const k of DAY_KEYS) {
+    const v = input?.[k];
+    const n = typeof v === "number" ? v : Number(v ?? 0);
+
+    if (!Number.isFinite(n) || n < 0 || n > 24 * 60) {
+      //一日あたり　0〜1440　分の範囲に限定
+      throw new Error(`Invalid minutes for ${k}`);
+    }
+    out[k] = Math.floor(n);
+  }
+  return out;
+}
+
+function calcTotalMinutes(data: Record<DayKey, number>): number {
+  return DAY_KEYS.reduce(( sum, k) => sum + (data[k] ?? 0), 0);
+}
+
+app.post("/api/worktime", requireEmployee, async (c) => {
+  const employee_id = c.get("employee_id") as string;
+  const store_id = c.get("employee_store_id") as string;
+
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ ok: false, error: "Invalid JSON" }, 400);
+
+  const week_start = String(body.week_start ?? "");
+  if (!week_start) {
+    return c.json({ ok: false, error: "week_start is required" }, 400);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
+    return c.json ( { ok: false, error: "week_start must be YYYY-MM-DD" }, 400);
+  }
+
+  let data: Record<DayKey, number>;
+  try {
+    data = sanitizeMinutesData(body.data);
+  } catch (e) {
+    return c.json({ ok: false, error: String(e) }, 400);
+  }
+
+  const total_minutes = calcTotalMinutes(data)
+
+  //既存確認
+  const { data: existing, error: selErr } = await supabase
+    .from("worktime_submissions")
+    .select("status")
+    .eq("store_id", store_id)
+    .eq("employee_id", employee_id)
+    .eq("week_start", week_start)
+    .maybeSingle();
+
+  if (selErr) {
+    return c.json({ ok: false, error: selErr.message }, 500);
+  }
+
+  if (!existing) {
+    // 新規insert
+    const { data: inserted, error: insErr } = await supabase
+      .from("worktime_submissions")
+      .insert({
+        store_id,
+        employee_id,
+        week_start,
+        data,
+        total_minutes,
+        status: "submitted",
+      })
+      .select("week_start, status, total_minutes, updated_at")
+      .single();
+
+    if (insErr) {
+      return c.json({ ok: false, error: insErr.message }, 500);
+    }
+    
+    return c.json({ ok: true, ...inserted });
+  }
+
+  //既存あり：更新一回制限
+  if (existing.status === "updated") {
+    return c.json( {ok: false, error: "Already updated once (locked)" }, 409)
+  }
+
+  //submitted → updated に更新
+  const { data: updated, error: updErr } = await supabase
+    .from("worktime_submissions")
+    .update({
+      data,
+      total_minutes,
+      status: "updated",
+    })
+    .eq("store_id", store_id)
+    .eq("employee_id", employee_id)
+    .eq("week_start", week_start)
+    .select("week_start, status, total_minutes, updated_at")
+    .single();
+  
+    if (updErr) {
+      return c.json({ ok: false, error: updErr.message }, 500);
+    }
+
+    return c.json({ ok: true, ...updated });
+})
+
 //ログイン管理者
 app.post("/api/admin/login", async (c) => {
   const body = (await c.req.json().catch(() => null)) as
@@ -562,6 +716,384 @@ app.post("/api/admin/login", async (c) => {
     const token = issueAdminToken({ store_id: storeId });
     return c.json({ ok: true, token});
 });
+
+// ===== worktime admin dashboard =====
+app.get("/api/worktime/admin/dashboard", requireAdmin, async (c) => {
+  const week_start = c.req.query("week_start") || "";
+  if (!week_start) return c.json({ error: "week_start is required" }, 400);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
+    return c.json({ error: "week_start must be YYYY-MM-DD" }, 400);
+  }
+
+  //employee(管理対象の全員)　
+  //worktimeは社員のみ適応。店舗で絞らない。　≠store_id　=is_staff
+  const empRes = await supabase
+    .from("employees")
+    .select("employee_id, employee_name, is_active, worktime_group, store_id")
+    .eq("is_active", true)
+    .eq("is_staff", true)
+    .order("employee_id");
+
+  if (empRes.error) {
+    return c.json({ error: `employees fetch failed: ${empRes.error.message}`}, 500);
+  }
+  
+  const employees = (empRes.data ?? []).map((e) => ({
+    employee_id: String(e.employee_id),
+    name: String(e.employee_name ?? ""),
+    is_active: Boolean(e.is_active),
+  }));
+
+  const nameById = new Map(employees.map((e) => [String(e.employee_id), String(e.name ?? "")]));
+
+  //submissions (その週の提出分をまとめて取得)
+  const subRes = await supabase
+    .from("worktime_submissions")
+    .select("employee_id, status, total_minutes, created_at, updated_at")
+    .eq("week_start", week_start);
+
+  if (subRes.error) {
+    return c.json({ error: `worktime_submissions fetch failed: ${subRes.error.message}`}, 500);
+  }
+
+  /*const submissions = (subRes.data ?? []).map((s) => ({
+    employee_id: String(s.employee_id),
+    status: (s.status === "updated" ? "updated" : "submitted") as "submitted" | "updated",
+    total_minutes: Number(s.total_minutes ?? 0),
+    submitted_at: String(s.created_at ?? s.updated_at ?? ""),
+    updated_at: String(s.updated_at ?? "")
+  }));*/
+
+  const submissions = (subRes.data ?? []).map((s) => {
+    const employee_id = String(s.employee_id);
+      return {
+        employee_id,
+        name: nameById.get(employee_id) ?? "",
+        status: (s.status === "updated" ? "updated" : "submitted") as "submitted" | "updated",
+        total_minutes: Number(s.total_minutes ?? 0),
+        created_at: s.created_at,
+        updated_at: s.updated_at,
+      }
+  })
+
+  //summary (未提出・提出・更新)
+  const subMap = new Map(submissions.map((s) => [s.employee_id, s]));
+  const total = employees.length;
+
+  let missing = 0;
+  let submitted = 0;
+  let updated = 0;
+
+  for (const e of employees) {
+    const s = subMap.get(e.employee_id);
+    if (!s) missing++;
+    else if (s.status === "updated") updated++;
+    else submitted++;
+  }
+
+  //console.log("[dbg] employees:", employees.length);
+  //console.log("[dbg] subs:", subRes.data?.length ?? 0);
+  //console.log("[dbg] firstSub:", subRes.data?.[0]);
+  console.log("[dbg] nameById keys sample:", [...nameById.keys()].slice(0, 3));
+  console.log("[dbg] joined name:", String(subRes.data?.[0]?.employee_id), nameById.get(String(subRes.data?.[0]?.employee_id)));
+
+
+  return c.json({
+    week_start,
+    summary: { total, missing, submitted, updated},
+    employees,
+    submissions,
+  });
+
+});
+
+
+
+app.post("/api/worktime/admin/login", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const password = String(body?.password ?? "");
+
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
+  const store_id = process.env.WORKTIME_ADMIN_STORE_ID ?? process.env.ADMIN_STORE_ID ?? "";
+
+  if (!ADMIN_PASSWORD) {
+    return c.json({ ok: false, error: "ADMIN_PASSWORD is not configured" }, 500);
+  }
+  if (!store_id) {
+    return c.json({ ok: false, error: "WORKTIME_ADMIN_STORE_ID is not configured" }, 500);
+  }
+
+  if (password !== ADMIN_PASSWORD) {
+    return c.json({ ok: false, error: "Invalid password" }, 401);
+  }
+
+  const token = issueAdminToken({ store_id }); 
+  return c.json({ ok: true, token });
+});
+
+app.get("/api/worktime/admin/monthly", requireAdmin, async (c) => {
+  const store_id = c.get("admin_store_id") as string;
+
+  const month = String(c.req.query("month") ?? "").trim();
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return c.json({ ok: false, error: "month must be YYYY-MM" }, 400);
+  }
+
+  // 月初・月末
+  const monthStart = new Date(`${month}-01T00:00:00`);
+  const nextMonthStart = new Date(monthStart);
+  nextMonthStart.setMonth(nextMonthStart.getMonth() + 1);
+
+  const ymd = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  // 対象月に食い込む週を拾うため、月初の前6日〜月末まで
+  const rangeStart = new Date(monthStart);
+  rangeStart.setDate(rangeStart.getDate() - 6);
+
+  const rangeStartYmd = ymd(rangeStart);
+  const rangeEndYmd = ymd(nextMonthStart);
+
+  // ★ その月の日数
+  const daysInMonth = Math.round(
+    (nextMonthStart.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  // ★ worktime_targets から A/B の target を引く
+  const tRess =  await supabase
+    .from("worktime_targets")
+    .select("group_code, target_minutes")
+    .eq("kind", "days")
+    .eq("days_in_month", daysInMonth);
+  
+  if (tRess.error) {
+    return c.json({ ok: false, error: tRess.error.message }, 500)
+  };
+
+  const targetByGroup = new Map<string, number>();
+  for (const r of tRess.data ?? []) {
+    targetByGroup.set(String(r.group_code), Number(r.target_minutes ?? 0) || 0);
+  }
+
+  // 社員一覧（is_staff / active）+ ★グループ列
+  const empRes = await supabase
+    .from("employees")
+    .select("employee_id, employee_name, is_active, worktime_group") // ←列名合わせて
+    .eq("is_staff", true)
+    .eq("is_active", true);
+
+  if (empRes.error) return c.json({ ok: false, error: empRes.error.message }, 500);
+
+  const employees = (empRes.data ?? []).map((e: any) => {
+    const group = String(e.worktime_group ?? ""); // ←列名合わせて
+    const target = targetByGroup.get(group) ?? 0;
+    return {
+      employee_id: String(e.employee_id),
+      name: String(e.employee_name ?? ""),
+      group,
+      target_minutes: target,
+    };
+  });
+
+  // submissions（期間）
+  const subRes = await supabase
+    .from("worktime_submissions")
+    .select("employee_id, week_start, data")
+    .eq("store_id", store_id)
+    .gte("week_start", rangeStartYmd)
+    .lt("week_start", rangeEndYmd);
+
+  if (subRes.error) return c.json({ ok: false, error: subRes.error.message }, 500);
+
+  const keyOrder = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+  // 集計箱
+  const totalMap = new Map<string, { total_minutes: number; weeks: Set<string> }>();
+  for (const e of employees) totalMap.set(e.employee_id, { total_minutes: 0, weeks: new Set() });
+
+  for (const s of subRes.data ?? []) {
+    const employee_id = String((s as any).employee_id);
+    const box = totalMap.get(employee_id);
+    if (!box) continue;
+
+    const ws = String((s as any).week_start);
+    const data = ((s as any).data ?? {}) as Record<string, number>;
+    const weekStartDate = new Date(`${ws}T00:00:00`);
+
+    let touched = false;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStartDate);
+      d.setDate(d.getDate() + i);
+      if (d < monthStart || d >= nextMonthStart) continue;
+
+      const k = keyOrder[i];
+      const v = Number(data[k] ?? 0) || 0;
+      if (v > 0) touched = true;
+      box.total_minutes += v;
+    }
+    if (touched) box.weeks.add(ws);
+  }
+
+  const rows = employees
+    .map((e) => {
+      const box = totalMap.get(e.employee_id)!;
+      return {
+        employee_id: e.employee_id,
+        name: e.name,
+        total_minutes: box.total_minutes,
+        submitted_weeks: box.weeks.size,
+        target_minutes: e.target_minutes,
+      };
+    })
+    .sort((a, b) => b.total_minutes - a.total_minutes);
+
+  return c.json({ month, rows });
+});
+
+const ymdSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+function getMondayJST(date = new Date()) {
+  const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const day = jst.getUTCDate();
+  const diffToMon = (day + 6) % 7;
+  jst.setUTCDate(jst.getUTCDate() - diffToMon);
+
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(jst.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+app.get("/api/worktime/admin/unsubmitted", requireAdmin, async (c) => {
+  const store_id = c.get("admin_store_id") as string;
+
+  const qs = String(c.req.query("week_start") ?? "")?.trim();
+  const week_start = qs ? ymdSchema.parse(qs) : getMondayJST();
+
+  const { data: employees, error: empErr } = await supabase
+    .from("employees")
+    .select("employee_id, employee_name, email, is_active, email")
+    .eq("store_id", store_id)
+    .eq("is_active", true);
+
+  if (empErr) return c.json({ ok: false, error: empErr.message }, 500);
+  if (!employees) return c.json({ ok: true, week_start, rows: [], count: 0 });
+
+  const { data: subs, error: subErr } = await supabase
+    .from("worktime_submissions")
+    .select("employee_id")
+    .eq("store_id", store_id)
+    .eq("week_start", week_start);
+
+  if (subErr) return c.json({ ok: false, error: subErr.message }, 500);
+
+  const submittedSet = new Set((subs ?? []).map((r) => r.employee_id));
+
+  const rows = employees
+    .filter((e) => !submittedSet.has(e.employee_id))
+    .map((e) => ({
+      employee_id: e.employee_id,
+      name: e.employee_name,
+      email: e.email ?? null,
+    }));
+
+  return c.json({
+    ok: true,
+    week_start,
+    count: rows.length,
+    rows,
+  })
+})
+
+//worktime メール催促
+async function sendResendEmail(params: { to: string; subject: string; text: string }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.MAIL_FROM;
+
+  if (!apiKey) throw new Error("RESEND_API_KEY is missing");
+  if (!from) throw new Error("MAIL_FROM is missing");
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: params.to,
+      subject: params.subject,
+      text: params.text,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend failed: ${res.status} ${body}`);
+  }
+}
+
+app.post("/api/worktime/admin/remind", requireAdmin, async (c) => {
+  const store_id = c.get("admin_store_id") as string;
+
+  // body: { week_start?: "YYYY-MM-DD" }
+  const body = await c.req.json().catch(() => ({}));
+  const week_start = body?.week_start ? ymdSchema.parse(String(body.week_start)) : getMondayJST();
+
+  const ownerEmail = process.env.OWNER_EMAIL;
+  if (!ownerEmail) return c.json({ ok: false, error: "OWNER_EMAIL is missing" }, 500);
+
+  // ① active employees
+  const { data: employees, error: empErr } = await supabase
+    .from("employees")
+    .select("employee_id, employee_name")
+    .eq("is_staff", true)
+    .eq("is_active", true);
+
+  if (empErr) return c.json({ ok: false, error: empErr.message }, 500);
+
+  // ② submitted set for that week
+  const { data: subs, error: subErr } = await supabase
+    .from("worktime_submissions")
+    .select("employee_id")
+    .eq("store_id", store_id)
+    .eq("week_start", week_start);
+
+  if (subErr) return c.json({ ok: false, error: subErr.message }, 500);
+
+  const submittedSet = new Set((subs ?? []).map((r) => r.employee_id));
+  const unsubmitted = (employees ?? []).filter((e) => !submittedSet.has(e.employee_id));
+
+  // ③ メール本文（未提出ゼロでも送る/送らないは好み。ここではゼロなら送らない）
+  if (unsubmitted.length === 0) {
+    return c.json({ ok: true, week_start, sent: 0, message: "no unsubmitted employees" });
+  }
+
+  const lines = unsubmitted
+    .map((e) => `- ${e.employee_id} ${e.employee_name}`)
+    .join("\n");
+
+  const subject = `【勤務時間入力】未提出一覧（週開始 ${week_start}）`;
+  const text =
+    `勤務時間入力が未提出の社員がいます。\n` +
+    `対象週（週開始）：${week_start}\n\n` +
+    `未提出 (${unsubmitted.length}名)\n` +
+    `${lines}\n\n` +
+    `管理画面から確認・催促をお願いします。`;
+
+  await sendResendEmail({ to: ownerEmail, subject, text });
+
+  // v0.1: ログは後でOK（入れるならここで worktime_reminds に insert）
+  return c.json({ ok: true, week_start, sent: 1, unsubmitted_count: unsubmitted.length });
+});
+
+
+
+
 
 // エラー確認
 app.onError((err, c) => {

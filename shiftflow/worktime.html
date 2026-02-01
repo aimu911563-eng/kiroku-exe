@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>勤務時間入力 | ShiftFlow</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+
+  <body>
+    <header class="appHeader">
+      <div class="appHeader__left">
+        <a class="backLink" href="/">← シフト提出へ</a>
+      </div>
+      <div class="appHeader__center">
+        <h1 class="appTitle">勤務時間入力</h1>
+      </div>
+      <div class="appHeader__right"></div>
+    </header>
+
+    <main class="container">
+      <!-- ログイン（ShiftFlowの部品を流用） -->
+      <section class="loginWrap" id="loginWrap">
+        <section id="loginArea" class="card loginCard">
+          <div>
+            <label for="employeeId">従業員番号</label>
+            <input
+              id="employeeId"
+              name="employeeId"
+              type="text"
+              class="input"
+              placeholder="例: 7249xxxx"
+            />
+            <p id="storePreview" class="hint"></p>
+
+            <label style="display: block; margin: 8px 0 4px;">パスワード（4桁）</label>
+            <div class="row" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <input
+                id="pinInput"
+                class="input"
+                inputmode="numeric"
+                maxlength="4"
+                placeholder="例: 0123"
+              />
+              <div class="loginActions">
+                <button id="employeeLoginBtn" type="button" class="btn btnPrimary loginButton">
+                  ログイン
+                </button>
+              </div>
+            </div>
+
+            <p id="employeeAuthMsg" style="margin: 8px 0; color: #b00;"></p>
+          </div>
+        </section>
+      </section>
+
+      <!-- 勤務時間入力エリア（ログイン後に表示） -->
+       <div id="userBar" class="card" style="display: none; margin-bottom: 12px;">
+        <div class="cordBody" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <div id="loginUserLabel" class="muted"></div>
+            <button id="logoutBtn" type="button" class="btn btnGhost">ログアウト</button>
+        </div>
+       </div>
+      <section id="worktimeArea" class="card" style="display: none;">
+        <!-- 対象週 -->
+        <section id="worktimeMeta" class="section">
+          <label for="weekStart">対象週（週の開始日：月曜日）</label>
+          <input id="weekStart" type="date" class="input" />
+          <p class="hint">
+            ※ 目安：毎週<strong>水曜</strong>までに入力してください（システム上は提出可能）
+          </p>
+        </section>
+
+        <section class="card" id="monthSummaryCard" style="margin-top: 12px;">
+          <div class="progressRow">
+            <div class="progressBar">
+                <div id="monthProgressFill" class="progressFill" style="width: 0%;"></div>
+            </div>
+            <div class="progressText">
+                <span id="monthProgressCaption">--:-- / --:--</span>
+                <span id="monthProgressPct" class="muted" style="margin-left: 8px;"></span>
+            </div>
+          </div>
+            <div class="cardBody" style="display: flex; justify-content: flex-start; align-items: baseline; gap: 12px;">
+              <div class="muted" style="font-size: 13px;">今月合計</div>
+              <div id="monthTotalLabel" style="font-weight: 700; font-size: 22px;"></div>
+            </div>
+            <div class="cardBody" style="padding-top: 0;">
+                <div class="hint" style="font-size: 12px;">* 未提出の週は含まれていません</div>
+            </div>
+        </section>
+        
+
+        <!-- 入力 -->
+        <section class="section">
+          <h2 style="margin: 12px 0 8px;">勤務時間入力（hh:mm）</h2>
+
+          <div class="row"><label class="dayLabel" data-wd="月" data-day="0">月</label><input id="mon" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
+          <div class="row"><label class="dayLabel" data-wd="火" data-day="1">火</label><input id="tue" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
+          <div class="row"><label class="dayLabel" data-wd="水" data-day="2">水</label><input id="wed" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
+          <div class="row"><label class="dayLabel" data-wd="木" data-day="3">木</label><input id="thu" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
+          <div class="row"><label class="dayLabel" data-wd="金" data-day="4">金</label><input id="fri" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
+          <div class="row"><label class="dayLabel" data-wd="土" data-day="5">土</label><input id="sat" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
+          <div class="row"><label class="dayLabel" data-wd="日" data-day="6">日</label><input id="sun" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
+
+          <div class="totalBox" style="margin-top: 12px;">
+            <div class="totalLabel">週合計</div>
+            <div class="totalValue" id="weekTotal">00:00</div>
+          </div>
+
+          <p id="submitStatus" style="margin: 8px 0; font-weight: bold;"></p>
+
+          <div class="actions">
+            <button id="btnPreview" type="button" class="btn btnGhost">
+              プレビュー
+            </button>
+            <button id="btnSubmit" type="button" class="btn btnPrimary">
+              送信
+            </button>
+          </div>
+
+          <div id="message" class="message" aria-live="polite"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/src/worktime.ts"></script>
+  </body>
+</html>

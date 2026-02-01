@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>勤務時間ダッシュボード</title>
+    <link rel="stylesheet" href="worktime-admin.css" />
+  </head>
+  <body>
+    <!-- LOGIN -->
+    <main id="loginView" class="page">
+      <div class="card loginCard">
+        <div class="cardHeader">
+          <h1>勤務時間ダッシュボード</h1>
+          <p class="muted">管理者ログイン</p>
+        </div>
+
+        <form id="loginForm" class="form">
+          <label class="field">
+            <span>管理パスワード</span>
+            <input id="adminPassword" type="password" autocomplete="current-password" required />
+          </label>
+
+          <button id="loginBtn" class="btn primary" type="submit">ログイン</button>
+          <p id="loginError" class="error hidden"></p>
+        </form>
+      </div>
+    </main>
+
+    <!-- DASHBOARD -->
+    <main id="dashView" class="page hidden">
+      <!-- top bar -->
+      <header class="topbar">
+        <div class="topbarLeft">
+          <div class="titleWrap">
+            <h2>勤務時間ダッシュボード</h2>
+            <div class="deadline">
+              <span class="chip soft">締切：翌週水曜 0:00</span>
+            </div>
+          </div>
+
+          <div class="weekPicker">
+            <label class="field inline">
+              <span>週（開始日）</span>
+              <input id="weekStart" type="date" />
+            </label>
+          </div>
+        </div>
+
+        <div class="topbarRight">
+          <div class="kpis">
+            <span class="chip" id="kpiMissing">未提出: -</span>
+            <span class="chip" id="kpiSubmitted">提出: -</span>
+            <span class="chip" id="kpiUpdated">更新: -</span>
+          </div>
+
+          <div class="actions">
+            <button id="remainBtn" class="btn remaind" type="button">リマインド送信</button>
+            <button id="csvBtn" class="btn" type="button">CSV</button>
+            <button id="logoutBtn" class="btn danger" type="button">ログアウト</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- grid -->
+      <section class="grid">
+        <!-- left panel -->
+        <div class="card panel" id="panelStatus">
+          <div class="panelHeader">
+            <h3>提出状況</h3>
+            <div class="panelMeta muted" id="statusMeta">-</div>
+          </div>
+          <div class="list" id="statusList"></div>
+        </div>
+
+        <!-- center forecast -->
+        <div class="card panel" id="panelForecast">
+            <div class="panelHeader">
+                <h3>今月の見通し</h3>
+                <div class="panelMeta muted" id="forecastMeta"></div>
+            </div>
+
+            <div class="forecastList" id="forecastList"></div>
+
+            <div class="muted small" style="margin-top: 8px;">
+                ※ 未提出の週は月合計に含めません / 「残り週平均」は月末までの残日数から概算
+            </div>
+        </div>
+
+        <!-- right ranking -->
+        <div class="card panel" id="panelRanking">
+          <div class="panelHeader">
+            <h3>週合計ランキング</h3>
+            <div class="panelMeta muted" id="rankingMeta">-</div>
+          </div>
+          <div class="rank" id="rankingList"></div>
+        </div>
+
+        <!-- 社員総時間バー -->
+        <div class="card panel full" id="panelMonth">
+            <div class="panelHeader">
+                <h3>今月合計</h3>
+                <div class="panelMeta muted" id="monthMeta">-</div>
+            </div>
+            <div class="monthBars" id="monthBars"></div>
+        </div>
+
+        <!-- leave summary (full width) -->
+        <div class="card panel full" id="panelLeave">
+          <div class="panelHeader">
+            <h3>有給サマリ</h3>
+            <div class="panelMeta muted" id="leaveMeta">-</div>
+          </div>
+
+          <div class="leaveGrid">
+            <div class="leaveBlock">
+              <h4 class="muted">残日数</h4>
+              <div class="leaveList" id="leaveBalanceList"></div>
+            </div>
+
+            <div class="leaveBlock">
+              <h4 class="muted">直近の申請</h4>
+              <div class="leaveList" id="leaveRecentList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- DETAIL MODAL -->
+    <dialog id="detailModal" class="modal">
+      <div class="modalHead">
+        <div>
+          <h3 id="detailTitle">詳細</h3>
+          <div class="muted" id="detailSub">-</div>
+        </div>
+        <button id="detailCloseBtn" class="btn" type="button">閉じる</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="detailGrid" id="detailDays"></div>
+
+        <div class="detailRow">
+          <div class="muted">週合計</div>
+          <div class="detailValue" id="detailTotal">-</div>
+        </div>
+
+        <div class="detailRow hidden" id="detailCommentRow">
+          <div class="muted">コメント</div>
+          <div class="detailValue" id="detailComment"></div>
+        </div>
+
+        <p class="muted small">※管理画面では編集は行いません（閲覧・出力のみ）</p>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/worktime-admin.ts"></script>
+  </body>
+</html>

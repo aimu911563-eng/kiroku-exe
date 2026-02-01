@@ -5,3 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 SUPABASE_URL ="https://wrrdondtrybuuazprhtk.supabase.co"
+
+wrangler secret put RESEND_API_KEY
+wrangler secret put OWNER_EMAIL
+wrangler secret put MAIL_FROM

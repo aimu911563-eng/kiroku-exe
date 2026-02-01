@@ -139,7 +139,7 @@ tbody tr:hover td:last-child {
 
 /* ページ全体 */
 .page {
-  max-width: 720px;      /* ← ここがキモ */
+  max-width: 720px;      
   margin: 32px auto;     /* 中央寄せ */
   padding: 0 16px;
 }
@@ -152,17 +152,8 @@ tbody tr:hover td:last-child {
   margin: 16px 0;
 }
 
-/* タイトルだけは軽く中央寄せもアリ */
 .title {
   text-align: center;
-}
-
-/* フォーム中身は左揃え */
-.card label,
-.card input,
-.card textarea,
-.card table {
-  text-align: left;
 }
 
 /* 提出ボタンだけ少し目立たせる */
@@ -185,6 +176,11 @@ tbody tr:hover td:last-child {
   border-radius: 16px;
   padding: 16px;
   margin: 20px 0;
+}
+.section {
+  max-width: 720px;     
+  margin: 0 auto;       
+  padding: 16px 18px;
 }
 
 #shiftTable td:first-child {
@@ -323,7 +319,7 @@ tbody tr:hover td:last-child {
   .toolbarLeft,
   .toolbarRight {
     width: 100%;
-    margin-left: 0;   /* ← これが超重要 */
+    margin-left: 0;  
   }
 
   .toolbarLeft {
@@ -335,5 +331,168 @@ tbody tr:hover td:last-child {
   }
 }
 
+/* 合計のバー */
+.progressRow { 
+  margin-top: 10px; 
+}
+.progressBar {
+  height: 10px;
+  background: #eee;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  background: #2e7d32;
+  width: 0%;
+}
+.progressText {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+}
+
+.month-summary {
+  background: #f6f7f8;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 12px 0;
+}
+
+.month-summary h3 {
+  font-size: 14px;
+  color: #555;
+  margin: 0 0 6px;
+}
+
+.month-summary .note {
+  font-size: 12px;
+  color: #777;
+}
+
+/* 土日ラベル色 */
+label.dayLabel[data-day="5"] { 
+  color: #2563eb; 
+  font-weight: 700; 
+} 
+label.dayLabel[data-day="6"] { 
+  color: #dc2626; 
+  font-weight: 700; 
+} 
+/* 土 */
+.row:has(label[data-day="5"]) {
+  background: #f0f6ff;
+  border-radius: 6px;
+}
+
+/* 日 */
+.row:has(label[data-day="6"]) {
+  background: #fff1f1;
+  border-radius: 6px;
+}
 
 
+.row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.row input.timeInput {
+  max-width: 120px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 110px 140px; 
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.row label {
+  text-align: right; 
+  white-space: nowrap;
+}
+
+.row input.timeInput {
+  width: 140px;    
+}
+
+.totalBox {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #ddd;
+}
+.totalValue {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.inputHint {
+  font-size: 11px;
+  color: #888;
+}
+
+.card {
+  max-width: 720px;     
+  margin: 12px auto;    
+  width: calc(100% - 24px); 
+}
+
+.progressText {
+  margin-top: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: #666;
+}
+
+.appTitle {
+  text-align: center;
+}
+
+.input.timeInput {
+  width: 96px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.totalBox {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px dashed #ddd;
+}
+
+#logoutBtn {
+  white-space: nowrap;   
+  width: auto;           
+  min-width: 0;         
+}
+@media (max-width: 480px) {
+  #logoutBtn {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+}
+
+#userBar .cardBody{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+}
+
+#loginUserLabel{
+  min-width:0;              
+  overflow:hidden;
+  text-overflow:ellipsis;   
+  white-space:nowrap;
+}
+
+#logoutBtn{
+  white-space:nowrap;
+  flex:0 0 auto;
+}
