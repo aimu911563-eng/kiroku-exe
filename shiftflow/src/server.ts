@@ -3,13 +3,18 @@
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { z } from "zod";
+import { email, z } from "zod";
 is_holiday: z.boolean().optional();
 import "dotenv/config";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+
+export const leaveSupabase = createClient(
+  process.env.LEAVE_SUPABASE_URL!,
+  process.env.LEAVE_SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 type Env = {
@@ -121,7 +126,6 @@ app.use("/api/*", async (c, next) => {
 
 import bcrypt from 'bcryptjs'
 import type { MiddlewareHandler } from "hono";
-//import { create } from "domain";
 
 type Variables = {
   admin_store_id: string;
@@ -140,6 +144,9 @@ const requireAdmin: MiddlewareHandler<{ Bindings: Env; Variables: Variables }> =
   c.set("admin_store_id", payload.store_id);
   await next();
 };
+
+
+
 
 function parseYMDToLocalStart(ymd: string) {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -808,7 +815,6 @@ app.get("/api/worktime/admin/dashboard", requireAdmin, async (c) => {
 });
 
 
-
 app.post("/api/worktime/admin/login", async (c) => {
   const body = await c.req.json().catch(() => null);
   const password = String(body?.password ?? "");
@@ -1010,7 +1016,7 @@ app.get("/api/worktime/admin/unsubmitted", requireAdmin, async (c) => {
 })
 
 //worktime メール催促
-async function sendResendEmail(params: { to: string; subject: string; text: string }) {
+/*async function sendResendEmail(params: { to: string; subject: string; text: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.MAIL_FROM;
 
@@ -1035,64 +1041,179 @@ async function sendResendEmail(params: { to: string; subject: string; text: stri
     const body = await res.text();
     throw new Error(`Resend failed: ${res.status} ${body}`);
   }
+}*/
+
+async function sendResendEmail(params: {
+  to: string;          // 受け皿（ownerEmail）
+  bcc?: string[];      // 未提出者たち
+  subject: string;
+  text: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.MAIL_FROM;
+  if (!apiKey) throw new Error("RESEND_API_KEY is missing");
+  if (!from) throw new Error("MAIL_FROM is missing");
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: params.to,
+      bcc: params.bcc,
+      subject: params.subject,
+      text: params.text,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend failed: ${res.status} ${body}`);
+  }
 }
 
+
 app.post("/api/worktime/admin/remind", requireAdmin, async (c) => {
-  const store_id = c.get("admin_store_id") as string;
+  const store_id = c.get("admin_store_id") as string | undefined;
+  void store_id;
 
-  // body: { week_start?: "YYYY-MM-DD" }
   const body = await c.req.json().catch(() => ({}));
-  const week_start = body?.week_start ? ymdSchema.parse(String(body.week_start)) : getMondayJST();
+  const week_start = String(body?.week_start ?? "").trim();
 
-  const ownerEmail = process.env.OWNER_EMAIL;
-  if (!ownerEmail) return c.json({ ok: false, error: "OWNER_EMAIL is missing" }, 500);
-
-  // ① active employees
-  const { data: employees, error: empErr } = await supabase
-    .from("employees")
-    .select("employee_id, employee_name")
-    .eq("is_staff", true)
-    .eq("is_active", true);
-
-  if (empErr) return c.json({ ok: false, error: empErr.message }, 500);
-
-  // ② submitted set for that week
-  const { data: subs, error: subErr } = await supabase
-    .from("worktime_submissions")
-    .select("employee_id")
-    .eq("store_id", store_id)
-    .eq("week_start", week_start);
-
-  if (subErr) return c.json({ ok: false, error: subErr.message }, 500);
-
-  const submittedSet = new Set((subs ?? []).map((r) => r.employee_id));
-  const unsubmitted = (employees ?? []).filter((e) => !submittedSet.has(e.employee_id));
-
-  // ③ メール本文（未提出ゼロでも送る/送らないは好み。ここではゼロなら送らない）
-  if (unsubmitted.length === 0) {
-    return c.json({ ok: true, week_start, sent: 0, message: "no unsubmitted employees" });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
+    return c.json({ ok: false, error: "week_start must be YYYY-MM-DD" }, 400);
   }
 
-  const lines = unsubmitted
-    .map((e) => `- ${e.employee_id} ${e.employee_name}`)
-    .join("\n");
+  // 社員（管理対象）
+  const empRes = await supabase
+    .from("employees")
+    .select("employee_id, employee_name, email, is_active")
+    .eq("is_staff", true)
+    .eq("is_active", true)
+    .order("employee_id");
 
-  const subject = `【勤務時間入力】未提出一覧（週開始 ${week_start}）`;
-  const text =
-    `勤務時間入力が未提出の社員がいます。\n` +
-    `対象週（週開始）：${week_start}\n\n` +
-    `未提出 (${unsubmitted.length}名)\n` +
-    `${lines}\n\n` +
-    `管理画面から確認・催促をお願いします。`;
+  if (empRes.error) {
+    return c.json({ ok: false, error: empRes.error.message }, 500);
+  }
 
-  await sendResendEmail({ to: ownerEmail, subject, text });
+  const employees = (empRes.data ?? []).map((e: any) => ({
+    employee_id: String(e.employee_id),
+    name: String(e.employee_name ?? ""),
+    email: String(e.email ?? "").trim(),
+  }));
 
-  // v0.1: ログは後でOK（入れるならここで worktime_reminds に insert）
-  return c.json({ ok: true, week_start, sent: 1, unsubmitted_count: unsubmitted.length });
+  //その週の提出一覧
+  const subRes = await supabase
+    .from("worktime_submissions")
+    .select("employee_id")
+    .eq("week_start", week_start);
+
+  if (subRes.error) {
+    return c.json({ ok: false, error: subRes.error.message }, 500);
+  }
+
+  const submittedIds = new Set((subRes.data ?? []).map((s: any) => String(s.employee_id)));
+
+  // 未提出者
+  const missing = employees.filter((e) => !submittedIds.has(e.employee_id));
+  const missing_total = missing.length;
+
+  // email ありだけ送る
+  const bcc = missing
+    .map((e) => e.email)
+    .filter((v) => v.length > 0);
+
+  const skipped_no_email = missing_total - bcc.length;
+
+  // 未提出０ or 送信先０の時は送らない
+  if (missing_total === 0 || bcc.length === 0) {
+    return c.json({
+      ok: true,
+      week_start,
+      missing_total,
+      sent: 0,
+      skipped_no_email,
+      note: missing_total === 0 ? "no missing employees" : "no email to send",
+    });
+  }
+
+  // 件名・本文 (2/4 URL未確定)
+  const subject = `【勤務時間入力】未提出リマインド（週開始 ${week_start}）`;
+
+  const lines: String[] = [];
+  lines.push("勤務時間入力が未提出です。");
+  lines.push("");
+  lines.push(`対象週（週開始） :${week_start}`);
+  lines.push("");
+  lines.push("勤務時間入力フォームから入力を行ってください。ここにURLが来る予定");
+  lines.push("※このメールは未提出の方へ自動送信されています。");
+  lines.push("");
+  lines.push("(未提出者一覧)")
+  for(const e of missing) {
+    const emailPart = e.email ? ` <${e.email}>` : " <email未登録>";
+    lines.push(`- ${e.employee_id} ${e.name}${emailPart}`);
+  }
+
+  // To は受け皿（OWNER_EMAIL）にして、BCC に未提出者を入れる
+  // ※ Resend は To なしが制限されるケースがあるので To は必須にしておくのが安全
+  const ownerEmail = String(process.env.OWNER_EMAIL ?? "").trim();
+  if (!ownerEmail) {
+    return c.json({ ok: false, error: "OWNER_EMAIL is not set" }, 500);
+  }
+
+  try {
+    await sendResendEmail({
+      to: ownerEmail,
+      bcc,
+      subject,
+      text: lines.join("\n")
+    });
+
+    return c.json({
+      ok: true,
+      week_start,
+      missing_total,
+      sent: bcc.length,
+      skipped_no_email,
+    });
+  } catch (e: any) {
+    return c.json({ ok: false, error: "Resend failed", detail: String(e?.message ?? e),}, 500)
+  };
+
 });
 
+// 有給サマリを表示　worktime admin
+app.get("/api/leave/admin/summary", requireAdmin, async (c) => {
+  const { data, error } = await leaveSupabase
+    .from("leave_admin_summary_v1")
+    .select("*")
+    .order("employee_id");
 
+  if (error) {
+    return c.json({ ok: false, error: "leave summary unavailable" }, 500);
+  }
 
+  const rows = (data ?? []).map((r: any) => ({
+    employee_id: r.employee_id,
+    name: r.name,
+    remaining_days: Number(r.remaining_days ?? 0),
+    base_grant_date: r.base_grant_date ?? null,
+    last_updated_at: r.last_updated_at ?? null,
+    last_request: r.last_date
+      ? {
+          date: r.last_date,
+          days: Number(r.last_days ?? 1),
+          status: r.last_status ?? "",
+          submitted_at: r.last_submitted_at ?? null,
+        }
+      : null,
+  }));
+
+  return c.json({ ok: true, rows, as_of: new Date().toISOString() });
+});
 
 
 // エラー確認

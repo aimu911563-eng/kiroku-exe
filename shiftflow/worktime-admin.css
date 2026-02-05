@@ -664,5 +664,53 @@ body {
   opacity: .8;
 }
 
+.badge.muted { opacity: .5; }
 
+/* ===== Leave Summary tuning ===== */
+
+.leaveGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* 見出し（残日数 / 直近の申請）を他カードと同じトーンに */
+#panelLeave .leaveBlock > h4.muted {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0 0 10px 0;
+}
+
+/* リスト（中身）は縦に詰める */
+#panelLeave .leaveList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 1行（leaveItem）を他カード風に：左=名前/本文、右=数値orバッジ */
+#panelLeave .leaveItem {
+  display: grid;
+  grid-template-columns: 1fr 110px; /* ←右カラム幅固定で“揃う” */
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+/* 右側（残りxx日、バッジ）を右寄せ + 数字揃え */
+#panelLeave .leaveItem .right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 申請なし表示を薄く */
+#panelLeave .leaveItem .mutedline {
+  font-size: 12px;
+  color: #64748b;
+}
 

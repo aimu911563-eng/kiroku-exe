@@ -1,3 +1,4 @@
+
 type SubmissionStatus = "submitted" | "updated";
 
 type WorktimeDashboard = {
@@ -13,19 +14,6 @@ type WorktimeDashboard = {
   }[];
 };
 
-type LeaveSummary = {
-  month: string; // "YYYY-MM"
-  balances: { employee_id: string; name: string; remaining_days: number }[];
-  recent_requests: {
-    employee_id: string;
-    name: string;
-    date: string; // "YYYY-MM-DD"
-    days: number;
-    status: "requested" | "approved" | "rejected" | "consult";
-    reason?: string | null;
-  }[];
-};
-
 type MonthlySummary = {
     month: string;
     rows: { 
@@ -36,6 +24,25 @@ type MonthlySummary = {
         target_minutes: number; 
     }[];
 };
+
+type LeaveAdminSummaryResponse = {
+  ok: true;
+  as_of: string;
+  rows: Array<{
+    employee_id: string;
+    name: string;
+    remaining_days: number;
+    base_grant_date: string | null;
+    last_updated_at: string | null;
+    last_request: null | {
+      date: string;        // YYYY-MM-DD
+      days: number;        // v0.1は 1
+      status: string;      // approved/pending/rejected/canceled
+      submitted_at: string;// ISO
+    };
+  }>;
+};
+
 
 // ====== CONFIG ======
 const TOKEN_KEY = "worktime_admin_token";
@@ -312,19 +319,16 @@ async function reloadAll() {
   renderDashboard(dash);
 
   // 2) leave summary (month)
-  const month = monthFromWeekStart(ws);
   try {
-    const leave = await apiGet<LeaveSummary>(
-      `/api/leave/admin/summary?month=${encodeURIComponent(month)}`
-    );
+    const leave = await apiGet<LeaveAdminSummaryResponse>(`/api/leave/admin/summary`);
     renderLeave(leave);
   } catch {
-    // leave APIまだ無い時でも壊れないように
+    // leave　API がなくても壊れないように
     leaveMeta.textContent = "有給API未接続";
-    leaveBalanceList.innerHTML 
-    = `<div class="muted small">/api/leave/admin/summary を実装すると表示されます</div>`;
+    leaveBalanceList.innerHTML = `<div class="muted small">/api/leave/admin/summary を実装すると表示されます</div>`;
     leaveRecentList.innerHTML = "";
   }
+
 
   const month2 = monthFromWeekStart(ws);
   const monthly = await apiGet<MonthlySummary>(
@@ -490,7 +494,7 @@ function renderForecast(m: MonthlySummary, weekStartYmd: string) {
 
 
 // ====== LEAVE RENDER ======
-function renderLeave(leave: LeaveSummary) {
+/*function renderLeave(leave: LeaveSummary) {
   leaveMeta.textContent = `${leave.month}（暦月）`;
 
   // balances
@@ -541,7 +545,83 @@ function renderLeave(leave: LeaveSummary) {
       leaveRecentList.appendChild(el);
     }
   }
+}*/
+
+function renderLeave(leave: LeaveAdminSummaryResponse) {
+  // header
+  leaveMeta.textContent = `有給（as of ${leave.as_of.slice(0, 10)}）`;
+
+  // balances（残日数）
+  leaveBalanceList.innerHTML = "";
+  const balances = [...leave.rows].sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+  if (balances.length === 0) {
+    leaveBalanceList.innerHTML = `<div class="muted small">残日数データなし</div>`;
+  } else {
+    for (const b of balances) {
+      const el = document.createElement("div");
+      el.className = "leaveItem";
+      const days = Number.isFinite(b.remaining_days) ? b.remaining_days : 0;
+      el.innerHTML = `
+        <div class="name">${escapeHtml(b.name)}</div>
+        <div class="right"><span class="muted">残り ${days.toFixed(1)} 日</span></div>
+        <div></div>
+        <div><div>
+      `;
+      leaveBalanceList.appendChild(el);
+    }
+  }
+
+  // recent requests（直近申請：rowsのlast_requestがある人だけ）
+  leaveRecentList.innerHTML = "";
+  const recents = leave.rows
+    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+  leaveRecentList.innerHTML = "";
+  if (recents.length === 0) {
+    leaveRecentList.innerHTML = `<div class="muted small">直近申請なし</div>`;
+  } else {
+    for (const r0 of recents) {
+        const el = document.createElement("div");
+        el.className = "leaveItem";
+
+        const  lr = r0.last_request;
+
+        if (!lr) {
+            el.innerHTML = `
+              <div>
+                <div style="font-weight:600;">${escapeHtml(r0.name)}</div>
+                <div class="muted small">直近の申請なし</div>
+              </div>
+              <div class="right"><span class="badge muted">なし</span></div>
+            `;
+            leaveRecentList.appendChild(el);
+            continue;
+        }
+
+        const badgeClass = lr.status;
+        const badgeText = 
+          lr.status === "requested"
+            ? "承認待ち"
+            : lr.status === "approved"
+            ? "承認"
+            : lr.status === "rejected"
+            ? "却下"
+            : lr.status === "consult"
+        el.innerHTML = `
+          <div>
+            <div style="font-weight:600;">${escapeHtml(r0.name)}</div>
+            <div class="muted small">${ymdToMd(lr.date)} / ${Number(lr.days).toFixed(1)}日</div>
+          </div>
+          <div class="right"><span class="badge ${badgeClass}">${badgeText}</span></div>
+        `;
+        leaveRecentList.appendChild(el);
+    }
+  }
+ 
 }
+
+
 
 // ====== DETAIL MODAL ======
 detailCloseBtn.addEventListener("click", () => detailModal.close());
@@ -624,12 +704,6 @@ function renderDetailDays(weekStart: string, data: Record<string, number>) {
   }
 }
 
-const getAdminToken = () => {
-  // ShiftFlow既存のキー（あなたの実装に合わせて変更OK）
-  return (
-    localStorage.getItem("TOKEN_KEY") || ""
-  );
-};
 
 const setRemainBtnState = (state: "idle" | "loading" | "done") => {
   if (!remainBtn) return;
@@ -649,7 +723,8 @@ const setRemainBtnState = (state: "idle" | "loading" | "done") => {
   setTimeout(() => setRemainBtnState("idle"), 1200);
 };
 
-remainBtn?.addEventListener("click", async () => {
+/*remainBtn?.addEventListener("click", async () => {
+
   const token = getAdminToken();
   if (!token) {
     alert("管理者トークンがありません。再ログインしてください。");
@@ -688,27 +763,102 @@ remainBtn?.addEventListener("click", async () => {
       return;
     }
 
-    // サーバが返す想定：{ ok:true, week_start, unsubmitted_count, ... }
-    const n = Number(json?.unsubmitted_count ?? 0);
+    // サーバが返す想定：{ ok:true, week_start, missing_total, sent, skipped_no_email }
+    const missing = Number(json?.missing_total ?? 0);
+    const sent = Number(json?.sent ?? 0);
+    const skippend = Number(json?.skipped_no_email ?? 0);
 
-    // KPIも一緒に更新したいなら（API仕様に合わせて調整）
-    // もし remind API が summary を返してないなら、この部分は消してOK
+    //KPIも一緒に更新
     if (json?.summary && kpiMissing && kpiSubmitted && kpiUpdated) {
-      const s = json.summary;
-      kpiMissing.textContent = `未提出: ${Number(s.missing ?? 0)}`;
-      kpiSubmitted.textContent = `提出: ${Number(s.submitted ?? 0)}`;
-      kpiUpdated.textContent = `更新: ${Number(s.updated ?? 0)}`;
+        const s = json.summary;
+        kpiMissing.textContent = `未提出: ${Number(s.missing ?? 0)}`;
+        kpiSubmitted.textContent = `提出: ${Number(s.submitted ?? 0)}`;
+        kpiUpdated.textContent = `更新: ${Number(s.skipped_no_email ?? 0)}`;
     }
 
-    alert(`送信しました（未提出: ${n}名）`);
-    setRemainBtnState("done");
+    // メッセージ（状況に応じて）
+    let msg = "";
+    if (missing === 0) {
+        msg = "未提出が０名なので送信しませんでした。";
+    } else if (sent === 0) {
+        msg = `未提出は${missing}名ですが、メールアドレス未登録のため送信出来ませんでした。（未登録: ${skippend}名）`;
+    } else if (skippend > 0) {
+        msg = `送信しました（未提出: ${missing}名 / 送信: ${sent}名 / メール未登録: ${skippend}）`;
+    } else {
+        msg = `送信しました（未提出: ${missing}名 / 送信: ${sent}名）`;
+    }
+
+    alert(msg);
+});*/
+
+remainBtn?.addEventListener("click", async () => {
+  const token = getToken();
+  if (!token) {
+    alert("管理者トークンがありません。再ログインしてください。");
+    return;
+  }
+
+  const week_start = String(weekStartEl?.value ?? "").trim();
+  if (!week_start) {
+    alert("週（開始日）が未選択です。");
+    return;
+  }
+
+  if (!confirm(`未提出者のリマインドを送信します。\n対象週（開始日）：${week_start}\nよろしいですか？`)) {
+    return;
+  }
+
+  setRemainBtnState("loading");
+
+  try {
+    const res = await fetch("/api/worktime/admin/remind", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ week_start }),
+    });
+
+    const json = await res.json().catch(() => ({} as any));
+
+    if (!res.ok || json?.ok === false) {
+      const msg = json?.detail || json?.error || `HTTP ${res.status}`;
+      alert(`送信に失敗しました: ${msg}`);
+      return;
+    }
+
+    // サーバ想定：{ ok:true, week_start, missing_total, sent, skipped_no_email }
+    const missing = Number(json?.missing_total ?? 0);
+    const sent = Number(json?.sent ?? 0);
+    const skipped = Number(json?.skipped_no_email ?? 0);
+
+    // KPI更新したいなら、ここは「dashboard再取得」が一番確実
+    // renderDashboard(currentDashboard) みたいな小手先より reloadAll() を呼ぶのが安全
+
+    let msg = "";
+    if (missing === 0) {
+      msg = "未提出が0名なので送信しませんでした。";
+    } else if (sent === 0) {
+      msg = `未提出は${missing}名ですが、メール未登録のため送信できませんでした（未登録: ${skipped}名）`;
+    } else if (skipped > 0) {
+      msg = `送信しました（未提出: ${missing}名 / 送信: ${sent}名 / メール未登録: ${skipped}名）`;
+    } else {
+      msg = `送信しました（未提出: ${missing}名 / 送信: ${sent}名）`;
+    }
+
+    alert(msg);
+
+    // 送信後に最新を反映したいなら（おすすめ）
+    // await reloadAll();  // ※再帰呼び出しになるなら別関数に切り出す
   } catch (e: any) {
     alert(`送信に失敗しました: ${String(e?.message ?? e)}`);
-    setRemainBtnState("idle");
+  } finally {
+    setRemainBtnState("idle"); // done 表示にしたいならここを "done" にしてもOK
   }
 });
 
-remainBtn.addEventListener("click", async () => {
+/*remainBtn.addEventListener("click", async () => {
   if (currentDashboard && currentDashboard.summary.missing === 0) {
     alert("未提出が0名なので送信しません。");
     return;
@@ -753,13 +903,7 @@ remainBtn.addEventListener("click", async () => {
     remainBtn.disabled = false;
     remainBtn.textContent = prev;
   }
-});
-
-
-document.querySelector("#remainBtn")?.addEventListener("click", () => {
-  alert("clicked");
-});
-
+});*/
 
 // ====== SAFE HTML ======
 function escapeHtml(s: string) {
