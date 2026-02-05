@@ -17,6 +17,7 @@ export default defineConfig({
         main: "index.html",
         admin: "admin.html",
         worktime: "worktime.html",
+        worktimeAdmin: "worktime-admin.html",
       },
     },
   },
