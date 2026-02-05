@@ -1224,7 +1224,7 @@ app.get("/api/leave/admin/summary", requireAdmin, async (c) => {
     .order("employee_id");
 
   if (error) {
-    return c.json({ ok: false, error: "leave summary unavailable" }, 500);
+    return c.json({ ok: false, error: "leave summary unavailable", detail: error.message, code: error.code }, 500);
   }
 
   const rows = (data ?? []).map((r: any) => ({
