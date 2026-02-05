@@ -21,7 +21,8 @@ type Env = {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   PUBLIC_DEMO?: string;
-  DEMO_STORE_ID?: string;
+  ADMIN_STORE_ID: string;
+  WORKTIME_ADMIN_STORE_ID: string;
   ADMIN_PASSWORD: string;
   ADMIN_TOKEN_SECRET: string;
   WORKTIME_ADMIN_PASSWORD: string;
@@ -845,16 +846,26 @@ app.post("/api/worktime/admin/login", async (c) => {
   const password = String(body?.password ?? "");
 
   const ADMIN_PASSWORD = c.env.ADMIN_PASSWORD ?? "";
-  const store_id = c.env.WORKTIME_ADMIN_PASSWORD ?? "";
+  const store_id =
+    c.env.WORKTIME_ADMIN_STORE_ID ??
+    c.env.ADMIN_STORE_ID ??
+    "";
 
-  if (!ADMIN_PASSWORD) return c.json({ ok: false, error: "ADMIN_PASSWORD is not configured" }, 500);
-  if (!store_id) return c.json({ ok: false, error: "WORKTIME_ADMIN_PASSWORD is not configured" }, 500);
+  if (!ADMIN_PASSWORD) {
+    return c.json({ ok: false, error: "ADMIN_PASSWORD is not configured" }, 500);
+  }
+  if (!store_id) {
+    return c.json({ ok: false, error: "WORKTIME_ADMIN_STORE_ID is not configured" }, 500);
+  }
 
-  if (password !== ADMIN_PASSWORD) return c.json({ ok: false, error: "Invalid password" }, 401);
+  if (password !== ADMIN_PASSWORD) {
+    return c.json({ ok: false, error: "Invalid password" }, 401);
+  }
 
   const token = issueAdminToken({ store_id });
   return c.json({ ok: true, token });
 });
+
 
 
 app.get("/api/worktime/admin/monthly", requireAdmin, async (c) => {
