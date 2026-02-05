@@ -1179,7 +1179,9 @@ app.post("/api/worktime/admin/remind", requireAdmin, async (c) => {
   lines.push("");
   lines.push(`対象週（週開始） :${week_start}`);
   lines.push("");
-  lines.push("勤務時間入力フォームから入力を行ってください。ここにURLが来る予定");
+  lines.push("下記の勤務時間入力フォームから入力を行ってください。");
+  lines.push("https://shiftflow-e14.pages.dev/worktime");
+  lines.push("");
   lines.push("※このメールは未提出の方へ自動送信されています。");
   lines.push("");
   lines.push("(未提出者一覧)")
