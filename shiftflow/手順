@@ -31,3 +31,10 @@ curl -s -X POST http://localhost:8787/api/worktime/admin/remind \
 稲田 inaryo3331@gmail.com
 中村 koyo72490583@gmail.com
 河合 accel3rriku@yahoo.co.jp
+
+wrangler secret put RESEND_API_KEY
+wrangler secret put OWNER_EMAIL
+wrangler secret put MAIL_FROM
+wrangler secret put LEAVE_SUPABASE_URL
+wrangler secret put LEAVE_SUPABASE_SERVICE_ROLE_KEY
+wrangler deploy
