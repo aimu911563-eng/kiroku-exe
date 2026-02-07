@@ -714,3 +714,59 @@ body {
   color: #64748b;
 }
 
+.monthBar{
+  position: relative;
+  height: 100%;
+  background: #3b82f6;   /* 青 */
+  border-radius: 999px;
+  overflow: hidden;      /* 青の中に緑を閉じ込める */
+}
+
+.monthNightBar{
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: #22c55e;   /* 緑 */
+  z-index: 1;
+}
+
+.monthRow {
+  display: grid;
+  grid-template-columns: 180px 1fr 120px;
+  gap: 12px;
+  align-items: center;
+}
+
+.monthVal {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* 1行=3列 を強制 */
+.monthRow{
+  display:grid;
+  grid-template-columns: 220px 1fr 170px; /* ←ここは好みで微調整 */
+  gap: 12px;
+  align-items:center;
+}
+
+/* 左列：名前が長くてもバー列を押さない */
+.monthName{
+  min-width:0;                 /* ←これ重要。grid内のテキスト暴れ防止 */
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* 真ん中列：バーは常にこの列の中で100% */
+.monthBarWrap{
+  width:100%;
+  min-width:0;
+}
+
+/* 右列：数字は右揃えで固定 */
+.monthVal{
+  text-align:right;
+  white-space:nowrap;
+}

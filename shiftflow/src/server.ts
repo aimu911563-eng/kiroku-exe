@@ -1019,8 +1019,8 @@ app.get("/api/worktime/admin/monthly", requireAdmin, async (c) => {
   const keyOrder = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
   // 集計箱
-  const totalMap = new Map<string, { total_minutes: number; weeks: Set<string> }>();
-  for (const e of employees) totalMap.set(e.employee_id, { total_minutes: 0, weeks: new Set() });
+  const totalMap = new Map<string, { total_minutes: number; night_minutes: number; weeks: Set<string> }>();
+  for (const e of employees) totalMap.set(e.employee_id, { total_minutes: 0, night_minutes: 0, weeks: new Set() });
 
   for (const s of subRes.data ?? []) {
     const employee_id = String((s as any).employee_id);
@@ -1028,7 +1028,7 @@ app.get("/api/worktime/admin/monthly", requireAdmin, async (c) => {
     if (!box) continue;
 
     const ws = String((s as any).week_start);
-    const data = ((s as any).data ?? {}) as Record<string, number>;
+    const data = ((s as any).data ?? {}) as any; // { mon..sun, breakdown? }
     const weekStartDate = new Date(`${ws}T00:00:00`);
 
     let touched = false;
@@ -1038,9 +1038,13 @@ app.get("/api/worktime/admin/monthly", requireAdmin, async (c) => {
       if (d < monthStart || d >= nextMonthStart) continue;
 
       const k = keyOrder[i];
-      const v = Number(data[k] ?? 0) || 0;
+      const v = Number(data?.[k] ?? 0) || 0;
       if (v > 0) touched = true;
       box.total_minutes += v;
+
+      // 深夜
+      const night = Number(data?.breakdown?.[k]?.night ?? 0) || 0;
+      box.night_minutes += night;
     }
     if (touched) box.weeks.add(ws);
   }
@@ -1052,6 +1056,7 @@ app.get("/api/worktime/admin/monthly", requireAdmin, async (c) => {
         employee_id: e.employee_id,
         name: e.name,
         total_minutes: box.total_minutes,
+        night_minutes: box.night_minutes,
         submitted_weeks: box.weeks.size,
         target_minutes: e.target_minutes,
       };

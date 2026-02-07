@@ -271,7 +271,7 @@ async function boot() {
 
 //今月合計描画
 function renderMonthly(m: MonthlySummary) {
-  monthMeta.textContent = `${m.month} / 所定労働時間は社員ごと（未提出週は含まれません）`;
+  monthMeta.textContent = `${m.month} / 所定労働時間は社員ごと（未提出週は含まれません）/ 緑のバー深夜（22時以降）です。`;
 
   monthBars.innerHTML = "";
 
@@ -283,9 +283,13 @@ function renderMonthly(m: MonthlySummary) {
   for (const r of m.rows) {
     const max = Number(r.target_minutes ?? 0) || 0;
     const total = Number(r.total_minutes ?? 0) || 0;
+    const night = Number((r as any).night_minutes ?? 0) || 0;
 
     const pct =
       max <= 0 ? 0 : Math.min(100, Math.round((total / max) * 100));
+
+    const nightPctInTotal =
+      total <= 0 ? 0 : Math.min(100, Math.round((Math.min(night, total) / total) * 100));
 
     const el = document.createElement("div");
     el.className = "monthRow";
@@ -295,11 +299,14 @@ function renderMonthly(m: MonthlySummary) {
         <span class="muted small">（目標 ${minutesToHHMM(max)}）</span>
       </div>
       <div class="monthBarWrap">
-        <div class="monthBar" style="width:${pct}%"></div>
+        <div class="monthBar" style="width:${pct}%">
+          <div class="monthNightBar" style="width:${nightPctInTotal}%"></div>
+        </div>
       </div>
       <div class="monthVal">
         ${minutesToHHMM(total)}
         <span class="muted small">(${pct}%)</span>
+        <span class="muted small" style="margin-left: 8px;">深夜 ${minutesToHHMM(Math.min(night, total))}</span>
       </div>
     `;
 

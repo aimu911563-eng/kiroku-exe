@@ -188,6 +188,7 @@ function updateStorePreview() {
 }*/
 
 /*function setDayInputFromMinutes(data: Record<string, number>) {
+
   (DAY_KEYS as const).forEach((k) => {
     const normalEl = document.getElementById(`${k}_normal`) as HTMLInputElement | null;
     const nightEl  = document.getElementById(`${k}_night`) as HTMLInputElement | null;
@@ -200,7 +201,6 @@ function updateStorePreview() {
   });
   recalcTotalsUI();
 }*/
-
 //空欄なら何もしない
 /*function attachTimeInputHandlers() {
     const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".timeInput"));
