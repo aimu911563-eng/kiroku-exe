@@ -400,7 +400,7 @@ app.post("/api/employee/login", async (c) => {
 
   const empRes = await supabase 
     .from("employees")
-    .select("employee_id, employee_name, store_id, pin_hash, is_active, monthly_target_minutes")
+    .select("employee_id, employee_name, store_id, pin_hash, is_active, worktime_group")
     .eq("employee_id", employee_id)
     .maybeSingle();
 
@@ -422,6 +422,25 @@ app.post("/api/employee/login", async (c) => {
     return c.json({ ok: false, error: "invalid credentials" }, 401);
   }
 
+  const group = String(empRes.data.worktime_group ?? "").trim();
+  let monthly_target_minutes: number | null = null;
+
+  if (group) {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+    const tgt = await supabase
+      .from("worktime_targets")
+      .select("target_minutes")
+      .eq("group_code", group)
+      .eq("days_in_month", daysInMonth)
+      .maybeSingle();
+
+    if (!tgt.error && tgt.data?.target_minutes != null) {
+      monthly_target_minutes = Number(tgt.data.target_minutes);
+    }
+  }
+
   const payload: EmployeePayload = {
     employee_id,
     store_id: empRes.data.store_id,
@@ -434,7 +453,7 @@ app.post("/api/employee/login", async (c) => {
     employee_id, 
     employee_name: empRes.data.employee_name, 
     store_id: empRes.data.store_id,
-    monthly_target_minutes: empRes.data.monthly_target_minutes ?? null 
+    monthly_target_minutes,
   });
 
 });
