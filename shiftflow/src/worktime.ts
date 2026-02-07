@@ -13,14 +13,16 @@ type LoginResponse = {
 };
 
 type WorktimeGetResponse = {
-    week_start: string;
-    data: Record<DayKey, number>;
-    status?: "submitted" | "updated";
-    total_minutes?: number;
-    updated_at?: string;
-}
+  week_start: string;
+  data: Record<DayKey, number>;
+  status?: "submitted" | "updated";
+  total_minutes?: number;
+  updated_at?: string;
+  breakdown?: Partial<Record<DayKey, { normal: number; night: number }>>; 
+};
 
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+const DAY_KEYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 type WorktimeRow = {
   week_start: string;
@@ -28,9 +30,6 @@ type WorktimeRow = {
   status: string;
   total_minutes: number;
 };
-
-const DAY_KEYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -50,6 +49,39 @@ function setLoggedInInfo(res: LoginResponse) {
     localStorage.setItem(MONTHLY_TARGET_KEY, String(res.monthly_target_minutes))
   } else {
     localStorage.removeItem(MONTHLY_TARGET_KEY)
+  }
+}
+
+function setSplitInputsFromResponse(d: WorktimeGetResponse) {
+  // breakdown があればそれを優先
+  const bd = d.breakdown ?? (d.data as any)?.breakdown; // どっちで来ても拾えるように
+
+  for (const k of DAY_KEYS) {
+    const normalEl = document.getElementById(`${k}_normal`) as HTMLInputElement | null;
+    const nightEl  = document.getElementById(`${k}_night`) as HTMLInputElement | null;
+    if (!normalEl || !nightEl) continue;
+
+    if (bd?.[k]) {
+      const n = Number(bd[k]?.normal ?? 0);
+      const ng = Number(bd[k]?.night ?? 0);
+      normalEl.value = n > 0 ? formatHHMM(n) : "";
+      nightEl.value  = ng > 0 ? formatHHMM(ng) : "";
+    } else {
+      // 旧データ互換：合算しか無いなら「通常」に全部入れる（深夜は空）
+      const total = Number(d.data?.[k] ?? 0);
+      normalEl.value = total > 0 ? formatHHMM(total) : "";
+      nightEl.value  = "";
+    }
+
+    // 日別合計表示
+    const sumEl = document.getElementById(`${k}_sum`);
+    if (sumEl) {
+      const ra = parseHhmmToMinutes(normalEl.value);
+      const a = ra.ok ? ra.minutes : 0;
+      const rb = parseHhmmToMinutes(nightEl.value);
+      const b = rb.ok ? rb.minutes : 0;
+      sumEl.textContent = formatHHMM(a + b);
+    }
   }
 }
 
@@ -145,7 +177,7 @@ function updateStorePreview() {
 }
 
 //入力欄に反映する関数
-function setDayInputFromMinutes(data: Record<string, number>) {
+/*function setDayInputFromMinutes(data: Record<string, number>) {
   (["mon","tue","wed","thu","fri","sat","sun"] as const).forEach((k) => {
     const el = document.getElementById(k) as HTMLInputElement | null;
     if (!el) return;
@@ -153,21 +185,25 @@ function setDayInputFromMinutes(data: Record<string, number>) {
     const mins = Number(data?.[k] ?? 0);
     el.value = mins > 0 ? formatHHMM(mins) : ""; //  0なら空
   });
-}
+}*/
 
+/*function setDayInputFromMinutes(data: Record<string, number>) {
+  (DAY_KEYS as const).forEach((k) => {
+    const normalEl = document.getElementById(`${k}_normal`) as HTMLInputElement | null;
+    const nightEl  = document.getElementById(`${k}_night`) as HTMLInputElement | null;
+    const sumEl    = document.getElementById(`${k}_sum`) as HTMLElement | null;
 
-//デフォルト０で初期化するやつ
-function setAllZero() {
-  (["mon","tue","wed","thu","fri","sat","sun"] as const).forEach((k) => {
-    const el = document.getElementById(k) as HTMLInputElement | null;
-    if (!el) return;
-    el.value = ""; // "00:00" じゃなく空
+    const mins = Number(data?.[k] ?? 0);
+    if (normalEl) normalEl.value = mins > 0 ? formatHHMM(mins) : ""; // 合計を通常側へ寄せる
+    if (nightEl) nightEl.value = ""; // 取得できないので空
+    if (sumEl) sumEl.textContent = formatHHMM(mins);
   });
-}
+  recalcTotalsUI();
+}*/
 
 //空欄なら何もしない
-function attachTimeInputHandlers() {
-    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(". timeInput"));
+/*function attachTimeInputHandlers() {
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".timeInput"));
 
     for (const el of inputs) {
         el.addEventListener("input", () => {
@@ -181,7 +217,7 @@ function attachTimeInputHandlers() {
             (window as any).__recalcWorktimeTotal?.();
         })
     }
-}
+}*/
 
 //曜日の横に日付を表示する　ゼロ埋めにする
 function pad2(n: number) {
@@ -235,10 +271,10 @@ async function loadWorktimeForWeek(weekStart: string) {
 
         if (res.status === 404) {
             //未提出:ゼロ初期化
-            setAllZero();
+            setAllZeroSplit();
             submitStatus.textContent = "未提出(新規入力)";
             //合計再計算(blur待たずに更新)
-            (window as any).__recalcWorktimeTotal?.();
+            recalcTotalsUI();
             return;
         }
 
@@ -251,12 +287,12 @@ async function loadWorktimeForWeek(weekStart: string) {
 
         const data = (await res.json()) as WorktimeGetResponse;
 
-        setDayInputFromMinutes(data.data);
+        setSplitInputsFromResponse(data);
         submitStatus.textContent =
           data.status === "updated"
             ? "提出済(更新済)"
             : "提出済";
-        (window as any).__recalcWorktimeTotal?.();
+        recalcTotalsUI();
     } catch (e) {
         submitStatus.textContent = "";
         msgEl.textContent = `読み込み失敗: ${String(e)}`;
@@ -448,7 +484,7 @@ function minutesToHhmm(total: number): string {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
-function attachHhmmHandlers() {
+/*function attachHhmmHandlers() {
   const weekTotalEl = $("weekTotal");
   const msgEl = $("message");
 
@@ -481,10 +517,11 @@ function attachHhmmHandlers() {
     });
   }
 
-  (window as any).__recalcWorktimeTotal = recalc();
-}
+  (window as any).__recalcWorktimeTotal = recalc;
+  recalc();
+}*/
 
-function collectMinutesPayload(): Record<DayKey, number> {
+/*function collectMinutesPayload(): Record<DayKey, number> {
     const out = {} as Record<DayKey, number>;
 
     for (const k of DAY_KEYS) {
@@ -494,7 +531,55 @@ function collectMinutesPayload(): Record<DayKey, number> {
         out[k] = r.minutes;
     }
     return out;
-}
+}*/
+
+/*function collectMinutesPayload(): Record<DayKey, number> {
+  const out = {} as Record<DayKey, number>;
+
+  for (const k of DAY_KEYS) {
+    const normalEl = document.getElementById(`${k}_normal`) as HTMLInputElement;
+    const nightEl  = document.getElementById(`${k}_night`) as HTMLInputElement;
+
+    const a = parseHhmmToMinutes(normalEl?.value ?? "");
+    if (!a.ok) throw new Error(`${k}_normal: ${a.error}`);
+
+    const b = parseHhmmToMinutes(nightEl?.value ?? "");
+    if (!b.ok) throw new Error(`${k}_night: ${b.error}`);
+
+    const total = a.minutes + b.minutes;
+    out[k] = total;
+
+    // 画面の合算表示（任意）
+    const totalEl = document.getElementById(`${k}_total`);
+    if (totalEl) totalEl.textContent = minutesToHhmm(total); // 既存の変換関数があればそれ使う
+  }
+
+  return out;
+}*/
+
+/*function updateDailyTotalsAndReturnPayload(): Record<DayKey, number> {
+  const out = {} as Record<DayKey, number>;
+
+  for (const k of DAY_KEYS) {
+    const normalEl = document.getElementById(`${k}_normal`) as HTMLInputElement;
+    const nightEl  = document.getElementById(`${k}_night`) as HTMLInputElement;
+
+    const a = parseHhmmToMinutes(normalEl?.value ?? "");
+    if (!a.ok) throw new Error(`${k} 通常: ${a.error}`);
+
+    const b = parseHhmmToMinutes(nightEl?.value ?? "");
+    if (!b.ok) throw new Error(`${k} 深夜: ${b.error}`);
+
+    const total = a.minutes + b.minutes;
+    out[k] = total;
+
+    const totalEl = document.getElementById(`${k}_total`);
+    if (totalEl) totalEl.textContent = minutesToHhmm(total);
+  }
+
+  return out;
+}*/
+
 
 function attachButtons() {
   const previewBtn = $("btnPreview") as HTMLButtonElement;
@@ -525,15 +610,17 @@ function attachButtons() {
         }
 
         let data: Record<DayKey, number>;
-        try {
-            data = collectMinutesPayload();
-        } catch (e) {
-            msgEl.textContent = String(e);
-            return;
-        }
+        let breakdown: any;
 
-        submitBtn.disabled = true;
-        submitBtn.textContent = "送信中...";
+        try {
+          const v = validateAllInputs();
+          if (!v.ok) throw new Error(v.error);
+          data = v.totals;
+          breakdown = v.breakdown;
+        } catch (e) {
+          msgEl.textContent = String(e);
+          return;
+        }
 
         try {
             const res = await fetch("/api/worktime", {
@@ -542,6 +629,7 @@ function attachButtons() {
                 body: JSON.stringify({ 
                     week_start: weekStart,
                     data,
+                    breakdown,
                 }),
             });
 
@@ -659,6 +747,7 @@ async function calcMonthTotal(anyDayISO: string, token: string): Promise<MonthTo
 }
 
 
+
 async function updateMonthTotalLabel() {
     const el = document.getElementById("monthTotalLabel");
     if (!el) return;
@@ -753,6 +842,123 @@ function attachRealtimeWeekTotal() {
   recalcWeekTotalUI();
 }
 
+const inputId = (k: DayKey, kind: "normal"|"night") => `${k}_${kind}`;
+const sumId   = (k: DayKey) => `${k}_sum`;
+
+// 既存の parseHhmmToMinutes(raw) をそのまま使う前提
+// 既存の minutesToHhmm(totalMinutes) をそのまま使う前提
+
+function validateAllInputs(): { ok: true; totals: Record<DayKey, number>; breakdown: Record<DayKey,{normal:number; night:number}> }
+                           | { ok: false; error: string } {
+
+  const totals = {} as Record<DayKey, number>;
+  const breakdown = {} as Record<DayKey,{normal:number; night:number}>;
+
+  for (const k of DAY_KEYS) {
+    const normalEl = $(inputId(k,"normal")) as HTMLInputElement | null;
+    const nightEl  = $(inputId(k,"night")) as HTMLInputElement | null;
+    if (!normalEl || !nightEl) return { ok:false, error:`DOMが見つかりません: ${k}` };
+
+    const rn = parseHhmmToMinutes(normalEl.value);
+    if (!rn.ok) return { ok:false, error:`${k}（通常）: ${rn.error}` };
+
+    const rnight = parseHhmmToMinutes(nightEl.value);
+    if (!rnight.ok) return { ok:false, error:`${k}（深夜）: ${rnight.error}` };
+
+    breakdown[k] = { normal: rn.minutes, night: rnight.minutes };
+    totals[k] = rn.minutes + rnight.minutes; // 日別合算（通常+深夜）
+  }
+
+  return { ok:true, totals, breakdown };
+}
+
+function recalcTotalsUI() {
+  const msgEl = $("message");
+  if (msgEl) msgEl.textContent = "";
+
+  const weekTotalEl = $("weekTotal");
+  if (!weekTotalEl) return;
+
+  const v = validateAllInputs();
+  if (!v.ok) {
+    weekTotalEl.textContent = "00:00";
+    if (msgEl) msgEl.textContent = v.error;
+    return;
+  }
+
+  // 日別sum表示
+  for (const k of DAY_KEYS) {
+    const el = $(sumId(k));
+    if (el) el.textContent = minutesToHhmm(v.totals[k]);
+  }
+
+  // 週合計
+  const weekTotal = DAY_KEYS.reduce((acc,k)=> acc + v.totals[k], 0);
+  weekTotalEl.textContent = minutesToHhmm(weekTotal);
+}
+
+function attachWorktimeHandlers() {
+  const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".timeInput"));
+
+  for (const el of inputs) {
+    el.addEventListener("input", recalcTotalsUI);
+    el.addEventListener("blur", () => {
+      const r = parseHhmmToMinutes(el.value);
+      if (r.ok) el.value = r.normalized;   // ここで 830 → 08:30 みたいに正規化
+      recalcTotalsUI();
+    });
+  }
+
+  recalcTotalsUI(); // 初回
+}
+
+// 送信 payload（互換性維持：dataは従来どおり「合算」 / breakdownは追加情報）
+/*function collectWorktimePayloadOrThrow(): Record<DayKey, number> {
+  const v = validateAllInputs();
+  if (!v.ok) throw new Error(v.error);
+  return v.totals; // ← ここだけ送る
+}*/
+
+function setAllZeroSplit() {
+  for (const k of DAY_KEYS) {
+    const normalEl = document.getElementById(`${k}_normal`) as HTMLInputElement | null;
+    const nightEl  = document.getElementById(`${k}_night`) as HTMLInputElement | null;
+    const sumEl    = document.getElementById(`${k}_sum`) as HTMLElement | null;
+
+    if (normalEl) normalEl.value = "";
+    if (nightEl) nightEl.value = "";
+    if (sumEl) sumEl.textContent = "00:00";
+  }
+}
+
+/*function setAllZero() {
+  (["mon","tue","wed","thu","fri","sat","sun"] as const).forEach((k) => {
+    const n = document.getElementById(`${k}_normal`) as HTMLInputElement | null;
+    const g = document.getElementById(`${k}_night`) as HTMLInputElement | null;
+    if (n) n.value = "";
+    if (g) g.value = "";
+    const sum = document.getElementById(`${k}_sum`);
+    if (sum) sum.textContent = "00:00";
+  });
+}*/
+
+/*function setInputsFromApiData(apiData: any) {
+  // apiData: { mon..sun:number, breakdown?: { mon:{normal,night}... } }
+  const bd = apiData?.breakdown;
+
+  (["mon","tue","wed","thu","fri","sat","sun"] as const).forEach((k) => {
+    const normalEl = document.getElementById(`${k}_normal`) as HTMLInputElement | null;
+    const nightEl  = document.getElementById(`${k}_night`)  as HTMLInputElement | null;
+
+    const normalMin = Number(bd?.[k]?.normal ?? apiData?.[k] ?? 0);
+    const nightMin  = Number(bd?.[k]?.night  ?? 0);
+
+    if (normalEl) normalEl.value = normalMin > 0 ? formatHHMM(normalMin) : "";
+    if (nightEl)  nightEl.value  = nightMin  > 0 ? formatHHMM(nightMin)  : "";
+  });
+}*/
+
+
 
 function boot() {
   // まずログイン処理（共通資産）
@@ -762,11 +968,7 @@ function boot() {
   normalizeWeekStartInput();
 
   // 入力合計
-  attachHhmmHandlers();
-
-  //
-  attachRealtimeWeekTotal();
-  attachTimeInputHandlers
+  attachWorktimeHandlers();
 
   // ボタン（仮）
   attachButtons();

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>勤務時間入力 | ShiftFlow</title>
-    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="style.css" />
   </head>
 
   <body>
@@ -95,13 +95,61 @@
         <section class="section">
           <h2 style="margin: 12px 0 8px;">勤務時間入力（hh:mm）</h2>
 
-          <div class="row"><label class="dayLabel" data-wd="月" data-day="0">月</label><input id="mon" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
-          <div class="row"><label class="dayLabel" data-wd="火" data-day="1">火</label><input id="tue" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
-          <div class="row"><label class="dayLabel" data-wd="水" data-day="2">水</label><input id="wed" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
-          <div class="row"><label class="dayLabel" data-wd="木" data-day="3">木</label><input id="thu" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
-          <div class="row"><label class="dayLabel" data-wd="金" data-day="4">金</label><input id="fri" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
-          <div class="row"><label class="dayLabel" data-wd="土" data-day="5">土</label><input id="sat" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
-          <div class="row"><label class="dayLabel" data-wd="日" data-day="6">日</label><input id="sun" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div>
+          <!-- <div class="row"><label class="dayLabel" data-wd="月" data-day="0">月</label><input id="mon" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div> -->
+          <!-- <div class="row"><label class="dayLabel" data-wd="火" data-day="1">火</label><input id="tue" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div> -->
+          <!-- <div class="row"><label class="dayLabel" data-wd="水" data-day="2">水</label><input id="wed" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div> -->
+          <!-- <div class="row"><label class="dayLabel" data-wd="木" data-day="3">木</label><input id="thu" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div> -->
+          <!-- <div class="row"><label class="dayLabel" data-wd="金" data-day="4">金</label><input id="fri" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div> -->
+          <!-- <div class="row"><label class="dayLabel" data-wd="土" data-day="5">土</label><input id="sat" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div> -->
+          <!-- <div class="row"><label class="dayLabel" data-wd="日" data-day="6">日</label><input id="sun" class="input timeInput" placeholder="08:00" maxlength="5" inputmode="numeric" /></div> -->
+          <div class="worktimeForm">
+            <label class="dayLabel" data-wd="月" data-day="0">月</label>
+              <input id="mon_normal" class="input timeInput" placeholder="通常 08:00" maxlength="5" inputmode="numeric" />
+              <input id="mon_night"  class="input timeInput night" placeholder="深夜 00:00" maxlength="5" inputmode="numeric" />
+            <div class="daySum" id="mon_sum">00:00</div>
+          </div>
+
+          <div class="worktimeForm">
+            <label class="dayLabel" data-wd="火" data-day="1">火</label>
+              <input id="tue_normal" class="input timeInput" placeholder="通常 08:00" maxlength="5" inputmode="numeric" />
+              <input id="tue_night"  class="input timeInput night" placeholder="深夜 00:00" maxlength="5" inputmode="numeric" />
+            <div class="daySum" id="tue_sum">00:00</div>
+          </div>
+
+          <div class="worktimeForm">
+            <label class="dayLabel" data-wd="水" data-day="2">水</label>
+              <input id="wed_normal" class="input timeInput" placeholder="通常 08:00" maxlength="5" inputmode="numeric" />
+              <input id="wed_night"  class="input timeInput night" placeholder="深夜 00:00" maxlength="5" inputmode="numeric" />
+            <div class="daySum" id="wed_sum">00:00</div>
+          </div>
+
+          <div class="worktimeForm">
+            <label class="dayLabel" data-wd="木" data-day="3">木</label>
+              <input id="thu_normal" class="input timeInput" placeholder="通常 08:00" maxlength="5" inputmode="numeric" />
+              <input id="thu_night"  class="input timeInput night" placeholder="深夜 00:00" maxlength="5" inputmode="numeric" />
+            <div class="daySum" id="thu_sum">00:00</div>
+          </div>
+
+          <div class="worktimeForm">
+            <label class="dayLabel" data-wd="金" data-day="4">金</label>
+              <input id="fri_normal" class="input timeInput" placeholder="通常 08:00" maxlength="5" inputmode="numeric" />
+              <input id="fri_night"  class="input timeInput night" placeholder="深夜 00:00" maxlength="5" inputmode="numeric" />
+            <div class="daySum" id="fri_sum">00:00</div>
+          </div>
+
+          <div class="worktimeForm">
+            <label class="dayLabel" data-wd="土" data-day="5">土</label>
+              <input id="sat_normal" class="input timeInput" placeholder="通常 08:00" maxlength="5" inputmode="numeric" />
+              <input id="sat_night"  class="input timeInput night" placeholder="深夜 00:00" maxlength="5" inputmode="numeric" />
+            <div class="daySum" id="sat_sum">00:00</div>
+          </div>
+
+          <div class="worktimeForm">
+            <label class="dayLabel" data-wd="日" data-day="6">日</label>
+              <input id="sun_normal" class="input timeInput" placeholder="通常 08:00" maxlength="5" inputmode="numeric" />
+              <input id="sun_night"  class="input timeInput night" placeholder="深夜 00:00" maxlength="5" inputmode="numeric" />
+            <div class="daySum" id="sun_sum">00:00</div>
+          </div>
 
           <div class="totalBox" style="margin-top: 12px;">
             <div class="totalLabel">週合計</div>

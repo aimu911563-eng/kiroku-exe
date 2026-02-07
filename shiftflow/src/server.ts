@@ -606,6 +606,40 @@ function calcTotalMinutes(data: Record<DayKey, number>): number {
   return DAY_KEYS.reduce(( sum, k) => sum + (data[k] ?? 0), 0);
 }
 
+type Breakdown = Record<DayKey, { normal: number; night: number }>;
+
+function asInt(n: any, label: string): number {
+  const v = Number(n);
+  if (!Number.isFinite(v) || v < 0) throw new Error(`${label} must be >= 0 number`);
+  return Math.floor(v);
+}
+
+function sanitizeBreakdown(raw: any): Breakdown {
+  if (!raw || typeof raw !== "object") throw new Error("breakdown is invalid");
+  const out = {} as Breakdown;
+
+  for (const k of DAY_KEYS) {
+    const row = (raw as any)[k];
+    if (!row || typeof row !== "object") throw new Error(`breakdown.${k} is invalid`);
+
+    const normal = asInt(row.normal ?? 0, `breakdown.${k}.normal`);
+    const night  = asInt(row.night  ?? 0, `breakdown.${k}.night`);
+
+    // 1日上限チェック（必要なら）
+    if (normal + night > 1440) throw new Error(`${k} total exceeds 24:00`);
+
+    out[k] = { normal, night };
+  }
+  return out;
+}
+
+function totalsFromBreakdown(b: Breakdown): Record<DayKey, number> {
+  const out = {} as Record<DayKey, number>;
+  for (const k of DAY_KEYS) out[k] = b[k].normal + b[k].night;
+  return out;
+}
+
+
 app.post("/api/worktime", requireEmployee, async (c) => {
   const employee_id = c.get("employee_id") as string;
   const store_id = c.get("employee_store_id") as string;
@@ -627,6 +661,23 @@ app.post("/api/worktime", requireEmployee, async (c) => {
   } catch (e) {
     return c.json({ ok: false, error: String(e) }, 400);
   }
+
+  // breakdown 普通と深夜　を受け取る
+  let breakdown: Breakdown | null = null;
+  try {
+    const rawBreakdown = body.breakdown ?? body.data?.breakdown ?? null;
+    if (rawBreakdown) breakdown = sanitizeBreakdown(rawBreakdown);
+  } catch (e) {
+    return c.json({ ok: false, error: String(e) }, 400);
+  }
+
+  // breakdown　がきてるなら　合算data を　breakdown から作り直す
+  if (breakdown) {
+    data = totalsFromBreakdown(breakdown);
+  }
+
+  // DBに入れるdata
+  const dataToStore = breakdown ? ({ ...data, breakdown } as any) : (data as any);
 
   const total_minutes = calcTotalMinutes(data)
 
@@ -651,7 +702,7 @@ app.post("/api/worktime", requireEmployee, async (c) => {
         store_id,
         employee_id,
         week_start,
-        data,
+        data: dataToStore,
         total_minutes,
         status: "submitted",
       })
@@ -674,7 +725,7 @@ app.post("/api/worktime", requireEmployee, async (c) => {
   const { data: updated, error: updErr } = await supabase
     .from("worktime_submissions")
     .update({
-      data,
+      data: dataToStore,
       total_minutes,
       status: "updated",
     })

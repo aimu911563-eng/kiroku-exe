@@ -496,3 +496,90 @@ label.dayLabel[data-day="6"] {
   white-space:nowrap;
   flex:0 0 auto;
 }
+
+
+/* worktimeだけに当てたいなら親に class="worktimeForm" を付けてこれ */
+.worktimeForm .row{
+  display: grid;
+  grid-template-columns: 92px 1fr 1fr 64px;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 合算表示 */
+.worktimeForm .daySum{
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/* inputが勝手に改行させない */
+.worktimeForm .timeInput{
+  width: 100%;
+  min-width: 0;
+}
+
+.worktimeForm .row{
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 64px; /* 月 / 通常 / 深夜 / 合算 */
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.worktimeForm .daySum{
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.worktimeForm {
+  display: grid;
+  grid-template-columns: 32px 1fr 1fr 64px;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.dayLabel {
+  text-align: center;
+  font-weight: bold;
+}
+
+.timeInput {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.daySum {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #333;
+}
+
+/* 1行をグリッド化 */
+.section .worktimeForm{
+  display: grid;
+  grid-template-columns: 88px 1fr 1fr 70px; /* 日付/通常/深夜/合算 */
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+/* 子要素が変な幅を持ってても潰れないように */
+.section .worktimeForm > *{
+  min-width: 0;
+}
+
+/* 合算が「全幅」扱いで落ちるのを止める */
+.section .worktimeForm .daySum{
+  grid-column: 4;      /* 4列目固定 */
+  grid-row: 1;         /* 1行目固定 */
+  width: auto !important;
+  margin: 0 !important;
+  justify-self: end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
