@@ -583,3 +583,80 @@ label.dayLabel[data-day="6"] {
   font-variant-numeric: tabular-nums;
 }
 
+/* ShiftFlow: 土日色分け */
+#shiftTable tbody tr.sat td:first-child {
+  color: #2563eb; /* 青 */
+  font-weight: 700;
+}
+#shiftTable tbody tr.sun td:first-child {
+  color: #dc2626; /* 赤 */
+  font-weight: 700;
+}
+
+#setumei {
+  margin-top: 24px; /* 好きに調整：16〜24pxがおすすめ */
+}
+
+#setumei li.one-line {
+  white-space: nowrap;
+}
+
+#setumei{
+  max-width: 420px;     /* 入力欄と同じくらいの幅に寄せる */
+  margin: 18px auto 0;  /* 中央寄せ + 上に少し余白 */
+  padding: 10px 12px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+#setumei strong{
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+#setumei ul{
+  margin: 0;
+  padding-left: 18px;   /* 箇条書きのインデント調整 */
+}
+
+#setumei li{
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0;
+}
+
+#setumei li.one-line{
+  white-space: nowrap;
+  display: inline-block;
+}
+
+#setumei{
+  max-width: 420px;        /* 入力欄と同じ“列”に揃える */
+  margin: 18px auto 0;     /* 中央寄せ＋上に余白 */
+  padding: 10px 12px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+#setumei strong{
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+#setumei .ruleLine{
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0;
+}
+
+#setumei .ruleLine.one-line{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;        /* inline-block → block に戻す */
+}
+

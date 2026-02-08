@@ -76,6 +76,28 @@ const userBar = document.getElementById("userBar") as HTMLDivElement | null;
 const shiftArea = document.getElementById("shiftArea") as HTMLDivElement | null;
 const loginUserLabel = document.getElementById("loginUserLabel") as HTMLSpanElement | null;
 
+// 営業時間入力を＋１時間にする
+function addMinutesToHHMM(hhmm: string, addMin: number): string {
+  // "24:00" は time input 的には最大 "23:59" なので固定
+  if (hhmm === "24:00") return "23:59";
+
+  const m = hhmm.match(/^(\d{2}):(\d{2})$/);
+  if (!m) return hhmm;
+
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  let total = h * 60 + min + addMin;
+
+  // time input の上限は 23:59
+  if (total > 23 * 60 + 59) total = 23 * 60 + 59;
+  if (total < 0) total = 0;
+
+  const hh = String(Math.floor(total / 60)).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+
 function setLoginUserLabell(name: string) {
   if (loginUserLabel) loginUserLabel.textContent = `👤 ${name}`;
 }
@@ -95,36 +117,38 @@ function updateDayDatesByInputs(weekStartStr: string) {
   const base = new Date(weekStartStr);
   if (Number.isNaN(base.getTime())) return;
 
+  const jpWeek = ["月", "火", "水", "木", "金", "土", "日"] as const;
+
   DAY_KEYS.forEach((day, i) => {
     const d = new Date(base);
     d.setDate(base.getDate() + i);
 
     const mm = d.getMonth() + 1;
     const dd = d.getDate();
-    const label = `${mm}/${dd}`;
+    const dow = jpWeek[i]; // 月〜日
+    const label = `${mm}/${dd}（${dow}）`;
 
-    // その曜日の input を1個拾って、その行(tr)の最初のtd(曜日セル)に日付を入れる
-    const input = document.querySelector<HTMLInputElement>(`input[type="time"][data-day="${day}"]`);
+    // その曜日の input を拾って行を特定
+    const input = document.querySelector<HTMLInputElement>(
+      `input[type="time"][data-day="${day}"]`
+    );
     if (!input) return;
 
     const tr = input.closest("tr");
-    const dayTd = tr?.querySelector("td"); // 1列目=曜日
+    if (!tr) return;
+
+    const dayTd = tr.querySelector<HTMLTableCellElement>("td");
     if (!dayTd) return;
 
-    // まだ日付用spanが無ければ作る
-    let dateEl = dayTd.querySelector<HTMLSpanElement>(".date");
-    if (!dateEl) {
-      dateEl = document.createElement("span");
-      dateEl.className = "date";
-      dateEl.style.marginLeft = "6px";
-      dateEl.style.fontSize = "12px";
-      dateEl.style.color = "#666";
-      dayTd.appendChild(dateEl);
-    }
+    // 1列目を「日付（曜日）」にする
+    dayTd.textContent = label;
 
-    dateEl.textContent = label;
+    // 土日色（class付与）
+    tr.classList.toggle("sat", day === "sat");
+    tr.classList.toggle("sun", day === "sun");
   });
 }
+
 
 
 // 今週の月曜
@@ -328,7 +352,7 @@ function openConfirm(payload: any): Promise<boolean> {
 
 
 // 営業時間　金土日祝変更可能
-function isWeekend(day: DayKey) {
+/*function isWeekend(day: DayKey) {
   return day === "sat" || day === "sun";
 }
  function applyBusinessHoursToTimeInputs(storeId: string, isHoliday: boolean) {
@@ -340,7 +364,7 @@ function isWeekend(day: DayKey) {
   days.forEach((day) => {
     const rule = (isWeekend(day) || isHoliday) ? def.weekendHoliday : def.weekday;
     const min = rule.open;
-    const max = rule.close === "24:00" ? "23:59" : rule.close;
+    const max = rule.close = addMinutesToHHMM(rule.close, 60);
 
     document.querySelectorAll<HTMLInputElement>(`input[type="time"][data-day="${day}"][data-kind]`)
       .forEach((el) => {
@@ -355,7 +379,43 @@ function isWeekend(day: DayKey) {
     hoursPreview.textContent = `営業時間（平日 ${w.open}~${w.close} / 金土日祝 ${h.open}~${h.close} ` +
     (isHoliday ? " ← 祝日ON" : "");
   }
+}*/
+
+function isWeekend(day: DayKey) {
+  return day === "sat" || day === "sun";
 }
+  function applyBusinessHoursToTimeInputs(storeId: string, isHoliday: boolean) {
+  const def = BUSINESS_HOURS[storeId as StoreId];
+  if (!def) return;
+
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+  days.forEach((day) => {
+    const rule = (isWeekend(day) || isHoliday) ? def.weekendHoliday : def.weekday;
+
+    const min = rule.open;
+
+    // ★入力用：close + 60分（表示には使わない）
+    const maxForInput = addMinutesToHHMM(rule.close, 60);
+
+    document
+      .querySelectorAll<HTMLInputElement>(`input[type="time"][data-day="${day}"][data-kind]`)
+      .forEach((el) => {
+        el.min = min;
+        el.max = maxForInput;
+        el.step = "300";
+      });
+  });
+
+  // ★表示用：defのcloseをそのまま
+  if (hoursPreview) {
+    const w = def.weekday, h = def.weekendHoliday;
+    hoursPreview.textContent =
+      `営業時間（平日 ${w.open}~${w.close} / 金土日祝 ${h.open}~${h.close}）` +
+      (isHoliday ? " ← 祝日ON" : "");
+  }
+}
+
 
 holidayToggle?.addEventListener("change", () => {
   if (!currentEmployee) return;
@@ -427,7 +487,8 @@ function applyDeadlineUI(weekStartYMD: string) {
 
   const line = document.getElementById("deadlineLine");
   const warn = document.getElementById("deadlineWarn");
-  const submitBtn = document.getElementById("btn btnPrimary") as HTMLButtonElement | null; // ←あなたの提出ボタンIDに合わせて
+  const submitBtn = shiftForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+
 
   if (line) {
     // 「木曜0:00で締切」を分かりやすく
