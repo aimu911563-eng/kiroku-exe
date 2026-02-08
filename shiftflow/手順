@@ -9,6 +9,10 @@ npm run dev:api
 スマホごと
 npm run dev -- --host
 
+コミット運用のコツ（ShiftFlow向け）
+UIだけの変更 → git push（Pagesだけ見ればOK）
+API変更した → git push + wrangler deploy（Workerも更新）
+
 git config user.name "aimu911563"
 git config user.email "aimu911563@gmail.com"
 

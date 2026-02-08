@@ -220,6 +220,15 @@ logoutBtn.addEventListener("click", () => {
   hide(dashView);
 });
 
+function prevMonday(ymd: string): string {
+  const d = new Date(ymd + "T00:00:00");
+  d.setDate(d.getDate() - 7);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 // ====== DASHBOARD FLOW ======
 async function boot() {
   const token = getToken();
@@ -316,11 +325,12 @@ function renderMonthly(m: MonthlySummary) {
 
 
 async function reloadAll() {
-  const ws = weekStartEl.value;
+  const uiWeek = weekStartEl.value;
+  const submiWeek = prevMonday(uiWeek);
 
   // 1) worktime dashboard
   const dash = await apiGet<WorktimeDashboard>(
-    `/api/worktime/admin/dashboard?week_start=${encodeURIComponent(ws)}`
+    `/api/worktime/admin/dashboard?week_start=${encodeURIComponent(submiWeek)}`
   );
   currentDashboard = dash;
   renderDashboard(dash);
@@ -337,13 +347,13 @@ async function reloadAll() {
   }
 
 
-  const month2 = monthFromWeekStart(ws);
+  const month2 = monthFromWeekStart(uiWeek);
   const monthly = await apiGet<MonthlySummary>(
     `/api/worktime/admin/monthly?month=${encodeURIComponent(month2)}`
   );
 
   renderMonthly(monthly);
-  renderForecast(monthly,ws);
+  renderForecast(monthly,uiWeek);
 }
 
 function renderDashboard(d: WorktimeDashboard) {
@@ -444,8 +454,6 @@ function renderDashboard(d: WorktimeDashboard) {
 
   
 }
-
-//今月見通しのやつ
 // 今月見通し（週開始日を基準にする版）
 function renderForecast(m: MonthlySummary, weekStartYmd: string) {
   // meta
@@ -501,59 +509,6 @@ function renderForecast(m: MonthlySummary, weekStartYmd: string) {
 
 
 // ====== LEAVE RENDER ======
-/*function renderLeave(leave: LeaveSummary) {
-  leaveMeta.textContent = `${leave.month}（暦月）`;
-
-  // balances
-  leaveBalanceList.innerHTML = "";
-  const balances = [...leave.balances].sort((a, b) => a.name.localeCompare(b.name, "ja"));
-  if (balances.length === 0) {
-    leaveBalanceList.innerHTML = `<div class="muted small">残日数データなし</div>`;
-  } else {
-    for (const b of balances) {
-      const el = document.createElement("div");
-      el.className = "leaveItem";
-      el.innerHTML = `
-        <div style="font-weight:600;">${escapeHtml(b.name)}</div>
-        <div style="font-variant-numeric: tabular-nums;">残 ${b.remaining_days.toFixed(1)} 日</div>
-      `;
-      leaveBalanceList.appendChild(el);
-    }
-  }
-
-  // recent requests
-  leaveRecentList.innerHTML = "";
-  const recents = [...leave.recent_requests]
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
-    .slice(0, 5);
-
-  if (recents.length === 0) {
-    leaveRecentList.innerHTML = `<div class="muted small">直近申請なし</div>`;
-  } else {
-    for (const r of recents) {
-      const el = document.createElement("div");
-      el.className = "leaveItem";
-      const badgeClass = r.status;
-      const badgeText =
-        r.status === "requested"
-          ? "承認待ち"
-          : r.status === "approved"
-          ? "承認"
-          : r.status === "rejected"
-          ? "却下"
-          : "相談";
-      el.innerHTML = `
-        <div>
-          <div style="font-weight:600;">${escapeHtml(r.name)}</div>
-          <div class="muted small">${ymdToMd(r.date)} / ${r.days.toFixed(1)}日</div>
-        </div>
-        <div class="badge ${badgeClass}">${badgeText}</div>
-      `;
-      leaveRecentList.appendChild(el);
-    }
-  }
-}*/
-
 function renderLeave(leave: LeaveAdminSummaryResponse) {
   // header
   leaveMeta.textContent = `有給（as of ${leave.as_of.slice(0, 10)}）`;
@@ -711,7 +666,6 @@ function renderDetailDays(weekStart: string, data: Record<string, number>) {
   }
 }
 
-
 const setRemainBtnState = (state: "idle" | "loading" | "done") => {
   if (!remainBtn) return;
   if (state === "idle") {
@@ -730,73 +684,12 @@ const setRemainBtnState = (state: "idle" | "loading" | "done") => {
   setTimeout(() => setRemainBtnState("idle"), 1200);
 };
 
-/*remainBtn?.addEventListener("click", async () => {
-
-  const token = getAdminToken();
-  if (!token) {
-    alert("管理者トークンがありません。再ログインしてください。");
-    return;
-  }
-
-  const week_start = String(weekStartEl?.value ?? "").trim();
-  if (!week_start) {
-    alert("週（開始日）が未選択です。");
-    return;
-  }
-
-  // confirm
-  if (!confirm(`未提出者のリマインドを送信します。\n対象週（開始日）：${week_start}\nよろしいですか？`)) {
-    return;
-  }
-
-  setRemainBtnState("loading");
-
-  try {
-    const res = await fetch("/api/worktime/admin/remind", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ week_start }),
-    });
-
-    const json = await res.json().catch(() => ({}));
-
-    if (!res.ok || json?.ok === false) {
-      const msg = json?.detail || json?.error || `HTTP ${res.status}`;
-      alert(`送信に失敗しました: ${msg}`);
-      setRemainBtnState("idle");
-      return;
-    }
-
-    // サーバが返す想定：{ ok:true, week_start, missing_total, sent, skipped_no_email }
-    const missing = Number(json?.missing_total ?? 0);
-    const sent = Number(json?.sent ?? 0);
-    const skippend = Number(json?.skipped_no_email ?? 0);
-
-    //KPIも一緒に更新
-    if (json?.summary && kpiMissing && kpiSubmitted && kpiUpdated) {
-        const s = json.summary;
-        kpiMissing.textContent = `未提出: ${Number(s.missing ?? 0)}`;
-        kpiSubmitted.textContent = `提出: ${Number(s.submitted ?? 0)}`;
-        kpiUpdated.textContent = `更新: ${Number(s.skipped_no_email ?? 0)}`;
-    }
-
-    // メッセージ（状況に応じて）
-    let msg = "";
-    if (missing === 0) {
-        msg = "未提出が０名なので送信しませんでした。";
-    } else if (sent === 0) {
-        msg = `未提出は${missing}名ですが、メールアドレス未登録のため送信出来ませんでした。（未登録: ${skippend}名）`;
-    } else if (skippend > 0) {
-        msg = `送信しました（未提出: ${missing}名 / 送信: ${sent}名 / メール未登録: ${skippend}）`;
-    } else {
-        msg = `送信しました（未提出: ${missing}名 / 送信: ${sent}名）`;
-    }
-
-    alert(msg);
-});*/
+// 前週に対してRe:Mindメールのヘルパー
+function addDays(d: Date, days: number) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
+}
 
 remainBtn?.addEventListener("click", async () => {
   const token = getToken();
@@ -811,7 +704,9 @@ remainBtn?.addEventListener("click", async () => {
     return;
   }
 
-  if (!confirm(`未提出者のリマインドを送信します。\n対象週（開始日）：${week_start}\nよろしいですか？`)) {
+  const target_week_start = toYmd(addDays(new Date(`${week_start}T00:00:00`), -7));
+
+  if (!confirm(`未提出者のリマインドを送信します。\n対象週（開始日）：${target_week_start}\nよろしいですか？`)) {
     return;
   }
 
@@ -824,7 +719,7 @@ remainBtn?.addEventListener("click", async () => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ week_start }),
+      body: JSON.stringify({ week_start: target_week_start }),
     });
 
     const json = await res.json().catch(() => ({} as any));
@@ -835,13 +730,9 @@ remainBtn?.addEventListener("click", async () => {
       return;
     }
 
-    // サーバ想定：{ ok:true, week_start, missing_total, sent, skipped_no_email }
     const missing = Number(json?.missing_total ?? 0);
     const sent = Number(json?.sent ?? 0);
     const skipped = Number(json?.skipped_no_email ?? 0);
-
-    // KPI更新したいなら、ここは「dashboard再取得」が一番確実
-    // renderDashboard(currentDashboard) みたいな小手先より reloadAll() を呼ぶのが安全
 
     let msg = "";
     if (missing === 0) {
@@ -856,61 +747,12 @@ remainBtn?.addEventListener("click", async () => {
 
     alert(msg);
 
-    // 送信後に最新を反映したいなら（おすすめ）
-    // await reloadAll();  // ※再帰呼び出しになるなら別関数に切り出す
   } catch (e: any) {
     alert(`送信に失敗しました: ${String(e?.message ?? e)}`);
   } finally {
-    setRemainBtnState("idle"); // done 表示にしたいならここを "done" にしてもOK
+    setRemainBtnState("idle"); 
   }
 });
-
-/*remainBtn.addEventListener("click", async () => {
-  if (currentDashboard && currentDashboard.summary.missing === 0) {
-    alert("未提出が0名なので送信しません。");
-    return;
-  }
-
-  if (!confirm("未提出者へリマインド送信します。よろしいですか？")) return;
-
-  remainBtn.disabled = true;
-  const prev = remainBtn.textContent || "リマインド送信";
-  remainBtn.textContent = "送信中…";
-
-  try {
-    const token = localStorage.getItem(TOKEN_KEY) || "";
-    const ws = weekStartEl.value;
-
-    const res = await fetch("/api/worktime/admin/remind", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ week_start: ws }),
-    });
-
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok || json?.ok === false) {
-      throw new Error(json?.detail || json?.error || `HTTP ${res.status}`);
-    }
-
-    // ★ ここが答え
-    await reloadAll();
-
-    alert(`送信しました（未提出: ${Number(json?.unsubmitted_count ?? 0)}名）`);
-
-    remainBtn.textContent = "送信済み";
-    setTimeout(() => {
-      remainBtn.disabled = false;
-      remainBtn.textContent = prev;
-    }, 1200);
-  } catch (e: any) {
-    alert(`送信に失敗しました: ${String(e?.message ?? e)}`);
-    remainBtn.disabled = false;
-    remainBtn.textContent = prev;
-  }
-});*/
 
 // ====== SAFE HTML ======
 function escapeHtml(s: string) {
