@@ -1010,7 +1010,6 @@ app.get("/api/worktime/admin/monthly", requireAdmin, async (c) => {
   const subRes = await supabase
     .from("worktime_submissions")
     .select("employee_id, week_start, data")
-    .eq("store_id", store_id)
     .gte("week_start", rangeStartYmd)
     .lt("week_start", rangeEndYmd);
 
