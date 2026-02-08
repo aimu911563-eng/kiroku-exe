@@ -6,6 +6,8 @@ npm run dev
 cd /Users/rekokeshimo/kiroku-exe/shiftflow
 npm run dev:api
 
+スマホごと
+npm run dev -- --host
 
 git config user.name "aimu911563"
 git config user.email "aimu911563@gmail.com"

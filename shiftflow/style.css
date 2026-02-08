@@ -660,10 +660,72 @@ label.dayLabel[data-day="6"] {
   display: block;        /* inline-block → block に戻す */
 }
 
-#shiftTable td:first-child {
-  width: 92px;          /* ← ここが肝。88〜100pxで微調整 */
-  white-space: nowrap;  /* 日付は折り返さない */
+
+
+@media (max-width: 480px) {
+  #shiftTable { width: 100%; }
+  #shiftTable thead { display: none; }
+
+  #shiftTable tbody tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  #shiftTable tbody td {
+    display: block;
+    width: auto !important;
+  }
+
+  #shiftTable tbody td:first-child {
+    font-weight: 700;
+    margin-bottom: 6px;
+    white-space: nowrap;
+  }
+
+  .time-range {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+
+
+  .time-range button[data-clear-day] {
+    grid-column: 1 / -1; /* 削除ボタンは下に */
+    justify-self: start;
+  }
+
+  .time-range input[type="time"]{
+    min-height: 44px; /* iPhone/Androidのタップサイズ */
+  }
 }
+
+@media (max-width: 480px) {
+  .time-range{
+    display: grid;
+    grid-template-columns: 1fr 1fr auto; /* start / end / 削除 */
+    gap: 8px;
+    align-items: center;
+  }
+
+  .time-separator{ display:none; }
+
+  .time-range input[type="time"]{
+    min-height: 44px;
+  }
+
+  .time-range button[data-clear-day]{
+    grid-column: 3;
+    grid-row: 1 / span 2;     /* 縦に2段分使う（見た目安定） */
+    align-self: stretch;
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+}
+
+
+
 
 
 
