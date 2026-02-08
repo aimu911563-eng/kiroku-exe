@@ -660,3 +660,10 @@ label.dayLabel[data-day="6"] {
   display: block;        /* inline-block → block に戻す */
 }
 
+#shiftTable td:first-child {
+  width: 92px;          /* ← ここが肝。88〜100pxで微調整 */
+  white-space: nowrap;  /* 日付は折り返さない */
+}
+
+
+
