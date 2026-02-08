@@ -911,6 +911,7 @@ app.get("/api/worktime/admin/dashboard", requireAdmin, async (c) => {
   return c.json({ ok: true, token });
 });*/
 
+// ローカルだと動かない↓
 app.post("/api/worktime/admin/login", async (c) => {
   const body = await c.req.json().catch(() => null);
   const password = String(body?.password ?? "");
@@ -931,10 +932,41 @@ app.post("/api/worktime/admin/login", async (c) => {
   if (password !== ADMIN_PASSWORD) {
     return c.json({ ok: false, error: "Invalid password" }, 401);
   }
-
   const token = issueAdminToken({ store_id });
   return c.json({ ok: true, token });
 });
+
+// ローカルだと動く↓
+/*app.post("/api/worktime/admin/login", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const password = String(body?.password ?? "");
+
+  // ✅ dev(tsx) でも Workers でも動くように両対応
+  const ADMIN_PASSWORD =
+    String((c.env as any)?.ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD ?? "");
+  const store_id =
+    String(
+      (c.env as any)?.WORKTIME_ADMIN_STORE_ID ??
+        (c.env as any)?.ADMIN_STORE_ID ??
+        process.env.WORKTIME_ADMIN_STORE_ID ??
+        process.env.ADMIN_STORE_ID ??
+        ""
+    );
+
+  if (!ADMIN_PASSWORD) {
+    return c.json({ ok: false, error: "ADMIN_PASSWORD is not configured" }, 500);
+  }
+  if (!store_id) {
+    return c.json({ ok: false, error: "WORKTIME_ADMIN_STORE_ID is not configured" }, 500);
+  }
+
+  if (password !== ADMIN_PASSWORD) {
+    return c.json({ ok: false, error: "Invalid password" }, 401);
+  }
+
+  const token = issueAdminToken({ store_id });
+  return c.json({ ok: true, token });
+});*/
 
 
 
