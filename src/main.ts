@@ -408,7 +408,7 @@ async function loadHistory(employeeId: string) {
 
   try {
     const res = await fetch(
-      `${API_BASE}/?employeeId=${encodeURIComponent(employeeId)}`
+      `${API_BASE}/leaves?employeeId=${encodeURIComponent(employeeId)}`
     );
 
     if (!res.ok) {

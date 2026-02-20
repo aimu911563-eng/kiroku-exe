@@ -1,11 +1,17 @@
 export async function onRequest(context: any) {
   const { request, params } = context;
+
   const path = (params.path || []).join("/");
 
-  const upstream = `https://kiroku-exe.onrender.com/api/${path}`;
+  // 元リクエストのクエリを拾う
+  const incomingUrl = new URL(request.url);
 
-  // デバッグ用（必要なら）
-  // console.log("proxy:", request.method, path, "->", upstream);
+  // upstream にクエリ付きで投げる
+  const upstreamUrl = new URL(`https://kiroku-exe.onrender.com/api/${path}`);
+  upstreamUrl.search = incomingUrl.search;
 
-  return fetch(upstream, request);
+  // request をベースにして URL だけ差し替える（POSTボディ等も維持）
+  const proxiedRequest = new Request(upstreamUrl.toString(), request);
+
+  return fetch(proxiedRequest);
 }
