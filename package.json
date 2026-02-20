@@ -31,7 +31,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && rm -rf dist/functions && mkdir -p dist/functions && cp -R functions/* dist/functions/",
     "preview": "vite preview",
     "server": "tsx watch server/index.ts",
     "start": "npm run server"
