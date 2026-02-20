@@ -44,7 +44,6 @@ leaveRoutes.use(
 
 // ここから下は今まで通りのルーティング…
 
-
 // 固定データで DB へ書き込むテスト（問題の切り分け用）
 leaveRoutes.post('/api/test-insert', async (c) => {
   const { error } = await supabase.from('leaves').insert({
