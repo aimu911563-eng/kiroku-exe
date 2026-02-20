@@ -38,7 +38,12 @@ const nextGrantEl = document.getElementById('nextGrant') as HTMLElement;
 // 履歴
 const historyContainer = document.getElementById('history') as HTMLElement;
 
-import { API_BASE } from './config';
+// import { API_BASE } from './config';
+
+export const API_BASE = 
+  import.meta.env.PROD 
+     ? "/api/leaves"
+     :"http://localhost:8787/api/leaves"
 
 // ===== 取得日：今日以降しか選べないように =====
 if (!dateInput) {

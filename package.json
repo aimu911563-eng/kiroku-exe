@@ -33,7 +33,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "tsx src/server.ts",
+    "server": "tsx watch server/index.ts",
     "start": "npm run server"
   }
 }

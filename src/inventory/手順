@@ -1,0 +1,11 @@
+サーバー起動
+npm run server
+
+有給とインベントリを分けて統合
+tsx watch server/index.ts
+
+開発画面
+npm run dev
+
+再起動
+TypeScript: Restart TS Server

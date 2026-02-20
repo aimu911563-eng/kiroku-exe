@@ -1,0 +1,89 @@
+/* iPad常設前提 */
+:root {
+  font-size: 18px;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  -webkit-text-size-adjust: 100%;
+  background: #f6f7fb;
+  color: #111;
+}
+
+/* 中央に寄せて見やすく */
+#root > div {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ボタンを押しやすく */
+button {
+  font-size: 18px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #333;
+  background: #fff;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+.weatherHours {
+  margin-top: 10px;
+}
+
+.hoursRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.hourBox {
+  min-width: 70px;
+  padding: 8px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  text-align: center;
+  background: #fafafa;
+}
+
+.hour {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.prob {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.temp {
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 2px;
+}
+
+.hourBox {
+  min-width: 70px;
+  padding: 8px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  text-align: center;
+  background: #fafafa;
+  transition: 0.2s ease;
+}
+
+/* 40%以上 */
+.hourBox.rainHigh {
+  background: #ffe5e5;
+  border-color: #ff4d4d;
+}
+
+/* 20〜39% */
+.hourBox.rainMid {
+  background: #fff6e5;
+  border-color: #ffb84d;
+}
