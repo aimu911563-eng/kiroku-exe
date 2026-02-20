@@ -61,7 +61,7 @@ leaveRoutes.post('/api/test-insert', async (c) => {
 });
 
 // 本番のINSERT
-leaveRoutes.post('/api/leaves',async (c) => {
+leaveRoutes.post("/leaves",async (c) => {
   try {
     const body = await c.req.json().catch(()=> null);
     console.log('[server] raw body:', body);
@@ -194,7 +194,7 @@ leaveRoutes.get ('/api/employees/:employeeId', async (c) => {
 });
 
 //申請履歴取得
-leaveRoutes.get ('/api/leaves', async (c) => {
+leaveRoutes.get ("/leaves", async (c) => {
   const employeeId = c.req.query ('employeeId');
 
   if (!employeeId) {
