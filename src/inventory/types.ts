@@ -5,6 +5,7 @@ export interface InventoryItemView {
   name: string;
   unit: string;
   required_qty: number;
+  shelf_life_days?: number | null;
 }
 
 export interface InventoryViewResponse {
@@ -39,3 +40,17 @@ export type WeatherState =
   | { status: "loading"; data?: WeatherNow }
   | { status: "error"; message: string }
   | { status: "ready"; data: WeatherNow };
+
+export type CleaningTask = {
+  date: string;          // "2026-02-22"
+  task_id: string;       // "FLOOR" みたいなID
+  task_name: string;     // 表示名
+  done_by?: string | null;
+  done_at?: string | null; // ISO文字列
+};
+
+export type CleaningState =
+  | { status: "idle" }
+  | { status: "loading"; data?: CleaningTask }
+  | { status: "error"; message: string; data?: CleaningTask }
+  | { status: "ready"; data: CleaningTask };

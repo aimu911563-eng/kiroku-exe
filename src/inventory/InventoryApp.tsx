@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, useMemo, } from "react";
-import type { InventoryState, InventoryViewResponse, WeatherNow, RainHour, } from "./types";
-
+import type { InventoryState, InventoryViewResponse, WeatherNow, RainHour, CleaningState, CleaningTask, } from "./types";
 
 const API_BASE = "http://localhost:8787/api";
 
@@ -9,6 +8,7 @@ export default function InventoryApp() {
   const STORE_COORDS: Record<string, { lat: number; lon: number; label: string }> = {
     "7249": { lat: 34.70, lon: 137.73, label: "寺島(仮)" },
   };
+  const [sortKey, setSortKey] = useState<"expiry" | "qty" | "default">("expiry");
   const [state, setState] = useState<InventoryState>({ status: "loading" });
   const [tick, setTick] = useState(0);
   const [weather, setWeather] = useState<
@@ -17,6 +17,59 @@ export default function InventoryApp() {
     | { status: "error"; message: string }
     | { status: "ready"; data: WeatherNow }
   >({ status: "idle" });
+
+  const [cleaning, setCleaning] = useState<CleaningState>({ status: "idle"});
+  const [cleanName, setCleanName] = useState("");
+
+  const fetchCleaning = useCallback(async () => {
+    try {
+      setCleaning((prev) => 
+        prev.status === "ready"
+          ? { status: "loading", data: prev.data }
+          : prev.status === "error" && prev.data 
+            ? { status: "loading", data: prev.data }
+            : { status: "loading" }
+      );
+
+      const res = await fetch(
+        `${API_BASE}/inventory/cleaning/today?store_id=${encodeURIComponent(storeId)}`,
+        { cache: "no-store" }
+      );
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
+
+      // json.task を cleaningTask に揃える
+      const task: CleaningTask = {
+        date: json.date,
+        task_id: json.task_code,
+        task_name: json.task_name ?? null,
+        done_by: json.done_by ?? null,
+        done_at: json.done_at ?? null,
+      };
+      setCleaning({ status: "ready", data: task });
+    } catch (e) {
+      setCleaning((prev) => ({
+        status: "error",
+        message: e instanceof Error ? e.message : "unknown error",
+        data: prev.status === "ready" ? prev.data : prev.status === "loading" ? prev.data : prev.status === "error" ? prev.data : undefined,
+      }));
+    }
+  }, [storeId]);
+
+  const submitCleaning = useCallback(async () => {
+    if (!cleanName.trim()) return;
+
+    const res = await fetch(`${API_BASE}/inventory/cleaning/done`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store_id: storeId, employee_name: cleanName.trim() }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json?.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
+
+    // 再取得して「✅完了」表示にする
+    fetchCleaning();
+  }, [cleanName, storeId, fetchCleaning]);
 
   function weatherEmoji(code: number) {
     if (code === 0) return "☀️";
@@ -30,7 +83,72 @@ export default function InventoryApp() {
     if ([95, 96, 99].includes(code)) return "⛈️";
     return " ";
   }
-   
+
+  function calcBestBefore(today: Date, days: number) {
+    const d = new Date (today);
+
+    if (days === 1) {
+      d.setTime(d.getTime() + 24 * 60 * 60 * 1000);
+      return d;
+    }
+
+    d.setDate(d.getDate() + (days - 1));
+    return d;
+  }
+
+  function fmtHM(d: Date) {
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = "00"
+    return `${hh}:${mm}`;
+  }
+
+  function fmtMD(d: Date) {
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${m}/${day}`;
+  }
+  
+  function shelfChipStyle(days: number) {
+    // 翌日
+    if (days <= 1) {
+      return {
+        background: "fee2e2",
+        border:"1px solid #fca5a5",
+        color: "991b1b",
+      };
+    }
+    // ３〜４
+    if (days <= 4) {
+      return {
+        background: "#ffedd5",
+        border: "1px solid #fdba74",
+        color: "#9a3412",
+      };
+    }
+    // 5日
+    if (days === 5) {
+      return {
+        background: "#ffedd5",
+        border: "1px solid #fdba74",
+        color: "#9a3412",
+      };
+    }
+    // 7日
+    if (days === 7) {
+      return {
+        background: "#dbeafe",
+        border: "1px solid #93c5fd",
+        color: "#1e3a8a"
+      }
+    }
+    // 14日とか
+    return {
+      background: "#dcfce7",
+      border: "1px solid #86efac",
+      color: "#166534",
+    }
+  }
+
   const fetchWeather = useCallback(async () => {
     const coord = STORE_COORDS[storeId];
     if (!coord) return;
@@ -151,14 +269,49 @@ export default function InventoryApp() {
     return `${hr}時間前`;
   }, [state, tick]);
 
-  if (state.status === "loading") return <div style={{ padding: 24 }}>読み込み中…</div>;
-  if (state.status === "error") return <div style={{ padding: 24 }}>エラー: {state.message}</div>;
+  useEffect(() => {
+  fetchCleaning();
+}, [fetchCleaning]);
   
   const items = state.status === "ready" ? state.data.items : [];
 
   const mainItems = items.filter((x: any) => x.category === "main");
   const sideItems = items.filter((x: any) => x.category === "side");
 
+  const sortItems = (arr: any[]) => {
+    const getIsCase = (it: any) => typeof it.pack_qty === "number" && it.pack_qty >= 2;
+    const getQty = (it: any) => (getIsCase(it) ? Number(it.required_unit ?? 0) : Number(it.required_qty ?? 0));
+
+    const getExpiryTs = (it: any) => {
+      if (typeof it.shelf_life_days !== "number") return Number.POSITIVE_INFINITY;
+      const d = calcBestBefore(new Date(), it.shelf_life_days);
+      return d.getTime();
+    };
+
+    return [...arr].sort((a, b) => {
+      if (sortKey === "qty") {
+        return getQty(b) - getQty(a);
+      }
+      if (sortKey === "default") {
+        // display_order があるならそれ優先（なければ0）
+        return (Number(a.display_order ?? 0) - Number(b.display_order ?? 0));
+      }
+      // expiry（期限近い順） + 必要数多い順
+      const ea = getExpiryTs(a);
+      const eb = getExpiryTs(b);
+      if (ea !== eb) return ea - eb;
+      return getQty(b) - getQty(a);
+    });
+  };
+
+  const mainSorted = useMemo(() => sortItems(mainItems), [mainItems, sortKey]);
+  const sideSorted = useMemo(() => sortItems(sideItems), [sideItems, sortKey]);
+
+  const done = cleaning.status === "ready" && !!cleaning.data?.done_by;
+  const canSubmit = cleaning.status === "ready" && !!cleanName.trim() && !done;
+
+  if (state.status === "loading") return <div style={{ padding: 24 }}>読み込み中…</div>;
+  if (state.status === "error") return <div style={{ padding: 24 }}>エラー: {state.message}</div>;
 
   return (
     <div style={{ height: "100vh", background: "#f6f7f9", color: "#111", display: "flex", flexDirection: "column" }}>
@@ -255,7 +408,7 @@ export default function InventoryApp() {
                 padding: "10px 12px",
                 borderRadius: 12,
                 border: "1px solid #e5e7eb",
-                background: "#111827",
+                background: "#7d9fe9",
                 color: "#fff",
                 fontWeight: 800,
                 cursor: "pointer",
@@ -271,12 +424,115 @@ export default function InventoryApp() {
         </div>
       </div>
 
+      {/* 今日の掃除タスク */}
+      <div style={{
+          marginTop: 10,
+          borderRadius: 16,
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          padding: 20,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>今日の掃除</div>
+
+          {cleaning.status === "error" ? (
+            <div style={{ fontSize: 14, fontWeight: 800 }}>取得失敗 ({cleaning.message}) </div>
+          ) : cleaning.status === "ready" ? (
+            <div style={{ fontSize: 16, fontWeight: 900 }}>{cleaning.data.task_name}</div>
+          ) : (
+            <div style={{ fontSize: 16, fontWeight: 800, opacity: 0.8 }}>読み込み中...</div>
+          )}
+
+          {cleaning.status === "ready" && cleaning.data.done_by && (
+            <div style={{ marginTop: 4, fontSize: 12, color: "#059669", fontWeight: 900 }}>
+              本日の清掃タスク完了 (担当：{cleaning.data.done_by})
+            </div>
+          )}
+        </div>
+
+        {/* 右側：完了入力 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <select
+            value={cleanName}
+            onChange={(e) => setCleanName(e.target.value)}
+            style={{
+              height: 36,
+              borderRadius: 10,
+              border: "1px solid #e5e7eb",
+              padding: "0 10px",
+              background: "#fff",
+              fontWeight: 700,
+            }}
+          >
+            <option value="">名前選択</option>
+            {["馬", "羊", "猿", "鳥"].map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+
+          <button
+            onClick={submitCleaning}
+            disabled={!canSubmit}
+            style={{
+              height: 36,
+              padding: "0 12px",
+              borderRadius: 10,
+              border: "1px solid #e5e7eb",
+              background: "#7d9fe9",
+              color: "#fff",
+              fontWeight: 900,
+              cursor: canSubmit ? "pointer" : "not-allowed",
+              opacity: canSubmit ? 0.5 : 1,
+            }}
+          >
+            {done ? "完了済" : "完了送信"}
+          </button>
+        </div>
+      </div>
+
+      
+
+      <div style={{ display: "inline-flex", gap: 6, padding: 4, borderRadius: 999, background: "#f3f4f6", border: "1px solid #e5e7eb", alignItems: "center"}}>
+        {[ 
+          ["expiry", "期限順"], 
+          ["qty", "必要順"], 
+          ["default", "標準"],
+        ].map(([key, label]) => {
+          const active = sortKey === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setSortKey(key as any)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 999,
+                border: active ? "1px solid #e5e7eb" : "1px solid transparnet",
+                background: active ? "#ffffff" : "transparnet",
+                boxShadow: active ? "0 1px 2px rgba(0,0,0,0,08)" : "none",
+                fontWeight: active ? 800 : 600,
+                fontSize: 13,
+                color: "#111827",
+                cursor: "pointer",
+                lineHeight: 1.1,
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Body: 2カラム */}
       <div style={{ flex: 1, padding: 16, overflow: "auto", overflowX: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, height: "100%" }}>
-          <Section title="メイン（最重要）" items={mainItems} />
-          <Section title="サイドメニュー" items={sideItems} />
+        {/* <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, height: "100%" }}> */}
+        <div style={{maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", alignItems: "start"}}>
+          <Section title="メイン（最重要）" items={mainSorted} />
+          <Section title="サイドメニュー" items={sideSorted} />
         </div>
       </div>
     </div>
@@ -306,19 +562,21 @@ export default function InventoryApp() {
             overflow: "hidden",
           }}
         >
-          {items.map((it) => (
-            <div
-              key={it.item_code}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "8px 10px",
-                borderRadius: 12,
-                background: "#f9fafb",
-                border: "1px solid #e5e7eb",
-              }}
-            >
+          {items.map((it) => {
+            const isCaseManaged = typeof it.pack_qty === "number" && it.pack_qty >= 2;
+            const showCaseHint = isCaseManaged && (it.unit === "枚" || it.unit === "個");
+            const best = calcBestBefore(new Date(), it.shelf_life_days);
+            return (
+              <div key={it.item_code} style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 10px",
+                  borderRadius: 12,
+                  background: "#f9fafb",
+                  border: "1px solid #e5e7eb",
+                }}
+              >
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>
                   {it.name}
@@ -326,24 +584,40 @@ export default function InventoryApp() {
               </div>
 
               <div style={{ textAlign: "right" }}>
-                <div
-                  style={{
-                    fontSize: 34,
-                    fontWeight: 900,
-                    lineHeight: 1,
-                  }}
-                >
-                  {it.required_qty}
+                <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1, display: "flex", alignItems:"flex-end", justifyContent: "flex-end", gap:4 }}>
+                  <span>
+                    { isCaseManaged ? it.required_unit : it.required_qty}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#666" }}>
+                    {it.unit || ""}
+                  </span>
                 </div>
-                <div style={{ fontSize: 11, color: "#666" }}>ケース</div>
+                {showCaseHint && (
+                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>(= {it.required_qty}ケース)</div>
+                )}
+                {typeof it.shelf_life_days === "number" && (
+                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4, display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+                    <span>期限{fmtMD(best)}{it.shelf_life_days === 1 ? ` ${fmtHM(best)}` : ""}</span>
+                    <span
+                      style={{
+                        ...shelfChipStyle(it.shelf_life_days),
+                        padding: "2px 6px",
+                        borderRadius: 999,
+                        fontWeight: 800,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {it.shelf_life_days}日
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     );
   }
-
-
-
 }
+
