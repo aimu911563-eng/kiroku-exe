@@ -871,7 +871,7 @@ leaveRoutes.get('/admin/leaves', adminGuard, async (c) => {
 });
 
 // 管理者用：ステータス更新
-leaveRoutes.patch('/api/admin/leaves/:id/status', adminGuard, async (c) => {
+leaveRoutes.patch('/admin/leaves/:id/status', adminGuard, async (c) => {
   const id = c.req.param('id');
 
   // body: { status: 'approved' | 'rejected', rejectReason?: string }
