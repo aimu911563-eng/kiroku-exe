@@ -169,7 +169,7 @@ leaveRoutes.post("/leaves",async (c) => {
   }
 });
 
-leaveRoutes.get ('/api/employees/:employeeId', async (c) => {
+leaveRoutes.get ('/employees/:employeeId', async (c) => {
   const id = c.req.param ('employeeId');
 
   const { data, error } = await supabase
@@ -275,7 +275,7 @@ leaveRoutes.post("/login", async (c) => {
 });
 
 //管理者用：有給残数マスター一覧取得
-leaveRoutes.get('/api/admin/balances', adminGuard, async (c) => {
+leaveRoutes.get('/admin/balances', adminGuard, async (c) => {
   const { data, error } = await supabase
     .from('leave_balances')
     .select('employee_id, employee_name, paid_given, paid_used')
@@ -337,7 +337,7 @@ leaveRoutes.get('/test/remind', async (c) => {
  * - next_remind_date == 今日 かつ remind_status = idle → 付与日リマインド
  * - next_remind_date <= (今日 - 3日) かつ remind_status = sent → 催促メール
  */
-leaveRoutes.post('/api/admin/check-grant', adminGuard, async (c) => {
+leaveRoutes.post('/admin/check-grant', adminGuard, async (c) => {
   // 🕒 今日の日付（JST前提でざっくり）
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -586,7 +586,7 @@ leaveRoutes.get('/test/check-grant', async (c) => {
 
 
 //管理者用：有給残数マスタの更新
-leaveRoutes.put('/api/admin/balances/:employeeId', adminGuard, async (c) => {
+leaveRoutes.put('/admin/balances/:employeeId', adminGuard, async (c) => {
   const employeeId = c.req.param('employeeId');
   const body = await c.req.json().catch(() => null);
 
@@ -651,7 +651,7 @@ leaveRoutes.put('/api/admin/balances/:employeeId', adminGuard, async (c) => {
 import { sign, verify } from 'hono/jwt';
 import { count } from 'console';
 //管理ログイン
-leaveRoutes.post('/api/admin/login', async (c) => {
+leaveRoutes.post('/admin/login', async (c) => {
   const { password } = await c.req.json<{ password: string }>();
 
   if (password !== process.env.ADMIN_PASSWORD) {
@@ -684,20 +684,20 @@ async function adminGuard(c: any, next: any) {
   }
 }
 
-leaveRoutes.post('/api/admin/approve', adminGuard, async (c) => {
+leaveRoutes.post('/admin/approve', adminGuard, async (c) => {
   // 承認処理
 });
 
-leaveRoutes.post('/api/admin/reject', adminGuard, async (c) => {
+leaveRoutes.post('/admin/reject', adminGuard, async (c) => {
   // 却下処理
 });
 
-leaveRoutes.get('/api/admin/csv', adminGuard, async (c) => {
+leaveRoutes.get('/admin/csv', adminGuard, async (c) => {
   // CSV処理
 });
 
 // 管理者用：有給マスタ一覧
-leaveRoutes.get('/api/admin/balances', adminGuard, async (c) => {
+leaveRoutes.get('/admin/balances', adminGuard, async (c) => {
   const { data, error } = await supabase
     .from('leave_balances')
     .select('employee_id, employee_name, paid_given, paid_used')
@@ -712,7 +712,7 @@ leaveRoutes.get('/api/admin/balances', adminGuard, async (c) => {
 });
 
 // 管理者用：有給マスタ更新
-leaveRoutes.patch('/api/admin/balances/:employeeId', adminGuard, async (c) => {
+leaveRoutes.patch('/admin/balances/:employeeId', adminGuard, async (c) => {
   const employeeId = c.req.param('employeeId');
   const body = await c.req.json().catch(() => null) as
     | { paidGiven?: number; paidUsed?: number }
@@ -763,7 +763,7 @@ leaveRoutes.patch('/api/admin/balances/:employeeId', adminGuard, async (c) => {
 });
 
 //// 例: /api/admin/remind-balances を叩くと、今日リマインド対象の人についてメール送信
-leaveRoutes.post('/api/admin/remind-balances', adminGuard, async (c) => {
+leaveRoutes.post('/admin/remind-balances', adminGuard, async (c) => {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -833,7 +833,7 @@ leaveRoutes.post('/api/admin/remind-balances', adminGuard, async (c) => {
 });
 
 //管理者用：全従業員の申請一覧
-leaveRoutes.get('/api/admin/leaves', adminGuard, async (c) => {
+leaveRoutes.get('/admin/leaves', adminGuard, async (c) => {
   const employeeId = c.req.query('employeeId');
   const leaveType = c.req.query('leaveType');
   const statusParam = c.req.query('status'); 

@@ -27,7 +27,8 @@ type LeaveBalanceItem = {
 
 type AdminLeaveItem = LeaveHistoryItem;
 
-import { API_BASE } from './config';
+// import { API_BASE } from './config';
+export const API_BASE = "/api/leaves";  //管理画面はleavesRoutes配下にいるため　今後整ええる
 
 // =========================
 // DOM 取得
