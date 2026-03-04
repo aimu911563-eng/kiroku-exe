@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useState, useMemo, } from "react";
 import type { InventoryState, InventoryViewResponse, WeatherNow, RainHour, CleaningState, CleaningTask, } from "./types";
 
-const API_BASE = "http://localhost:8787/api";
+const API_BASE = "/api";
 
 export default function InventoryApp() {
   const storeId = "7249";
   const STORE_COORDS: Record<string, { lat: number; lon: number; label: string }> = {
     "7249": { lat: 34.70, lon: 137.73, label: "寺島(仮)" },
   };
+  const STORE_MAP: Record<string, string> = {
+    "7249": "terajima",
+    "7109": "hamakita",
+    "7539": "kosai",
+  };
+  // const SHIFT_API_BASE = import.meta.env.VITE_SHIFT_API_BASE;
+  const PUBLIC_KEY = import.meta.env.VITE_PUBLIC_EMPLOYEES_KEY;
   const [sortKey, setSortKey] = useState<"expiry" | "qty" | "default">("expiry");
   const [state, setState] = useState<InventoryState>({ status: "loading" });
   const [tick, setTick] = useState(0);
@@ -18,8 +25,42 @@ export default function InventoryApp() {
     | { status: "ready"; data: WeatherNow }
   >({ status: "idle" });
 
+  const [employeeNames, setEmployeeNames] = useState<string[]>([]);
+  const [employeeErr, setEmployeeErr] = useState<string | null>(null);
+
+  const sortedNames = useMemo(
+    () => [...employeeNames].sort((a, b) => a.localeCompare(b, "ja")),
+    [employeeNames]
+  );
+
+  const [showNames, setShowNames] = useState(false);
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      setEmployeeErr(null);
+      const mappedStoreId = STORE_MAP[storeId] ?? storeId;
+      const url = `${API_BASE}/public/employees?store_id=${encodeURIComponent(mappedStoreId)}&key=${encodeURIComponent(PUBLIC_KEY)}`;
+      const res = await fetch(url, {
+        // headers: PUBLIC_KEY ? { "x-public-key" : PUBLIC_KEY } : undefined,
+        cache: "no-store",
+      });
+      const json = await res.json();
+      console.log("employees json=", json);
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
+
+      setEmployeeNames((json.employees ?? []).map((e: any) => e.employee_name));
+    } catch (e) {
+      setEmployeeErr(e instanceof Error ? e.message : "unknown error");
+      setEmployeeNames([]);
+    }
+  }, [storeId, PUBLIC_KEY]);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
+
   const [cleaning, setCleaning] = useState<CleaningState>({ status: "idle"});
-  const [cleanName, setCleanName] = useState("");
+  const [selectedNames, setSelectedNames] = useState<string[]>([]);
 
   const fetchCleaning = useCallback(async () => {
     try {
@@ -56,20 +97,37 @@ export default function InventoryApp() {
     }
   }, [storeId]);
 
-  const submitCleaning = useCallback(async () => {
-    if (!cleanName.trim()) return;
+  const taskCode = cleaning.status === "ready" ? cleaning.data.task_id : null;
 
-    const res = await fetch(`${API_BASE}/inventory/cleaning/done`, {
+  const submitCleaning = useCallback(async () => {
+    if (!taskCode) return;
+    if (selectedNames.length === 0) return;
+
+    const res = await fetch(`${API_BASE}/cleaning/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ store_id: storeId, employee_name: cleanName.trim() }),
+      body: JSON.stringify({
+        store_id: storeId,
+        task_code: taskCode,
+        names: selectedNames,
+      }),
     });
+
+    if (res.status === 409) {
+      alert("今日はもう完了しています");
+      return;
+    }
+
+
     const json = await res.json();
     if (!res.ok || !json?.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
 
-    // 再取得して「✅完了」表示にする
     fetchCleaning();
-  }, [cleanName, storeId, fetchCleaning]);
+    setSelectedNames([]);
+    setShowNames(false);
+  }, [storeId, taskCode, selectedNames, fetchCleaning]);
+
+  
 
   function weatherEmoji(code: number) {
     if (code === 0) return "☀️";
@@ -308,10 +366,11 @@ export default function InventoryApp() {
   const sideSorted = useMemo(() => sortItems(sideItems), [sideItems, sortKey]);
 
   const done = cleaning.status === "ready" && !!cleaning.data?.done_by;
-  const canSubmit = cleaning.status === "ready" && !!cleanName.trim() && !done;
+  // const canSubmit = cleaning.status === "ready" && !!cleanName.trim() && !done;
 
   if (state.status === "loading") return <div style={{ padding: 24 }}>読み込み中…</div>;
   if (state.status === "error") return <div style={{ padding: 24 }}>エラー: {state.message}</div>;
+
 
   return (
     <div style={{ height: "100vh", background: "#f6f7f9", color: "#111", display: "flex", flexDirection: "column" }}>
@@ -427,8 +486,8 @@ export default function InventoryApp() {
       {/* 今日の掃除タスク */}
       <div style={{
           marginTop: 10,
-          borderRadius: 16,
-          background: "#ffffff",
+          borderRadius: 14,
+          background: "#f9fafb",
           border: "1px solid #e5e7eb",
           padding: 20,
           display: "flex",
@@ -438,12 +497,12 @@ export default function InventoryApp() {
         }}
       >
         <div>
-          <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>今日の掃除</div>
+          <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 , marginBottom: 6 }}>今日の掃除</div>
 
           {cleaning.status === "error" ? (
             <div style={{ fontSize: 14, fontWeight: 800 }}>取得失敗 ({cleaning.message}) </div>
           ) : cleaning.status === "ready" ? (
-            <div style={{ fontSize: 16, fontWeight: 900 }}>{cleaning.data.task_name}</div>
+            <div style={{ fontSize: 15, fontWeight: 900, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{cleaning.data.task_name}</div>
           ) : (
             <div style={{ fontSize: 16, fontWeight: 800, opacity: 0.8 }}>読み込み中...</div>
           )}
@@ -455,47 +514,136 @@ export default function InventoryApp() {
           )}
         </div>
 
-        {/* 右側：完了入力 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <select
-            value={cleanName}
-            onChange={(e) => setCleanName(e.target.value)}
-            style={{
-              height: 36,
-              borderRadius: 10,
-              border: "1px solid #e5e7eb",
-              padding: "0 10px",
-              background: "#fff",
-              fontWeight: 700,
-            }}
-          >
-            <option value="">名前選択</option>
-            {["馬", "羊", "猿", "鳥"].map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
+        {/* 右側：完了入力（縦積みで安定） */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, minWidth: 320 }}>
+          {/* 選択済みチップ */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {selectedNames.length === 0 ? (
+              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7 }}>
+                名前を選択（複数ok）
+              </div>
+            ) : (
+              selectedNames.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setSelectedNames((prev) => prev.filter((x) => x !== n))}
+                  disabled={!!employeeErr}
+                  style={{
+                    height: 30,
+                    borderRadius: 999,
+                    border: "1px solid #e5e7eb",
+                    padding: "0 10px",
+                    background: "#fff",
+                    fontWeight: 800,
+                    cursor: !!employeeErr || done ? "not-allowed" : "pointer",
+                    opacity: !!employeeErr || done ? 0.6 : 1,
+                  }}
+                  title="タップで解除"
+                >
+                  {n} ✕
+                </button>
+              ))
+            )}
+          </div>
+
 
           <button
-            onClick={submitCleaning}
-            disabled={!canSubmit}
+            type="button"
+            onClick={() => setShowNames((v) => !v)}
+            disabled={!!employeeErr || done}
             style={{
-              height: 36,
-              padding: "0 12px",
-              borderRadius: 10,
+              height: 40,
+              padding: "0 14px",
+              borderRadius: 12,
               border: "1px solid #e5e7eb",
-              background: "#7d9fe9",
-              color: "#fff",
+              background: "#fff",
               fontWeight: 900,
-              cursor: canSubmit ? "pointer" : "not-allowed",
-              opacity: canSubmit ? 0.5 : 1,
+              cursor: !!employeeErr || done ? "not-allowed" : "pointer",
+              opacity: !!employeeErr || done ? 0.6 : 1,
             }}
           >
-            {done ? "完了済" : "完了送信"}
+            {showNames ? "名前一覧を閉じる" : "名前を選択"}
           </button>
+
+          {/* チェックボックス一覧 */}
+          {showNames && (
+            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {sortedNames.map((n) => {
+                const checked = selectedNames.includes(n);
+                const disabled = !!employeeErr || done;
+
+                return (
+                  <label
+                    key={n}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      height: 40,
+                      padding: "0 12px",
+                      borderRadius: 12,
+                      border: "1px solid #e5e7eb",
+                      background: checked ? "#eff6ff" : "#fff",
+                      fontWeight: 800,
+                      opacity: disabled ? 0.55 : 1,
+                      cursor: disabled ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => {
+                        setSelectedNames((prev) =>
+                          prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]
+                        );
+                      }}
+                    />
+                    {n}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+
+          {/* エラー */}
+          {employeeErr && (
+            <div style={{ fontSize: 12, fontWeight: 800 }}>
+              名前一覧取得失敗 ({employeeErr})
+            </div>
+          )}
+
+          {/* 送信ボタン */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              onClick={submitCleaning}
+              disabled={!!employeeErr || done || selectedNames.length === 0}
+              style={{
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 10,
+                border: "1px solid #e5e7eb",
+                background: "#7d9fe9",
+                color: "#fff",
+                fontWeight: 900,
+                cursor: !!employeeErr || done || selectedNames.length === 0 ? "not-allowed" : "pointer",
+                opacity: !!employeeErr || done || selectedNames.length === 0 ? 0.5 : 1,
+              }}
+            >
+              {done ? "完了済" : "完了送信"}
+            </button>
+
+            {!done && selectedNames.length > 0 && (
+              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7 }}>
+                {selectedNames.length}人で報告
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      
 
       <div style={{ display: "inline-flex", gap: 6, padding: 4, borderRadius: 999, background: "#f3f4f6", border: "1px solid #e5e7eb", alignItems: "center"}}>
         {[ 

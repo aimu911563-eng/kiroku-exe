@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { required } from "zod/mini";
 import { error } from "console";
 import { fa } from "zod/v4/locales";
+import { join } from "path";
 
 export const inventoryRoutes = new Hono();
 
@@ -203,17 +204,24 @@ inventoryRoutes.get("/cleaning/today", async (c) => {
   if (task.error || !task.data) return c.json({ ok: false, error: task.error?.message ?? "task not found" }, 500);
 
   // 今日の最新完了ログ
-  const log = await supabase
+  const logs = await supabase
     .from("cleaning_logs")
     .select("employee_name, submitted_at")
     .eq("store_id", store_id)
     .eq("date", date)
-    .order("submitted_at", { ascending: false})
-    .limit(1);
+    .order("submitted_at", { ascending: true });
 
-  if (log.error) return c.json({ ok: false, error: log.error.message }, 500);
+  if (logs.error) return c.json({ ok: false, error: logs.error.message }, 500);
 
-  const last = (log.data ?? [])[0];
+  const done_names = Array.from(
+    new Set((logs.data ?? []).map((r) => String(r.employee_name ?? "").trim()).filter(Boolean))
+  );
+
+  const done_at = (logs.data ?? []).length
+    ? (logs.data ?? [])[(logs.data ?? []).length - 1].submitted_at
+    : null;
+
+  const last = (logs.data ?? [])[0];
 
   return c.json({
     ok: true,
@@ -221,8 +229,9 @@ inventoryRoutes.get("/cleaning/today", async (c) => {
     date,
     task_code: task.data.task_code,
     task_name: task.data.task_name ?? null,
-    done_by: last?.employee_name ?? null,
-    done_at: last?.submitted_at ?? null,
+    done_by: done_names.length ? done_names.join(" / ") : null,
+    done_at,
+    done_names,
   });
 });
 

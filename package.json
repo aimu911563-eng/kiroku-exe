@@ -33,7 +33,7 @@
     "dev": "vite",
     "build": "vite build && rm -rf dist/functions && mkdir -p dist/functions && cp -R functions/* dist/functions/",
     "preview": "vite preview",
-    "server": "tsx watch server/index.ts",
+    "server": "tsx watch server/index.ts --host 192.168.101.184",
     "start": "npm run server"
   }
 }

@@ -1354,6 +1354,41 @@ app.get("/api/leave/admin/summary", requireAdmin, async (c) => {
   return c.json({ ok: true, rows, as_of: new Date().toISOString() });
 });
 
+// inventory で従業員使うAPI
+app.get("/api/public/employees", async (c) => {
+  const store_id = String(c.req.query("store_id") ?? "").trim();
+  if (!store_id) return c.json({ ok: false, error: "store_id required "}, 400)
+
+  // 店舗制限
+  const allowed = new Set(["7249", "7109", "7539"]);
+  if (!allowed.has(store_id)) {
+    return c.json({ ok: false, error: "forbidden store" }, 403);
+  }
+
+  // 任意：簡易キー
+  const expected = process.env.PUBLIC_EMPLOYEES_KEY; // ←複数に統一
+  const key = c.req.header("x-public-key") ?? "";
+
+  if (expected && key !== expected) {
+    return c.json({ ok: false, error: "unauthorized" }, 401);
+  }
+
+  const q = await supabase
+    .from("employees")
+    .select("employee_name")
+    .eq("store_id", store_id)
+    .eq("is_active", true)
+    .order("employee_name", { ascending: true });
+
+  if (q.error) return c.json({ ok: false, error: q.error.message }, 500);
+  
+  const names = (q.data ?? [])
+    .map((r: any) => String(r.employee_name ?? "").trim())
+    .filter(Boolean);
+  
+  return c.json({ ok: true, store_id, names });
+});
+
 
 // エラー確認
 app.onError((err, c) => {
