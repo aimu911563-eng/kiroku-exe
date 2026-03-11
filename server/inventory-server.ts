@@ -4,6 +4,8 @@ import { required } from "zod/mini";
 import { error } from "console";
 import { fa } from "zod/v4/locales";
 import { join } from "path";
+import { allowedNodeEnvironmentFlags } from "process";
+import { compare } from "bcryptjs";
 
 export const inventoryRoutes = new Hono();
 
@@ -21,6 +23,14 @@ function ymdJst(d = new Date()) {
   const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
   const day = String(jst.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function getWeekStartJst(dateStr: string) {
+  const d = new Date(`${dateStr}T00:00:00+09:00`);
+  const day = d.getUTCDay();
+  const diff = day === 0 ? -6 : 1 -day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
 }
 
 inventoryRoutes.get("/view", async (c) => {
@@ -138,7 +148,9 @@ inventoryRoutes.get("/view", async (c) => {
 
 inventoryRoutes.get("/cleaning/today", async (c) => {
   const store_id = String(c.req.query("store_id") ?? "").trim();
-  if (!store_id) return c.json({ ok: false, error: "store_id required" }, 400);
+  if (!store_id) {
+    return c.json({ ok: false, error: "store_id required" }, 400);
+  }
 
   const date = ymdJst();
 
@@ -150,27 +162,63 @@ inventoryRoutes.get("/cleaning/today", async (c) => {
     .eq("date", date)
     .maybeSingle();
 
-  if (daily.error) return c.json({ ok: false, error: daily.error.message }, 500);
+  if (daily.error) {
+    return c.json({ ok: false, error: daily.error.message }, 500);
+  }
 
   let task_code = daily.data?.task_code as string | undefined;
 
-  // なければ active からランダムで確定して insert
+  // なければ「今週未使用」から選んで確定
   if (!task_code) {
-    const tasks = await supabase 
+    const weekStart = getWeekStartJst(date);
+
+    const tasks = await supabase
       .from("cleaning_tasks")
       .select("task_code, task_name")
       .eq("store_id", store_id)
       .eq("is_active", true)
       .order("display_order", { ascending: true });
 
-    if (tasks.error) return c.json({ ok: false, error: tasks.error.message }, 500);
-      const list = tasks.data ?? [];
-    if (list.length === 0) return c.json({ ok: false, error: "no active tasks" }, 400);
+    if (tasks.error) {
+      return c.json({ ok: false, error: tasks.error.message }, 500);
+    }
 
-    const pick = list[Math.floor(Math.random() * list.length)];
+    const allTasks = tasks.data ?? [];
+    if (allTasks.length === 0) {
+      return c.json({ ok: false, error: "no active tasks" }, 400);
+    }
+
+    // 今週すでに使った task_code を取得
+    const used = await supabase
+      .from("cleaning_daily")
+      .select("task_code")
+      .eq("store_id", store_id)
+      .gte("date", weekStart)
+      .lte("date", date);
+
+    if (used.error) {
+      return c.json({ ok: false, error: used.error.message }, 500);
+    }
+
+    const usedSet = new Set(
+      (used.data ?? [])
+        .map((r) => String(r.task_code ?? "").trim())
+        .filter(Boolean)
+    );
+
+    // 今週未使用だけに絞る
+    let candidates = allTasks.filter((t) => !usedSet.has(t.task_code));
+
+    // 候補ゼロなら全体から選ぶ
+    // （タスク数 < 7 の場合や、例外時の保険）
+    if (candidates.length === 0) {
+      candidates = allTasks;
+    }
+
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
     task_code = pick.task_code;
-    
-    // 同時アクセス競合しても,primary key で弾く
+
+    // 同時アクセス競合しても primary key で弾く
     const ins = await supabase.from("cleaning_daily").insert({
       store_id,
       date,
@@ -179,7 +227,7 @@ inventoryRoutes.get("/cleaning/today", async (c) => {
 
     // 競合で失敗した可能性があるため、再取得
     if (ins.error) {
-      const retry = await supabase 
+      const retry = await supabase
         .from("cleaning_daily")
         .select("task_code")
         .eq("store_id", store_id)
@@ -189,11 +237,12 @@ inventoryRoutes.get("/cleaning/today", async (c) => {
       if (retry.error || !retry.data?.task_code) {
         return c.json({ ok: false, error: ins.error.message }, 500);
       }
+
       task_code = retry.data.task_code;
     }
   }
 
-  // task_name　取得
+  // task_name 取得
   const task = await supabase
     .from("cleaning_tasks")
     .select("task_code, task_name")
@@ -201,9 +250,14 @@ inventoryRoutes.get("/cleaning/today", async (c) => {
     .eq("task_code", task_code)
     .maybeSingle();
 
-  if (task.error || !task.data) return c.json({ ok: false, error: task.error?.message ?? "task not found" }, 500);
+  if (task.error || !task.data) {
+    return c.json(
+      { ok: false, error: task.error?.message ?? "task not found" },
+      500
+    );
+  }
 
-  // 今日の最新完了ログ
+  // 今日の完了ログ
   const logs = await supabase
     .from("cleaning_logs")
     .select("employee_name, submitted_at")
@@ -211,17 +265,21 @@ inventoryRoutes.get("/cleaning/today", async (c) => {
     .eq("date", date)
     .order("submitted_at", { ascending: true });
 
-  if (logs.error) return c.json({ ok: false, error: logs.error.message }, 500);
+  if (logs.error) {
+    return c.json({ ok: false, error: logs.error.message }, 500);
+  }
+
+  const rows = logs.data ?? [];
 
   const done_names = Array.from(
-    new Set((logs.data ?? []).map((r) => String(r.employee_name ?? "").trim()).filter(Boolean))
+    new Set(
+      rows
+        .map((r) => String(r.employee_name ?? "").trim())
+        .filter(Boolean)
+    )
   );
 
-  const done_at = (logs.data ?? []).length
-    ? (logs.data ?? [])[(logs.data ?? []).length - 1].submitted_at
-    : null;
-
-  const last = (logs.data ?? [])[0];
+  const done_at = rows.length ? rows[rows.length - 1].submitted_at : null;
 
   return c.json({
     ok: true,
@@ -278,3 +336,189 @@ inventoryRoutes.post("/cleaning/done", async (c) => {
   });
 });
 
+
+// -------------- inventory 管理画面　--------------
+
+function monthKeyJst() {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().slice(0, 10);
+}
+
+inventoryRoutes.get("/admin/summary", async (c) => {
+  try {
+    const store_id = String(c.req.query("store_id") ?? "")?.trim();
+    if (!store_id) return c.json({ ok: false, error: "store_id required "}, 400);
+
+    const date = ymdJst();
+    const month = monthKeyJst();
+
+    // 予測売り上げ
+    const forecastRes = await supabase 
+      .from("sales_forecasts")
+      .select("forecast_sales")
+      .eq("store_id", store_id)
+      .eq("date", date)
+      .maybeSingle();
+    
+    if (forecastRes.error) {
+      return c.json({ ok: false, error: forecastRes.error.message}, 500);
+    }
+
+    const forecast_sales = forecastRes.data?.forecast_sales ?? 0;
+
+    // 今日の掃除タスク
+    const cleaningDailyRes = await supabase
+      .from("cleaning_tasks")
+      .select("task_code")
+      .eq("store_id", store_id)
+      .eq("date", date)
+      .maybeSingle();
+
+    if (cleaningDailyRes.error) {
+      return c.json({ ok: false, error: cleaningDailyRes.error.message}, 500);
+    }
+
+    const task_code = cleaningDailyRes.data?.task_code ?? null;
+
+    // 掃除タスク名
+    let task_name: string | null = null;
+    if (!task_code) {
+      const taskRes = await supabase 
+        .from("cleaning_tasks")
+        .select("task_name")
+        .eq("store_id", store_id)
+        .eq("task_code", task_code)
+        .maybeSingle();
+
+      if (taskRes.error) {
+        return c.json({ ok: false, error: taskRes.error.message }, 500);
+      }
+
+      task_name = taskRes.data?.task_name ?? null;
+    }
+
+    // 今日の完了
+    const completionRes = await supabase
+      .from("cleaning_comletions")
+      .select("employee_id, employee_name, completed_at")
+      .eq("store_id", store_id)
+      .eq("date", date)
+      .eq("task_code", task_code)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (completionRes.error) {
+      return c.json({ ok: false, error: completionRes.error.message }, 500);
+    }
+
+    // 月次ランキング
+    const monthStart = `${month}-01`;
+    const nextMonthDate = new Date(`${monthStart}T00:00:00+09:00`);
+    nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+    const nextMonth = nextMonthDate.toISOString().slice(0, 10);
+
+    const rankingRes = await supabase
+      .from("cleaning_completions")
+      .select("employee_id, employee_name")
+      .eq("store_id", store_id)
+      .gte("date", monthStart)
+      .lt("done", nextMonth)
+    
+      if (rankingRes.error) {
+        return c.json({ ok: false, error: rankingRes.error.message }, 500)
+      }
+
+    const rankingMap = new Map<
+      string,
+      { employee_id: string | null; employee_name: string; count: number }
+    >();
+
+    for (const row of rankingRes.data ?? []) {
+      const key = row.employee_id || row.employee_name || "unknown";
+      const prev = rankingMap.get(key);
+      if (prev) {
+        prev.count += 1;
+      } else {
+        rankingMap.set(key, {
+          employee_id: row.employee_id ?? null,
+          employee_name: row.employee_name ?? "不明",
+          count: 1,
+        });
+      }
+    }
+    
+    const ranking_top5 = Array.from(rankingMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+      // 今は簡易版　在庫表示
+      const itemsRes = await supabase
+        .from("inventory_items")
+        .select("item_code, name, category, unit, pack_qty")
+        .eq("store_id", store_id)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (itemsRes.error) {
+        return c.json({ ok: false, error: itemsRes.error.message }, 500);
+      }
+
+      const yieldRes = await supabase 
+        .from("yield_rates")
+        .select("item_code, per_100k")
+        .eq("store_id", store_id)
+
+      if (yieldRes.error) {
+        return c.json({ ok: false, error: yieldRes.error.message }, 500);
+      };
+
+      const yieldMap = new Map(
+        (yieldRes.data ?? []).map((x) => [x.item_code, Number(x.per_100k ?? 0)])
+      );
+
+      const items = (itemsRes.data ?? []).map((item) => {
+        const per100k = yieldMap.get(item.item_code) ?? 0;
+        const required_unit = Math.ceil((forecast_sales / 100000) * per100k);
+        const pack_qty = Number(item.pack_qty ?? 1) || 1;
+        const required_qty = Math.ceil(required_unit / pack_qty);
+
+        return {
+          item_code: item.item_code,
+          name: item.name,
+          category: item.category,
+          required_unit,
+          pack_qty,
+          required_qty,
+          unit: item.unit ?? "個",
+        };
+      });
+
+      // 天気　仮の値　後でopen-meteo
+      const weather = {
+        label: "取得準備中",
+        temp_max: null,
+        rain_hours: [] as number[],
+      };
+
+      return c.json({
+        ok: true,
+        store_id,
+        date,
+        forecast_sales,
+        weather,
+        cleaning: {
+          task_code,
+          task_name,
+          done: !!completionRes.data,
+          completed_by: completionRes.data?.employee_name ?? null,
+          completed_at: completionRes.data?.completed_at ?? null,
+        },
+        ranking_top5,
+        items,
+      });
+  }  catch (err) {
+    console.error("/admin/summary error", err);
+    return c.json({ ok: false, error: "internal server error" }, 500);
+  }
+});
