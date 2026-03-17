@@ -1,4 +1,4 @@
-＃shiftflow 
+＃Shiftflow 
 店舗向けシフト提出・管理システム
 
 ＃概要
@@ -19,7 +19,7 @@
 ーー
 
 ＃技術構成
-・Frontend: TypeScript
+・Frontend: HTML / TypeScript
 ・Backend: Hono (Node.js)
 ・Database: Supabase (PostgreSQL)
 ・Hosting: Cloudflare Pages / Workers
@@ -27,8 +27,11 @@
 --
 
 #URL
-管理画面：　https://shiftflow-e14.pages.dev/admin
-提出画面：　https://shiftflow-e14.pages.dev
+・管理画面
+https://shiftflow-e14.pages.dev/admin
+
+・提出画面
+https://shiftflow-e14.pages.dev
 
 --
 
