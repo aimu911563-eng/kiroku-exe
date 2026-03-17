@@ -1,73 +1,55 @@
-# React + TypeScript + Vite
+＃shiftflow 
+店舗向けシフト提出・管理システム
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+＃概要
+従業員がスマホからシフト提出をし、管理者が一覧で管理できるWebアプリです。
+現場での課題（紙・LINEでの管理の非効率）を解決するために開発しました。
 
-Currently, two official plugins are available:
+ーー
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+＃主な機能
+・従業員ログイン（従業員番号　＋　PIN）
+・シフト提出（週単位）
+・提出後一回のみ修正可能
+・管理者画面（提出状況一覧・ステータス管理・従業員追加）
+・コメント機能
+・締め切り制御（木曜木曜0:00以降提出不可）
+・スマホ対応UI
 
-## React Compiler
+ーー
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+＃技術構成
+・Frontend: TypeScript
+・Backend: Hono (Node.js)
+・Database: Supabase (PostgreSQL)
+・Hosting: Cloudflare Pages / Workers
 
-## Expanding the ESLint configuration
+--
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+#URL
+管理画面：　https://shiftflow-e14.pages.dev/admin
+提出画面：　https://shiftflow-e14.pages.dev
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+--
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+＃工夫した点
+・実際の店舗運用を想定した仕様設計
+・UIとAPIでの二重バリデーション
+・更新回数制限など現場ルールの再現
+・スマホで使いやすいUI設計
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+ーー
+＃今後の改善
+・通知機能
+・管理画面のUX改善
+・権限の強化
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+<img width="946" height="908" alt="スクリーンショット 2026-03-17 16 44 11" src="https://github.com/user-attachments/assets/2dc1715d-6ead-49ba-aede-8e79022aea04" />
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+<img width="948" height="955" alt="スクリーンショット 2026-03-17 16 43 59" src="https://github.com/user-attachments/assets/1855a60c-06c6-48ca-95a4-e0468f582baf" />
+
+<img width="941" height="948" alt="スクリーンショット 2026-03-17 16 48 21" src="https://github.com/user-attachments/assets/c6553557-07c1-41e2-9582-09678ed37e35" />
+
+<img width="937" height="958" alt="スクリーンショット 2026-03-17 16 50 51" src="https://github.com/user-attachments/assets/c93d0d1f-8808-4c27-a4a2-f0d2fdac1b01" />
+
