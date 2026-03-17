@@ -1,55 +1,68 @@
-＃shiftflow 
-店舗向けシフト提出・管理システム
+# kiroku.exe
 
-＃概要
-従業員がスマホからシフト提出をし、管理者が一覧で管理できるWebアプリです。
-現場での課題（紙・LINEでの管理の非効率）を解決するために開発しました。
+店舗業務を効率化するためのWebアプリ群
 
-ーー
+#　概要
+店舗運営の現場で感じた課題をもとに、
+シフト管理・勤務時間管理・在庫管理・有給申請などの業務を効率化するWebアプリを個人開発しています。
 
-＃主な機能
-・従業員ログイン（従業員番号　＋　PIN）
-・シフト提出（週単位）
-・提出後一回のみ修正可能
-・管理者画面（提出状況一覧・ステータス管理・従業員追加）
-・コメント機能
-・締め切り制御（木曜木曜0:00以降提出不可）
-・スマホ対応UI
+---
 
-ーー
+#　主なアプリ
 
-＃技術構成
-・Frontend: TypeScript
-・Backend: Hono (Node.js)
-・Database: Supabase (PostgreSQL)
-・Hosting: Cloudflare Pages / Workers
+① ShiftFlow（シフト管理）
+従業員がスマホからシフトを提出し、管理者が一覧で管理できるシステム
 
---
+- 週単位のシフト提出
+- 提出後1回のみ修正可能
+- 管理者画面で提出状況確認
+- コメント機能
+- 締切制御（木曜0:00）
+- スマホ対応UI
 
-#URL
-管理画面：　https://shiftflow-e14.pages.dev/admin
 提出画面：　https://shiftflow-e14.pages.dev
+管理画面：　https://shiftflow-e14.pages.dev/admin
 
---
+---
 
-＃工夫した点
-・実際の店舗運用を想定した仕様設計
-・UIとAPIでの二重バリデーション
-・更新回数制限など現場ルールの再現
-・スマホで使いやすいUI設計
+② Worktime（勤務時間管理）
+勤務時間の入力・集計・管理
 
-ーー
-＃今後の改善
-・通知機能
-・管理画面のUX改善
-・権限の強化
+提出画面：　https://shiftflow-e14.pages.dev/worktime
+管理画面：　https://shiftflow-e14.pages.dev/worktime-admin
+
+---
+
+③ Inventory（在庫管理）
+売上予測から必要量を算出する在庫管理ツール
+
+常時画面：　https://kiroku-exe.pages.dev/inventory
+
+---
+
+④ Leave（有給申請）
+有給申請・承認・履歴管理システム
+
+提出画面：　https://kiroku-exe.pages.dev/
+管理画面：　https://kiroku-exe.pages.dev/admin
 
 
-<img width="946" height="908" alt="スクリーンショット 2026-03-17 16 44 11" src="https://github.com/user-attachments/assets/2dc1715d-6ead-49ba-aede-8e79022aea04" />
+---
 
-<img width="948" height="955" alt="スクリーンショット 2026-03-17 16 43 59" src="https://github.com/user-attachments/assets/1855a60c-06c6-48ca-95a4-e0468f582baf" />
+#　技術構成
+- Frontend: React / TypeScript
+- Backend: Hono (Node.js)
+- Database: Supabase (PostgreSQL)
+- Hosting: Cloudflare Pages / Workers
 
-<img width="941" height="948" alt="スクリーンショット 2026-03-17 16 48 21" src="https://github.com/user-attachments/assets/c6553557-07c1-41e2-9582-09678ed37e35" />
+---
 
-<img width="937" height="958" alt="スクリーンショット 2026-03-17 16 50 51" src="https://github.com/user-attachments/assets/c93d0d1f-8808-4c27-a4a2-f0d2fdac1b01" />
+#　ポイント
+- 実際の店舗運用を想定した業務システム設計
+- フロント・バックエンドの両方を実装
+- 認証・状態管理・バリデーションなどを考慮
 
+---
+
+#　GitHub
+https://github.com/aimu911563-eng
