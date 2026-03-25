@@ -33,6 +33,7 @@ function getWeekStartJst(dateStr: string) {
   return d.toISOString().slice(0, 10);
 }
 
+
 inventoryRoutes.get("/view", async (c) => {
   const store_id = String(c.req.query("store_id") ?? "")?.trim();
   const range = String(c.req.query("range") ?? "day");
@@ -339,185 +340,181 @@ inventoryRoutes.post("/cleaning/done", async (c) => {
 
 // -------------- inventory 管理画面　--------------
 
+function getMonthRangeJst() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+
+  const monthStart = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+
+  const next = new Date(y, m + 1, 1);
+  const nextMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
+
+  return { monthStart, nextMonth };
+}
+
 function monthKeyJst() {
   const now = new Date();
-  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return jst.toISOString().slice(0, 10);
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
 }
 
 inventoryRoutes.get("/admin/summary", async (c) => {
   try {
-    const store_id = String(c.req.query("store_id") ?? "")?.trim();
-    if (!store_id) return c.json({ ok: false, error: "store_id required "}, 400);
+    const store_id = String(c.req.query("store_id") ?? "").trim();
+    if (!store_id) {
+      return c.json({ ok: false, error: "store_id required" }, 400);
+    }
 
     const date = ymdJst();
-    const month = monthKeyJst();
+    const { monthStart, nextMonth } = getMonthRangeJst()
 
-    // 予測売り上げ
-    const forecastRes = await supabase 
+    // 1. forecast
+    const forecastRes = await supabase
       .from("sales_forecasts")
       .select("forecast_sales")
       .eq("store_id", store_id)
       .eq("date", date)
       .maybeSingle();
-    
+
     if (forecastRes.error) {
-      return c.json({ ok: false, error: forecastRes.error.message}, 500);
+      return c.json({ ok: false, error: `sales_forecasts: ${forecastRes.error.message}` }, 500);
     }
 
-    const forecast_sales = forecastRes.data?.forecast_sales ?? 0;
+    const forecast_sales = Number(forecastRes.data?.forecast_sales ?? 0);
 
-    // 今日の掃除タスク
+    // 2. cleaning_daily
     const cleaningDailyRes = await supabase
-      .from("cleaning_tasks")
-      .select("task_code")
+      .from("cleaning_daily")
+      .select("task_code, done_at, done_by, done_names")
       .eq("store_id", store_id)
       .eq("date", date)
       .maybeSingle();
 
     if (cleaningDailyRes.error) {
-      return c.json({ ok: false, error: cleaningDailyRes.error.message}, 500);
+      return c.json({ ok: false, error: `cleaning_daily: ${cleaningDailyRes.error.message}` }, 500);
     }
 
-    const task_code = cleaningDailyRes.data?.task_code ?? null;
+    const daily = cleaningDailyRes.data;
 
-    // 掃除タスク名
+    // 3. task name
     let task_name: string | null = null;
-    if (!task_code) {
-      const taskRes = await supabase 
+    if (daily?.task_code) {
+      const taskRes = await supabase
         .from("cleaning_tasks")
         .select("task_name")
         .eq("store_id", store_id)
-        .eq("task_code", task_code)
+        .eq("task_code", daily.task_code)
         .maybeSingle();
 
       if (taskRes.error) {
-        return c.json({ ok: false, error: taskRes.error.message }, 500);
+        return c.json({ ok: false, error: `cleaning_tasks: ${taskRes.error.message}` }, 500);
       }
 
       task_name = taskRes.data?.task_name ?? null;
     }
 
-    // 今日の完了
-    const completionRes = await supabase
-      .from("cleaning_comletions")
-      .select("employee_id, employee_name, completed_at")
-      .eq("store_id", store_id)
-      .eq("date", date)
-      .eq("task_code", task_code)
-      .order("completed_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (completionRes.error) {
-      return c.json({ ok: false, error: completionRes.error.message }, 500);
-    }
-
-    // 月次ランキング
-    const monthStart = `${month}-01`;
-    const nextMonthDate = new Date(`${monthStart}T00:00:00+09:00`);
-    nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
-    const nextMonth = nextMonthDate.toISOString().slice(0, 10);
-
     const rankingRes = await supabase
-      .from("cleaning_completions")
-      .select("employee_id, employee_name")
+      .from("cleaning_logs")
+      .select("employee_name, points")
       .eq("store_id", store_id)
       .gte("date", monthStart)
-      .lt("done", nextMonth)
-    
-      if (rankingRes.error) {
-        return c.json({ ok: false, error: rankingRes.error.message }, 500)
-      }
+      .lt("date", nextMonth);
 
-    const rankingMap = new Map<
-      string,
-      { employee_id: string | null; employee_name: string; count: number }
-    >();
+    if (rankingRes.error) {
+      return c.json({ ok: false, error: `cleaning_logs: ${rankingRes.error.message}` }, 500);
+    }
+
+    const rankingMap = new Map<string, { employee_name: string; count: number; points: number }>();
 
     for (const row of rankingRes.data ?? []) {
-      const key = row.employee_id || row.employee_name || "unknown";
-      const prev = rankingMap.get(key);
+      const name = row.employee_name ?? "不明";
+      const prev = rankingMap.get(name);
+
       if (prev) {
         prev.count += 1;
+        prev.points += Number(row.points ?? 0);
       } else {
-        rankingMap.set(key, {
-          employee_id: row.employee_id ?? null,
-          employee_name: row.employee_name ?? "不明",
+        rankingMap.set(name, {
+          employee_name: name,
           count: 1,
+          points: Number(row.points ?? 0),
         });
       }
     }
-    
+
     const ranking_top5 = Array.from(rankingMap.values())
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        return b.count - a.count;
+      })
       .slice(0, 5);
-      // 今は簡易版　在庫表示
-      const itemsRes = await supabase
-        .from("inventory_items")
-        .select("item_code, name, category, unit, pack_qty")
-        .eq("store_id", store_id)
-        .eq("is_active", true)
-        .order("display_order", { ascending: true });
 
-      if (itemsRes.error) {
-        return c.json({ ok: false, error: itemsRes.error.message }, 500);
-      }
+    // 5. items
+    const itemsRes = await supabase
+      .from("inventory_items")
+      .select("item_code, name, category, unit, pack_qty, display_order")
+      .eq("store_id", store_id)
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
 
-      const yieldRes = await supabase 
-        .from("yield_rates")
-        .select("item_code, per_100k")
-        .eq("store_id", store_id)
+    if (itemsRes.error) {
+      return c.json({ ok: false, error: `inventory_items: ${itemsRes.error.message}` }, 500);
+    }
 
-      if (yieldRes.error) {
-        return c.json({ ok: false, error: yieldRes.error.message }, 500);
+    const yieldsRes = await supabase
+      .from("yield_rates")
+      .select("item_code, per_100k")
+      .eq("store_id", store_id);
+
+    if (yieldsRes.error) {
+      return c.json({ ok: false, error: `yield_rates: ${yieldsRes.error.message}` }, 500);
+    }
+
+    const yieldMap = new Map(
+      (yieldsRes.data ?? []).map((x) => [x.item_code, Number(x.per_100k ?? 0)])
+    );
+
+    const items = (itemsRes.data ?? []).map((item) => {
+      const per100k = yieldMap.get(item.item_code) ?? 0;
+      const required_unit = Math.ceil((forecast_sales / 100000) * per100k);
+      const pack_qty = Number(item.pack_qty ?? 1) || 1;
+      const required_qty = Math.ceil(required_unit / pack_qty);
+
+      return {
+        item_code: item.item_code,
+        name: item.name,
+        category: item.category,
+        required_unit,
+        pack_qty,
+        required_qty,
+        unit: item.unit ?? "個",
       };
+    });
 
-      const yieldMap = new Map(
-        (yieldRes.data ?? []).map((x) => [x.item_code, Number(x.per_100k ?? 0)])
-      );
-
-      const items = (itemsRes.data ?? []).map((item) => {
-        const per100k = yieldMap.get(item.item_code) ?? 0;
-        const required_unit = Math.ceil((forecast_sales / 100000) * per100k);
-        const pack_qty = Number(item.pack_qty ?? 1) || 1;
-        const required_qty = Math.ceil(required_unit / pack_qty);
-
-        return {
-          item_code: item.item_code,
-          name: item.name,
-          category: item.category,
-          required_unit,
-          pack_qty,
-          required_qty,
-          unit: item.unit ?? "個",
-        };
-      });
-
-      // 天気　仮の値　後でopen-meteo
-      const weather = {
+    return c.json({
+      ok: true,
+      store_id,
+      date,
+      forecast_sales,
+      weather: {
         label: "取得準備中",
         temp_max: null,
-        rain_hours: [] as number[],
-      };
-
-      return c.json({
-        ok: true,
-        store_id,
-        date,
-        forecast_sales,
-        weather,
-        cleaning: {
-          task_code,
-          task_name,
-          done: !!completionRes.data,
-          completed_by: completionRes.data?.employee_name ?? null,
-          completed_at: completionRes.data?.completed_at ?? null,
-        },
-        ranking_top5,
-        items,
-      });
-  }  catch (err) {
+        rain_hours: [],
+      },
+      cleaning: {
+        task_code: daily?.task_code ?? null,
+        task_name,
+        done: !!daily?.done_at,
+        completed_by: daily?.done_by ?? null,
+        completed_at: daily?.done_at ?? null,
+        done_names: daily?.done_names ?? [],
+      },
+      ranking_top5,
+      items,
+    });
+  } catch (err) {
     console.error("/admin/summary error", err);
     return c.json({ ok: false, error: "internal server error" }, 500);
   }

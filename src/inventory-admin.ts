@@ -11,7 +11,7 @@ type SummaryResponse = {
         temp_max: number | null;
         rain_hours: number[];
     };
-    cleannig: {
+    cleaning: {
         task_code: string | null;
         task_name: string | null;
         done: boolean;
@@ -72,67 +72,75 @@ function setText(id : string, value: string) {
 }
 
 function renderRanking(list: SummaryResponse["ranking_top5"]) {
-    const wrap = document.getElementById("rankingList");
-    if (!wrap) return;
-    wrap.innerHTML = "";
+  const wrap = document.getElementById("rankingList");
+  if (!wrap) return;
+  wrap.innerHTML = "";
 
-    if (!list.length) {
-        wrap.innerHTML = `<div class="muted">まだデータがありません</div>`;
-        return;
-    }
+  if (!list.length) {
+    wrap.innerHTML = `<div class="muted">まだデータがありません</div>`;
+    return;
+  }
 
-    list.forEach((row, idx) => {
-        const div = document.createElement("div");
-        div.className = "rank-item";
-        div.innerHTML = `
-          <div class="rank-top">
-            <span>${idx + 1}位 ${row.employee_name}</span>
-            <span>${row.count}件</span>
-          </div>
-          <div class="rank-sub">従業員番号: ${row.employee_id ?? "-"}</div>
-        `;
-        wrap.appendChild(div);
-    });
+  list.forEach((row, idx) => {
+    const div = document.createElement("div");
+    div.className = "rank-item";
+    div.innerHTML = `
+      <div class="rank-top">
+        <div class="rank-top-left">
+          <span class="rank-badge">${idx + 1}</span>
+          <span class="rank-name">${row.employee_name}</span>
+        </div>
+        <span class="rank-points">${Number(row.points ?? 0).toFixed(1)}pt</span>
+      </div>
+      <div class="rank-sub">完了件数: ${row.count}件</div>
+    `;
+    wrap.appendChild(div);
+  });
 }
 
 function renderItems(items: SummaryResponse["items"]) {
-    const mainWrap = document.getElementById("mainItems");
-    const sideWrap = document.getElementById("sideItems");
-    if (!mainWrap || !sideWrap) return;
+  const mainWrap = document.getElementById("mainItems");
+  const sideWrap = document.getElementById("sideItems");
+  if (!mainWrap || !sideWrap) return;
 
-    mainWrap.innerHTML = "";
-    sideWrap.innerHTML = "";
+  mainWrap.innerHTML = "";
+  sideWrap.innerHTML = "";
 
-    const mainItems = items.filter((x) => x.category === "main");
-    const sideItems = items.filter((x) => x.category !== "main");
+  const mainItems = items.filter((x) => x.category === "main");
+  const sideItems = items.filter((x) => x.category !== "main");
 
-    const render = (
-        wrap: HTMLElement,
-        rows: SummaryResponse["items"]
-    ) => {
-        if (!rows.length) {
-            wrap.innerHTML = `<div class="muted">データがありません</div>`;
-            return;
-        }
+  const render = (wrap: HTMLElement, rows: SummaryResponse["items"]) => {
+    if (!rows.length) {
+      wrap.innerHTML = `<div class="muted">データがありません</div>`;
+      return;
+    }
 
-        rows.forEach((item) => {
-            const div = document.createElement("div");
-            div.className = "item-row";
-            div.innerHTML = `
-                <div class="rank-top">
-                <span>${item.name}</span>
-                <span>${item.required_qty}${item.unit}</span>
-                </div>
-                <div class="item-sub">
-                必要数: ${item.required_unit} / pack_qty: ${item.pack_qty} / item_code: ${item.item_code}
-                </div>
-            `;
-            wrap.appendChild(div);
-        });
-    };
+    rows.forEach((item) => {
+      const div = document.createElement("div");
+      div.className = "item-row";
+      div.innerHTML = `
+        <div class="item-head">
+          <div>
+            <div class="item-name">${item.name}</div>
+          </div>
+          <div class="item-qty">
+            <div class="item-qty-main">${item.required_qty}${item.unit}</div>
+            <div class="item-qty-sub">必要量表示</div>
+          </div>
+        </div>
 
-    render(mainWrap, mainItems);
-    render(sideWrap, sideItems);
+        <div class="item-meta">
+          <span class="pill">必要数: ${item.required_unit}</span>
+          <span class="pill">ケース換算: ${item.pack_qty}</span>
+          <span class="pill">${item.item_code}</span>
+        </div>
+      `;
+      wrap.appendChild(div);
+    });
+  };
+
+  render(mainWrap, mainItems);
+  render(sideWrap, sideItems);
 }
 
 async function loadSummary() {
@@ -158,17 +166,17 @@ async function loadSummary() {
         setText("weatherLabel", data.weather.label || "-");
         setText("weatherTempMax", data.weather.temp_max != null ? `${data.weather.temp_max}℃` : "-");
         setText("weatherRainHours", rainHoursLabel(data.weather.rain_hours));
-        setText("cleaningTask", data.cleannig.task_name || "-");
+        setText("cleaningTask", data.cleaning?.task_name || "-");
 
         const statusEl = document.getElementById("cleaningStatus");
         if (statusEl) {
-            statusEl.innerHTML = data.cleannig.done
+            statusEl.innerHTML = data.cleaning.done
               ? `<span class="status-done">完了</span>`
               : `<span class="status-pending">未完了</span>`
         }
 
-        setText("cleaningBy", data.cleannig.completed_by || "-");
-        setText("cleaningAt", formatDateTime(data.cleannig.completed_at));
+        setText("cleaningBy", data.cleaning.completed_by || "-");
+        setText("cleaningAt", formatDateTime(data.cleaning.completed_at));
 
         renderRanking(data.ranking_top5);
         renderItems(data.items);
