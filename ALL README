@@ -2,13 +2,13 @@
 
 店舗業務を効率化するためのWebアプリ群
 
-#　概要
+# 概要
 店舗運営の現場で感じた課題をもとに、
 シフト管理・勤務時間管理・在庫管理・有給申請などの業務を効率化するWebアプリを個人開発しています。
 
 ---
 
-#　主なアプリ
+# 主なアプリ
 
 ① ShiftFlow（シフト管理）
 従業員がスマホからシフトを提出し、管理者が一覧で管理できるシステム
@@ -20,37 +20,37 @@
 - 締切制御（木曜0:00）
 - スマホ対応UI
 
-提出画面：　https://shiftflow-e14.pages.dev
-管理画面：　https://shiftflow-e14.pages.dev/admin
+提出画面： https://shiftflow-e14.pages.dev
+管理画面： https://shiftflow-e14.pages.dev/admin
 
 ---
 
 ② Worktime（勤務時間管理）
 勤務時間の入力・集計・管理
 
-提出画面：　https://shiftflow-e14.pages.dev/worktime
-管理画面：　https://shiftflow-e14.pages.dev/worktime-admin
+提出画面： https://shiftflow-e14.pages.dev/worktime
+管理画面： https://shiftflow-e14.pages.dev/worktime-admin
 
 ---
 
 ③ Inventory（在庫管理）
 売上予測から必要量を算出する在庫管理ツール
 
-常時画面：　https://kiroku-exe.pages.dev/inventory
+常時画面： https://kiroku-exe.pages.dev/inventory
 
 ---
 
 ④ Leave（有給申請）
 有給申請・承認・履歴管理システム
 
-提出画面：　https://kiroku-exe.pages.dev/
-管理画面：　https://kiroku-exe.pages.dev/admin
+提出画面： https://kiroku-exe.pages.dev/
+管理画面： https://kiroku-exe.pages.dev/admin
 
 
 ---
 
 #　技術構成
-- Frontend: React / TypeScript
+- Frontend: React(一部機能) / TypeScript
 - Backend: Hono (Node.js)
 - Database: Supabase (PostgreSQL)
 - Hosting: Cloudflare Pages / Workers
