@@ -4,6 +4,12 @@ import { debug } from "console";
 
 export const publicRoutes = new Hono();
 
+console.log("SHIFT_SUPABASE_URL exists?", !!process.env.SHIFT_SUPABASE_URL);
+console.log(
+  "SHIFT_SUPABASE_SERVICE_ROLE_KEY exists?",
+  !!process.env.SHIFT_SUPABASE_SERVICE_ROLE_KEY
+);
+
 const supabase = createClient(
   process.env.SHIFT_SUPABASE_URL!,
   process.env.SHIFT_SUPABASE_SERVICE_ROLE_KEY! 
