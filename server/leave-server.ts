@@ -13,7 +13,9 @@ import { serve } from '@hono/node-server'
 import { Resend } from 'resend';
 import { LeaveFormPayload } from './main';
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+// const resend = new Resend(process.env.RESEND_API_KEY!);
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 const supabase = createClient (
   process.env.SUPABASE_URL!,
@@ -119,12 +121,12 @@ leaveRoutes.post("/leaves",async (c) => {
     }
     // --- ここからメール送信処理 ---
     const ownerEmail = process.env.OWNER_EMAIL;
-    if (ownerEmail) {
+    if (ownerEmail && resend) {
       const submittedAtDate = submittedAt
         ? new Date(submittedAt)
         : new Date();
 
-      const submittedStr = submittedAtDate.toLocaleString('ja-JP', {
+      const submittedStr = submittedAtDate.toLocaleDateString('ja-JP', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -139,22 +141,22 @@ leaveRoutes.post("/leaves",async (c) => {
           subject: '【休暇申請】新しい申請が届きました',
           html: `
             <h2>新しい休暇申請が届きました</h2>
-            <p>従業員：${employeeName}（${employeeId}）</p>
-            <p>区分：${leaveType}</p>
-            <p>取得日：${date}</p>
-            <p>理由：${(reason || '').trim() || '（未入力）'}</p>
+            <p>従業員:${employeeName} (${employeeId})</p>
+            <p>区分:${leaveType}</p>
+            <p>取得日:${date}</p>
+            <p>理由:${(reason || '').trim() || ' (未入力) '}</p>
             <hr />
-            <p>申請日時：${submittedStr}</p>
-            <p>申請ID：${data.id}</p>
+            <p>申請日時:${submittedStr}</p>
+            <p>申請ID:${data.id}</p>
           `,
         });
       } catch (mailErr: any) {
         console.error('[mail] send failed:', mailErr?.message ?? mailErr);
-        // メールで失敗してもAPI自体は成功させたいので throw しない
-      }
-    } else {
-      console.warn('[mail] OWNER_EMAIL is not set; skip sending mail');
+      } 
+      } else {
+        console.warn('[mail] OWNER_EMAIL or RESEND_API_KEY is missing; skip sending mail');
     }
+
     // --- メール送信ここまで ---
 
 

@@ -14,7 +14,7 @@ export default function InventoryApp() {
     "7539": "kosai",
   };
   // const SHIFT_API_BASE = import.meta.env.VITE_SHIFT_API_BASE;
-  const PUBLIC_KEY = import.meta.env.VITE_PUBLIC_EMPLOYEES_KEY;
+  // const PUBLIC_KEY = import.meta.env.VITE_PUBLIC_EMPLOYEES_KEY;
   const [sortKey, setSortKey] = useState<"expiry" | "qty" | "default">("expiry");
   const [state, setState] = useState<InventoryState>({ status: "loading" });
   const [tick, setTick] = useState(0);
@@ -39,13 +39,15 @@ export default function InventoryApp() {
     try {
       setEmployeeErr(null);
       const mappedStoreId = STORE_MAP[storeId] ?? storeId;
-      const url = `${API_BASE}/public/employees?store_id=${encodeURIComponent(mappedStoreId)}&key=${encodeURIComponent(PUBLIC_KEY)}`;
+      const url = `${API_BASE}/public/employees?store_id=${encodeURIComponent(mappedStoreId)}`;
+
       const res = await fetch(url, {
-        // headers: PUBLIC_KEY ? { "x-public-key" : PUBLIC_KEY } : undefined,
         cache: "no-store",
       });
+
       const json = await res.json();
       console.log("employees json=", json);
+
       if (!res.ok || !json?.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
 
       setEmployeeNames((json.employees ?? []).map((e: any) => e.employee_name));
@@ -53,7 +55,7 @@ export default function InventoryApp() {
       setEmployeeErr(e instanceof Error ? e.message : "unknown error");
       setEmployeeNames([]);
     }
-  }, [storeId, PUBLIC_KEY]);
+  }, [storeId]);
 
   useEffect(() => {
     fetchEmployees();
