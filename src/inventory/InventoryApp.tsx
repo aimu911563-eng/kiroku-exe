@@ -112,6 +112,7 @@ export default function InventoryApp() {
         store_id: storeId,
         task_code: taskCode,
         names: selectedNames,
+        key: import.meta.env.VITE_PUBLIC_EMPLOYEES_KEY
       }),
     });
 
