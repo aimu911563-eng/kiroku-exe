@@ -8,6 +8,8 @@ import { cleaningRoutes } from "./cleaning-server";
 import dotenv from "dotenv";
 dotenv.config({ path: "shiftflow/.env" }); // ←実際のパスに合わせて
 
+console.log("🔥 NEW SERVER CODE RUNNING 🔥");
+
 const app = new Hono();
 
 app.use(
