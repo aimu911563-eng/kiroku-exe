@@ -292,7 +292,9 @@ function Section({
                             const fridge = Number(fridgeDrafts[row.item_code] || 0);
                             const freezer = Number(freezerDrafts[row.item_code] || 0);
                             const total = fridge + freezer;
-                            const orderQty = Math.max(Number(row.required_qty || 0) - total, 0);
+                            //const orderQty = Math.max(Number(row.required_qty || 0) - total, 0);
+                            const rawOrderQty = Math.max(Number(row.required_qty || 0) - total, 0);
+                            const orderQty = Math.ceil(rawOrderQty);
 
                             return (
                                 <tr key={row.item_code}>
@@ -328,10 +330,18 @@ function Section({
                                             style={{ width: 40, padding: "6px 4px", textAlign: "center" }}
                                         />
                                     </Td>
-                                    <Td width="10%">
+                                    <Td width="10%" >
                                         {total}
                                     </Td>
-                                    <Td width="12%">
+                                    <Td width="12%" style={{ 
+                                        color: orderQty === 0 
+                                          ? "#aaa" 
+                                          : orderQty >= 10
+                                          ? "#d32f2f"
+                                          : "#1976d2",
+                                        fontWeight: orderQty === 0 ? 400 : 600,
+                                        backgroundColor: orderQty > 0 ? "#e3f2fd" : "transparent",
+                                    }}>
                                         {orderQty.toFixed(2)}
                                     </Td>
                                 </tr>
@@ -370,8 +380,7 @@ function Td ({ children, width, style } : { children: React.ReactNode; width?: s
             borderBottom: "1px solid #eee",
             padding: "6px 4px",
             verticalAlign: "middle",
-            width,
-            ...style,
+            width,            ...style,
             }}
         >
             {children}
