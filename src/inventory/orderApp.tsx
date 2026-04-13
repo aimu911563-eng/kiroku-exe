@@ -86,7 +86,7 @@ export default function OrderInputPage() {
         }));
 
         try {
-            const res = await fetch(`${API_BASE}/api/inventory/bulk-input`, {
+            const res = await fetch(`${API_BASE}/inventory/bulk-input`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
