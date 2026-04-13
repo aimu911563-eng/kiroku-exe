@@ -367,8 +367,11 @@ inventoryRoutes.get("/admin/summary", async (c) => {
       return c.json({ ok: false, error: "store_id required" }, 400);
     }
 
+    //const date = ymdJst();
+    //const { monthStart, nextMonth } = getMonthRangeJst()
     const date = ymdJst();
-    const { monthStart, nextMonth } = getMonthRangeJst()
+    const monthStart = "2026-03-01";
+    const nextMonth = "2026-04-01";
 
     // 1. forecast
     const forecastRes = await supabase
@@ -517,5 +520,75 @@ inventoryRoutes.get("/admin/summary", async (c) => {
   } catch (err) {
     console.error("/admin/summary error", err);
     return c.json({ ok: false, error: "internal server error" }, 500);
+  }
+});
+
+
+// -------------------- order 発注の方で使うAPI　---------------------
+
+/*inventoryRoutes.post("/input", async (c) => {
+    try {
+        const body = await c.req.json();
+        const { store_id, date, item_code, stock_qty } = body;
+
+        if (!store_id || !date || !item_code) {
+            return c.json({ ok: false, error: "missing fields" }, 400);
+        }
+
+        const { error } = await supabase
+          .from("inventory_counts")
+          .upsert({
+            store_id,
+            date,
+            item_code,
+            stock_qty,
+          },
+          { onConflict: "store_id, date, item_code" }
+        );
+
+        if (error) {
+            return c.json({ ok: false, error: error.message }, 500);
+        }
+
+        return c.json({ ok: true });
+    } catch (e: any) {
+        return c.json({ ok: false, error: e.message }, 500);
+    }
+});*/
+
+inventoryRoutes.post("/bulk-input", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { store_id, date, items } = body;
+
+    if (!store_id || !date || !Array.isArray(items)) {
+      return c.json({ ok: false, error: "missing fields" }, 400);
+    }
+
+    const payload = items.map((item: any) => {
+      const fridge = Number(item.fridge_qty || 0);
+      const freezer = Number(item.freezer_qty || 0);
+
+      return {
+        store_id,
+        date,
+        item_code: item.item_code,
+        fridge_qty: fridge,
+        freezer_qty: freezer,
+        stock_qty: fridge + freezer,
+      };
+    });
+
+    const { error } = await supabase
+      .from("inventory_counts")
+      .upsert(payload, { onConflict: "store_id,date,item_code" });
+
+    if (error) {
+      return c.json({ ok: false, error: error.message }, 500);
+    }
+
+    return c.json({ ok: true, count: payload.length });
+  } catch (e: any) {
+    return c.json({ ok: false, error: e.message ?? "server error" }, 500);
   }
 });

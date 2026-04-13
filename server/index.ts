@@ -5,10 +5,10 @@ import { inventoryRoutes } from "./inventory-server";
 import { cors } from "hono/cors";
 import { publicRoutes } from "./public-server.ts";
 import { cleaningRoutes } from "./cleaning-server";
+import { orderRoutes } from "./order-server.ts";
 import dotenv from "dotenv";
 dotenv.config({ path: "shiftflow/.env" }); // ←実際のパスに合わせて
 
-console.log("🔥 NEW SERVER CODE RUNNING 🔥");
 
 const app = new Hono();
 
@@ -30,6 +30,7 @@ app.route("/api/leaves", leaveRoutes);
 app.route("/api/inventory", inventoryRoutes);
 app.route("/api/public", publicRoutes);
 app.route("/api/cleaning", cleaningRoutes);
+app.route("/api/order", orderRoutes);
 
 const host = "0.0.0.0"
 const port = 8787;

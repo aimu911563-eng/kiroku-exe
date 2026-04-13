@@ -308,9 +308,10 @@ export default function InventoryApp() {
     const id = window.setInterval(() => {
       fetchView();
       fetchWeather();
+      fetchCleaning();
     }, 5 * 60 * 1000); // 5分ごとに更新
     return () => window.clearInterval(id);
-  }, [fetchView, fetchWeather]);
+  }, [fetchView, fetchWeather, fetchCleaning]);
 
 
   const elapsedText = useMemo(() => {
