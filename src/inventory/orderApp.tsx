@@ -20,9 +20,20 @@ type OrderRow = {
   updated_at?: string | null;
 };
 
-const STORE_ID = "7249";
 const API_BASE = "/api";
 const today = new Date().toISOString().slice(0, 10);
+const params = new URLSearchParams(window.location.search);
+const STORE_ID = params.get("store_id") || "7249";
+const STORE_NAMES: Record<string, string> = {
+  "7249": "寺島",
+  "7539": "浜北",
+};
+const storeName = STORE_NAMES[STORE_ID] || STORE_ID;
+const STORE_CONFIG: Record<string, { name: string; orderDays: number[] }> = {
+    "7249" : { name: "寺島", orderDays: [2, 5]},
+    "7539" : { name: "浜北", orderDays: [1, 4]},
+};
+const config = STORE_CONFIG[STORE_ID];
 
 
 export default function OrderInputPage() {
@@ -33,7 +44,7 @@ export default function OrderInputPage() {
     const [fridgeDrafts, setFridgeDrafts] = useState<Record<string, string>>({});
     const [freezerDrafts, setFreezerDrafts] = useState<Record<string, string>>({});
     const [toast, setToast] = useState<string | null>(null);
-     
+
 
 
     async function loadDate(targetDate = date) {
@@ -136,6 +147,9 @@ export default function OrderInputPage() {
     return (
         <div style={{ maxWidth: 660, margin: "0 auto", padding: 12, }}>
             <h1 style={{ fontSize: 22, marginBottom: 40, textAlign: "center" }}>発注自動計算</h1>
+                <div style={{ fontSize: 12, color: "#666", marginTop: 8, marginBottom:10 }}>
+                    店舗: {storeName}  ({STORE_ID})
+                </div>
 
                 <div style={{
                     display: "flex",
@@ -147,7 +161,7 @@ export default function OrderInputPage() {
                 >
                 <div style={{ marginBottom: 14, lineHeight: 1.6 }}>
                     <div style={{ fontSize: 13, color: "#444" }}>
-                        発注日は火・金を選択してください
+                        発注日は {config.orderDays.map(d => ["日","月","火","水","木","金","土"][d]).join("・")} を選択してください
                     </div>
                     <div style={{ fontSize: 13, color: "#444" }}>
                         冷蔵庫(W/I)・冷凍庫の在庫を入力すると発注数が自動計算されます
@@ -197,6 +211,12 @@ export default function OrderInputPage() {
                     一括保存
                 </button>
             </div>
+
+            {rows.length === 0 && (
+                <div style={{ color: "#999", marginTop: 20 }}>
+                    この日の予算データが登録されていません
+                </div>
+            )}
 
             <Section 
                 title="ピザ食材"
