@@ -1,9 +1,9 @@
 :root {
-  --bg: #0b0c10;
-  --card: #111318;
-  --text: #e8eaed;
-  --muted: #9aa0a6;
-  --accent: #8ab4f8;
+  --bg: #bcc6ec;
+  --card: #ffffff;
+  --text: #000000;
+  --muted: #100a26;
+  --accent: #ffffff;
   --border: #2a2e35;
 }
 
@@ -42,6 +42,7 @@ input[type="date"] {
 
 
 html,
+
 body {
   height: 100%;
 }
@@ -66,6 +67,7 @@ h1 {
   font-weight: 700;
   margin: 0 0 8px;
   letter-spacing: 0.02em;
+  color: #28394e;
 }
 
 .preview-title {
@@ -81,7 +83,8 @@ h1 {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px 16px 18px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  color: #28394e;
 }
 
 /* ===== フォームレイアウト ===== */
@@ -111,7 +114,7 @@ textarea {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: #0f1117;
+  /* background: #0f1117; */
   color: var(--text);
   outline: none;
   font-size: 14px;
@@ -119,8 +122,8 @@ textarea {
 
 /* 読み取り専用（従業員番号・氏名）を少しトーンダウン */
 input[readonly] {
-  background: #111318;
-  color: #cbd5f5;
+  /* background: #111318; */
+  color: #09112a;
   border-style: dashed;
   cursor: default;
 }
@@ -134,8 +137,9 @@ textarea::placeholder {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--accent);
+  border-color: #4a90e2;
   box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.15);
+  outline: none;
 }
 
 /* ===== ボタン周り ===== */
@@ -211,13 +215,13 @@ button.ghost {
 #toast.success {
   background: rgba(56, 189, 248, 0.15);
   border: 1px solid #38bdf8;
-  color: #e0f2fe;
+  color: #000000;
 }
 
 #toast.error {
   background: rgba(248, 113, 113, 0.15);
   border: 1px solid #f87171;
-  color: #fee2e2;
+  color: #000000;
 }
 
 #toast.show {
@@ -265,7 +269,7 @@ button.ghost {
 }
 
 .paid-info {
-  background: #0f1117;
+  background: #e0eaeb;
   border: 1px solid var(--border);
   padding: 12px;
   border-radius: 12px;
@@ -274,7 +278,7 @@ button.ghost {
 
 .paid-title {
   font-size: 13px;
-  color: var(--accent);
+  color: #000;
   margin: 0 0 8px;
   font-weight: 600;
 }
@@ -287,7 +291,7 @@ button.ghost {
 }
 
 .paid-grid .label {
-  color: var(--muted);
+  color: #000000;
   display: block;
   font-size: 12px;
 }
@@ -494,7 +498,7 @@ button.ghost {
 }
 
 .admin-item {
-  background: #0f1117;
+  background: #e3e5ed;
   border-radius: 12px;
   border: 1px solid var(--border);
   padding: 8px 10px;
@@ -1131,7 +1135,7 @@ button.ghost {
 
 body {
   background: #020617;
-  color: #f9fafb;
+  color: #1e476d;
 }
 
 /* 全体コンテナ */
@@ -1164,7 +1168,7 @@ body {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 999px;
-  background: #020617;
+  background: #ffffff;
   border: 1px solid #1f2937;
 }
 
@@ -1178,7 +1182,7 @@ body {
 /* 共通カード風セクション */
 .admin-section,
 .admin-toolbar {
-  background: #020617;
+  background: #ffffff;
   border-radius: 16px;
   padding: 20px 24px;
   margin-bottom: 24px;
@@ -1196,7 +1200,7 @@ body {
   margin: 0 0 12px;
   font-size: 13px;
   line-height: 1.7;
-  color: #9ca3af;
+  color: #0b2c65;
 }
 
 /* ボタン系（既存のボタンスタイルがあればそれを優先してOK） */
@@ -1246,7 +1250,7 @@ body {
   gap: 16px;
   padding: 12px 16px;
   border-radius: 12px;
-  background: #0f172a;  /* ちょい明るめにして行として見せる */
+  background: #04102c;  /* ちょい明るめにして行として見せる */
   border: 1px solid #1e293b;
 }
 
@@ -1264,6 +1268,7 @@ body {
 .balance-remain {
   font-size: 14px;
   font-weight: bold;
+  color: #000;
 }
 
 /* 保存ボタンだけ右端に固定 */
@@ -1276,7 +1281,7 @@ body {
 /* ラベル・入力の細かいところは既存の共通スタイルをそのまま使う */
 .balance-row label {
   font-size: 12px;
-  color: #9ca3af;
+  color: #1e478f;
 }
 
 /* 残り日数表示 */
@@ -1314,7 +1319,7 @@ body {
 /* ソートボタンのグループ */
 .admin-sort-group {
   display: inline-flex;
-  background: #020617;
+  background: #ffffff;
   border-radius: 999px;
   padding: 2px;
   border: 1px solid #1f2937;
@@ -1327,11 +1332,11 @@ body {
   padding: 6px 12px;
   font-size: 13px;
   cursor: pointer;
-  color: #e5e7eb;
+  color: #071232;
 }
 
 .admin-sort-group .admin-sort.active {
-  background: #2563eb;
+  background: #4579e9;
   color: #f9fafb;
 }
 
@@ -1354,7 +1359,7 @@ body {
   padding: 6px 14px;
   font-size: 13px;
   cursor: pointer;
-  background: #020617;
+  background: #8197f6;
   color: #e5e7eb;
   border: 1px solid #1f2937;
 }
@@ -1378,7 +1383,7 @@ body {
 
 /* 子要素をカードっぽく（クラス名が何でもある程度効くように汎用指定） */
 .admin-list > div {
-  background: #020617;
+  background: #ffffff;
   border-radius: 14px;
   padding: 12px 14px;
   border: 1px solid #111827;
@@ -1421,8 +1426,8 @@ body {
   padding: 8px 16px;
   margin-bottom: 10px;
   border-radius: 12px;
-  background: #0f172a;
-  border: 1px solid #1e293b;
+  background: #edeff1;
+  border: 1px solid #dee5ef;
 }
 
 /* 名前部分 */
@@ -1623,7 +1628,7 @@ body {
   gap: 24px;
   padding: 16px 24px;
   border-radius: 16px;
-  background: #0e1729;
+  background: #fcfdff;
 }
 
 .balance-name {
@@ -1716,4 +1721,21 @@ body {
   background: rgba(255,255,255,0.07);
   border-radius: 12px;
   font-size: 14px;
+}
+
+body {
+  background: #f5f6f8 !important;
+}
+
+.card {
+  background: #ffffff; /* 白 */
+  border-radius: 12px;
+  padding: 16px;
+}
+
+input, select {
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
 }

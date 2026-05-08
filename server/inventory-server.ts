@@ -1,10 +1,7 @@
 import { Hono } from "hono";
 import { createClient } from '@supabase/supabase-js'
 import { required } from "zod/mini";
-import { error } from "console";
-import { fa } from "zod/v4/locales";
-import { join } from "path";
-import { allowedNodeEnvironmentFlags } from "process";
+import { fa } from "zod/v4/locales";import { allowedNodeEnvironmentFlags } from "process";
 import { compare } from "bcryptjs";
 
 export const inventoryRoutes = new Hono();
@@ -367,11 +364,12 @@ inventoryRoutes.get("/admin/summary", async (c) => {
       return c.json({ ok: false, error: "store_id required" }, 400);
     }
 
-    //const date = ymdJst();
-    //const { monthStart, nextMonth } = getMonthRangeJst()
     const date = ymdJst();
-    const monthStart = "2026-03-01";
-    const nextMonth = "2026-04-01";
+    const { monthStart, nextMonth } = getMonthRangeJst()
+
+    // 月ランキング発表時に使う。その月選択する用
+    //const monthStart = "2026-04-01";
+    //onst nextMonth = "2026-05-01";
 
     // 1. forecast
     const forecastRes = await supabase

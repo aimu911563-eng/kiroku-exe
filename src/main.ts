@@ -12,7 +12,7 @@ export type LeaveFormPayload = {
 
 // ===== 要素取得 =====
 const form = document.getElementById('leaveForm') as HTMLFormElement;
-const preview = document.getElementById('preview') as HTMLPreElement;
+// const preview = document.getElementById('preview') as HTMLPreElement;
 const dateInput = document.getElementById('date') as HTMLInputElement;
 const leaveType = document.getElementById('leaveType') as HTMLSelectElement;
 const paidInfo = document.getElementById('paidInfo') as HTMLElement;
@@ -21,7 +21,6 @@ const paidInfo = document.getElementById('paidInfo') as HTMLElement;
 const loginForm = document.getElementById('loginForm') as HTMLFormElement;
 const loginEmployeeId = document.getElementById('loginEmployeeId') as HTMLInputElement;
 const loginPinInput = document.getElementById('loginPin') as HTMLInputElement;
-const submitMessage = document.getElementById('submitMessage') as HTMLDivElement;
 
 // フォーム側（ログイン後に値を入れる欄）
 const employeeIdInput = document.getElementById('employeeId') as HTMLInputElement;
@@ -164,22 +163,6 @@ dateInput.addEventListener('change', () => {
   paidRemainAfterEl.textContent = `${after} 日`;
 });
 
-// ===== submitMessage 用（今は使ってないけど一応残す）=====
-function showSubmitMessage(
-  type: 'success' | 'error',
-  message: string
-) {
-  if (!submitMessage) return;
-
-  submitMessage.textContent = message;
-  submitMessage.classList.remove('success', 'error');
-
-  if (type === 'success') {
-    submitMessage.classList.add('success');
-  } else {
-    submitMessage.classList.add('error');
-  }
-}
 
 // ===== 区分が有給のときだけ有給情報を表示 =====
 leaveType.addEventListener('change', () => {
@@ -191,13 +174,6 @@ leaveType.addEventListener('change', () => {
   }
 });
 
-// ===== （今は未使用）日数計算：連日取得対応用 =====
-function dateDiffInclusive(start: string, end: string): number {
-  const s = new Date(start + 'T00:00:00');
-  const e = new Date(end + 'T00:00:00');
-  const diff = (e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24);
-  return Math.floor(diff) + 1; // 同日なら 1
-}
 
 // ===== 送信用ペイロード作成 =====
 function buildPayload(fd: FormData): LeaveFormPayload {
@@ -215,13 +191,13 @@ function buildPayload(fd: FormData): LeaveFormPayload {
 }
 
 // ===== プレビュー表示 =====
-function updatePreview() {
+/*function updatePreview() {
   const fd = new FormData(form);
   const payload = buildPayload(fd);
   preview.textContent = JSON.stringify(payload, null, 2);
-}
+}*/
 
-form.addEventListener('input', updatePreview);
+// form.addEventListener('input', updatePreview);
 
 // ===== 申請送信 =====
 form.addEventListener('submit', async (e) => {
@@ -273,7 +249,6 @@ form.addEventListener('submit', async (e) => {
       `✅ 申請を受け付けました。\n承認後に有給残日数へ反映されます。\n申請ID: ${result.id}`
     );
     form.reset();
-    updatePreview();
 
     // サーバーから残り日数が返ってきたら反映
     if (result.balance) {
@@ -505,4 +480,4 @@ historySortButtons.forEach((btn) => {
 });
 
 // ===== 初期プレビュー =====
-updatePreview();
+// updatePreview();

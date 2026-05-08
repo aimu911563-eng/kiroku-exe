@@ -68,8 +68,12 @@ export default function OrderInputPage() {
             const nextFreezer: Record<string, string> = {};
 
             for (const row of data) {
-            nextFridge[row.item_code] = row.fridge_qty && Number(row.fridge_qty) !== 0 ? String(row.fridge_qty) : "";
-            nextFreezer[row.item_code] = row.freezer_qty && Number(row.freezer_qty) !== 0 ? String(row.freezer_qty) : "";
+                nextFridge[row.item_code] = row.fridge_qty && Number(row.fridge_qty) 
+                    !== 0 ? String(row.fridge_qty) 
+                    : "";
+                nextFreezer[row.item_code] = row.freezer_qty && Number(row.freezer_qty) 
+                    !== 0 ? String(row.freezer_qty) 
+                    : "";
             }
 
             setFridgeDrafts(nextFridge);
@@ -118,13 +122,16 @@ export default function OrderInputPage() {
             throw new Error(json.error || "保存に失敗しました");
             }
 
+            setToast("保存しました");
+            setTimeout(() => setToast(null), 3000);
+
             await loadDate(date);
         } catch (err) {
             console.error(err);
+            setToast("保存に失敗しました")
         }
-        setToast("保存しました");
-        setTimeout(() => setToast(null), 3000);
     }
+
     const grouped = useMemo(() => {
         return {
             main: rows.filter((row) => row.category === "main"),
@@ -400,7 +407,8 @@ function Td ({ children, width, style } : { children: React.ReactNode; width?: s
             borderBottom: "1px solid #eee",
             padding: "6px 4px",
             verticalAlign: "middle",
-            width,            ...style,
+            width,            
+            ...style,
             }}
         >
             {children}
