@@ -21,7 +21,7 @@ export type InsightDashboardResponse = {
       employeeId: string;
       employeeName: string;
 
-      badges: string[];
+      badges: string[]; //今後追加予定
 
       submitted: boolean;
 
