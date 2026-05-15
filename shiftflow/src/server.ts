@@ -507,6 +507,32 @@ app.post("/api/shifts", requireEmployee, async (c) => {
 
   const body = parsed.data;
 
+  const toMinutes = (time: string) => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+};
+
+  for (const value of Object.values(body.data ?? {})) {
+    if (typeof value !== "string") continue;
+    if (!value.includes("-")) continue;
+
+    const [start, end] = value.split("-").map((v) => v.trim());
+    if (!start || !end) continue;
+
+    const startMin = toMinutes(start);
+    const endMin = toMinutes(end);
+
+    if (startMin >= endMin) {
+      return c.json(
+        {
+          ok: false,
+          error: `終了時間は開始時間より後にしてください（${start} - ${end}）`,
+        },
+        400
+      );
+    }
+  }
+
   if (isPastDeadline(body.week_start)) {
     return c.text("締め切りを過ぎています（木曜0:00以降は提出不可）", 403);
   }
