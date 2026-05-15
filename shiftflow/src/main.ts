@@ -149,6 +149,35 @@ function updateDayDatesByInputs(weekStartStr: string) {
   });
 }
 
+//スタートがエンドを超えないようにーーー
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function validateShiftData(data: ShiftData): boolean {
+  for (const value of Object.values(data)) {
+    if (typeof value !== "string") continue;
+    if (!value.includes("-")) continue;
+
+    const [start, end] = value.split("-").map((v) => v.trim());
+
+    if (!start || !end) continue;
+
+    const startMin = timeToMinutes(start);
+    const endMin = timeToMinutes(end);
+
+    console.log("check", start, end, startMin, endMin);
+
+    if (startMin >= endMin) {
+      alert(`終了時間は開始時間より後にしてください\n${start} - ${end}`);
+      return false;
+    }
+  }
+
+  return true;
+}
+//-------
 
 
 // 今週の月曜
@@ -787,22 +816,7 @@ shiftForm.addEventListener("submit", async (event) => {
   const ok = await openConfirm(payload);
   if (!ok) return;
 
-  for (const value of Object.values(payload.data)) {
-    if (!value.includes("-")) continue;
-
-    const [start, end] = value.split("-");
-
-    const [sh, sm] = start.split(":").map(Number);
-    const [eh, em] = end.split(":").map(Number);
-
-    const startMin = sh * 60 + sm;
-    const endMin = eh * 60 + em;
-
-    if (startMin >= endMin) {
-      alert("終了時間は開始時間より後にしてください");
-      return;
-    }
-  }
+  if (!validateShiftData(payload.data)) return;
 
   const submitBtn = shiftForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
   submitBtn && (submitBtn.disabled = true);
