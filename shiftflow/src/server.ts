@@ -508,9 +508,9 @@ app.post("/api/shifts", requireEmployee, async (c) => {
   const body = parsed.data;
 
   const toMinutes = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-};
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
+  };
 
   for (const value of Object.values(body.data ?? {})) {
     if (typeof value !== "string") continue;
