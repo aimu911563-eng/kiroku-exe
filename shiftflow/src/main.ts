@@ -350,37 +350,6 @@ function openConfirm(payload: any): Promise<boolean> {
   });
 }
 
-
-// 営業時間　金土日祝変更可能
-/*function isWeekend(day: DayKey) {
-  return day === "sat" || day === "sun";
-}
- function applyBusinessHoursToTimeInputs(storeId: string, isHoliday: boolean) {
-  const def = BUSINESS_HOURS[storeId as StoreId];
-  if (!def) return;
-
-  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-
-  days.forEach((day) => {
-    const rule = (isWeekend(day) || isHoliday) ? def.weekendHoliday : def.weekday;
-    const min = rule.open;
-    const max = rule.close = addMinutesToHHMM(rule.close, 60);
-
-    document.querySelectorAll<HTMLInputElement>(`input[type="time"][data-day="${day}"][data-kind]`)
-      .forEach((el) => {
-        el.min = min;
-        el.max = max;
-        el.step = "300";
-      });
-  });
-
-  if (hoursPreview) {
-    const w = def.weekday, h = def.weekendHoliday;
-    hoursPreview.textContent = `営業時間（平日 ${w.open}~${w.close} / 金土日祝 ${h.open}~${h.close} ` +
-    (isHoliday ? " ← 祝日ON" : "");
-  }
-}*/
-
 function isWeekend(day: DayKey) {
   return day === "sat" || day === "sun";
 }
@@ -817,6 +786,23 @@ shiftForm.addEventListener("submit", async (event) => {
 
   const ok = await openConfirm(payload);
   if (!ok) return;
+
+  for (const value of Object.values(payload.data)) {
+    if (!value.includes("-")) continue;
+
+    const [start, end] = value.split("-");
+
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+
+    if (startMin >= endMin) {
+      alert("終了時間は開始時間より後にしてください");
+      return;
+    }
+  }
 
   const submitBtn = shiftForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
   submitBtn && (submitBtn.disabled = true);

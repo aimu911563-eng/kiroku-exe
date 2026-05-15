@@ -25,11 +25,27 @@ export async function fetchInsightDashboard(): Promise<InsightDashboardResponse>
             employees: [ 
                 { 
                     employeeId: "72490000",
-                    employeeName: "テスト君",
-                    badges: ["発注可"],
+                    employeeName: "テスト",
+                    badges: ["責任者"],
                     submitted: true,
                     nextTraining: "新人トレーニング"
-                }
+                },
+
+                { 
+                    employeeId: "72490001",
+                    employeeName: "タロウ",
+                    badges: ["ドライバー"],
+                    submitted: true,
+                    nextTraining: "新人トレーニング"
+                },
+
+                { 
+                    employeeId: "72490002",
+                    employeeName: "よしこ",
+                    badges: ["インストア"],
+                    submitted: true,
+                    nextTraining: "新人トレーニング"
+                }              
             ] 
         },
 
@@ -44,6 +60,26 @@ export async function fetchInsightDashboard(): Promise<InsightDashboardResponse>
                     predictedRemaining: -2,
                     level: "high",
                 },
+
+                {
+                    itemCode: "DOUGH_HT_R",
+                    itemName: "Mドー",
+                    currentQty: 24,
+                    orderedQty: 8,
+                    predictedUsage: 20,
+                    predictedRemaining: -2,
+                    level: "high",
+                },
+
+                {
+                    itemCode: "CHEESE",
+                    itemName: "チーズ",
+                    currentQty: 12,
+                    orderedQty: 7,
+                    predictedUsage: 20,
+                    predictedRemaining: -2,
+                    level: "high",
+                },
             ],
         },
 
@@ -52,6 +88,12 @@ export async function fetchInsightDashboard(): Promise<InsightDashboardResponse>
                 level: "high",
                 category: "inventory",
                 message: "生地 L が不足する可能性があります",
+            },
+
+            {
+                level: "low",
+                category: "weather",
+                message: "雨が降る予定はありません",
             },
         ],
     };

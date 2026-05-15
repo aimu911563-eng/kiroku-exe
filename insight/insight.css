@@ -1,0 +1,96 @@
+body {
+  margin: 0;
+  background: #fafafa;
+  color: rgb(22, 15, 38);
+  font-family: sans-serif;
+}
+
+.insight-page {
+  padding: 24px;
+}
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.insight-card {
+  background: #eeeff1;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+
+  height: 300px;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.insight-card-alert {
+    grid-column: 1 / -1;
+}
+
+.insight-card-sales {
+    height: 150px;
+}
+
+.insight-card-weather {
+    height: 150px;
+}
+
+.card-inner {
+  border-radius: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.card-inner::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card-inner::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+/* 各種色ーーーーーーーーーーーーーーーーーーーーーーー */
+.card-inner-sales {
+    background: #e9f8d4;
+}
+
+.card-inner-weather {
+    background: #d8ebf8;
+}
+
+.card-inner-inventory {
+    background: #e4ecf8;
+}
+
+.card-inner-shift {
+    background: #eccbe1;
+}
+
+.card-inner-alert {
+    background: #e8c3c3;
+}
+/* ーーーーーーーーーーーーーーーーーーーーーーーーーー */
+
+h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+
+.big-number {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.alert-high {
+  border-left: 6px solid red;
+}
+
+.alert-medium {
+  border-left: 6px solid orange;
+}

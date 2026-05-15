@@ -19,12 +19,15 @@ export function InsightDashboard() {
   }
 
   return (
-    <>
-      <SalesCard sales={data.sales} />
-      <ShiftRateCard shift={data.shift} />
-      <InventoryRiskCard inventory={data.inventory} />
-      <WeatherCard weather={data.weather} />
-      <AlertCard alerts={data.alerts} />
-    </>
+    <main className="insight-page">
+        <h1>Dominos Insight</h1>
+            <section className="insight-grid">
+                <SalesCard sales={data.sales} />
+                <WeatherCard weather={data.weather} />
+                <InventoryRiskCard inventory={data.inventory} />
+                <ShiftRateCard shift={data.shift} />              
+                <AlertCard alerts={data.alerts} />
+            </section>
+    </main>
   );
 }
