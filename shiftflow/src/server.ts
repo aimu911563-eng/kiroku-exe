@@ -795,7 +795,15 @@ app.post("/api/admin/login", async (c) => {
   
     const password = (body?.password ?? "").trim();
     const storeId = (body?.store_id ?? "").trim();
-    const expectedPw = (process.env.ADMIN_PASSWORD ?? "").trim();
+    //const expectedPw = (process.env.ADMIN_PASSWORD ?? "").trim();
+    //demo用パスワード追加
+    const expectedPw = (
+      (
+        storeId === "demo"
+          ? process.env.DEMO_ADMIN_PASSWORD
+          : process.env.ADMIN_PASSWORD
+      ) ?? ""
+    ).trim();
 
     if (!storeId) return c.json({ ok: false, error: "店舗を選択してください" }, 400);
     if (!password) return c.json({ ok: false, error: "パスワードが必要です" }, 400);
