@@ -826,6 +826,11 @@ app.post("/api/admin/login", async (c) => {
     const exp = expectedPw.trim();
 
     console.log("[admin/login] expTrimLen=", exp.length, "gotTrimLen=", got.length);
+    console.log("storeId =", JSON.stringify(storeId));
+    console.log("demoPw exists =", !!process.env.DEMO_ADMIN_PASSWORD);
+    console.log("adminPw exists =", !!process.env.ADMIN_PASSWORD);
+    console.log("expectedPw =", JSON.stringify(expectedPw));
+    console.log("gotPw =", JSON.stringify(password));
 
 
     const token = issueAdminToken({ store_id: storeId });
