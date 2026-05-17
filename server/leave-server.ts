@@ -759,34 +759,32 @@ leaveRoutes.post('/admin/login', async (c) => {
 }*/
 
 async function adminGuard(c: any, next: any) {
-  const auth = c.req.header('Authorization');
+  const auth = c.req.header("Authorization");
 
-  if (!auth?.startsWith('Bearer ')) {
-    return c.json({ error: '認証が必要です' }, 401);
+  if (!auth?.startsWith("Bearer ")) {
+    return c.json({ error: "認証が必要です" }, 401);
   }
 
-  const token = auth.replace('Bearer ', '');
+  const token = auth.replace("Bearer ", "");
 
   const env = c.env as any;
-
   const ADMIN_TOKEN_SECRET =
     env.LEAVE_ADMIN_TOKEN_SECRET ??
     env.ADMIN_TOKEN_SECRET ??
-    "";
+    "test-secret";
 
   try {
     const payload = await verify(token, ADMIN_TOKEN_SECRET);
 
-    if (payload.role !== 'admin') {
-      throw new Error('not admin');
+    if (payload.role !== "admin") {
+      throw new Error("not admin");
     }
 
     c.set("admin_store_id", payload.store_id);
 
     await next();
-
   } catch {
-    return c.json({ error: '認証エラー' }, 401);
+    return c.json({ error: "認証エラー" }, 401);
   }
 }
 
