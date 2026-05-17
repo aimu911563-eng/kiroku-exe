@@ -678,7 +678,14 @@ leaveRoutes.post('/admin/login', async (c) => {
   } else if (password === ADMIN_PASSWORD) {
     store_id = "terajima";
   } else {
-    return c.json({ error: "パスワードが違います" }, 401);
+    return c.json({ 
+      debug: true,
+      hasPassword: !!ADMIN_PASSWORD,
+      hasDemoPassword: !!DEMO_PASSWORD,
+      hasSecret: !!ADMIN_TOKEN_SECRET,
+      inputLen: password.length,
+      envLen: ADMIN_PASSWORD.length,
+    });
   }
 
   const token = await sign(
