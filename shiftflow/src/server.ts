@@ -1088,7 +1088,8 @@ app.get("/api/worktime/admin/monthly", requireAdmin, async (c) => {
   // 社員一覧（is_staff / active）+ ★グループ列
   const empRes = await supabase
     .from("employees")
-    .select("employee_id, employee_name, is_active, worktime_group") // ←列名合わせて
+    .select("employee_id, employee_name, is_active, worktime_group")
+    .eq("store_id", store_id)
     .eq("is_staff", true)
     .eq("is_active", true);
 
