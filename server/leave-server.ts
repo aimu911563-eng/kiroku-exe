@@ -663,9 +663,18 @@ leaveRoutes.post('/admin/login', async (c) => {
 
   let store_id = "";
 
-  const ADMIN_PASSWORD = "123";
-  const DEMO_PASSWORD = "demo";
-  const ADMIN_TOKEN_SECRET = "test-secret";
+  //const ADMIN_PASSWORD = "123";
+  //const DEMO_PASSWORD = "demo";
+  //const ADMIN_TOKEN_SECRET = "test-secret";
+
+  const ADMIN_PASSWORD =
+  env.LEAVE_ADMIN_PASSWORD ?? "123";
+
+  const DEMO_PASSWORD =
+  env.DEMO_LEAVE_ADMIN_PASSWORD ?? "demo";
+
+  const ADMIN_TOKEN_SECRET =
+  env.LEAVE_ADMIN_TOKEN_SECRET ?? "test-secret";
 
   if (password === DEMO_PASSWORD) {
     store_id = "demo";
