@@ -1394,7 +1394,7 @@ app.post("/api/worktime/admin/remind", requireAdmin, async (c) => {
 
 // 有給サマリを表示　worktime admin
 app.get("/api/leave/admin/summary", requireAdmin, async (c) => {
-  const store_id = c.get("admin_store_id") as string;
+  const store_id = "demo";
   const { data, error } = await leaveSupabase
     .from("leave_admin_summary_v1")
     .select("*")
