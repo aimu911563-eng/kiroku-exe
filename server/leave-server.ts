@@ -652,6 +652,7 @@ leaveRoutes.put('/admin/balances/:employeeId', adminGuard, async (c) => {
 
 import { sign, verify } from 'hono/jwt';
 import { count } from 'console';
+import { error } from 'console';
 //管理ログイン
 leaveRoutes.post('/admin/login', async (c) => {
   const { password } = await c.req.json<{ password: string }>();
@@ -678,14 +679,7 @@ leaveRoutes.post('/admin/login', async (c) => {
   } else if (password === ADMIN_PASSWORD) {
     store_id = "terajima";
   } else {
-    return c.json({ 
-      debug: true,
-      hasPassword: !!ADMIN_PASSWORD,
-      hasDemoPassword: !!DEMO_PASSWORD,
-      hasSecret: !!ADMIN_TOKEN_SECRET,
-      inputLen: password.length,
-      envLen: ADMIN_PASSWORD.length,
-    });
+    return c.json({ error: "パスワードが違います" }, 401);
   }
 
   const token = await sign(
