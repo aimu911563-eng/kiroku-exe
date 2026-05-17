@@ -20,8 +20,12 @@
 - 締切制御（木曜0:00）
 - スマホ対応UI
 
-- 提出画面： https://shiftflow-e14.pages.dev
+- 従業員画面： https://shiftflow-e14.pages.dev
+- demoアカウント　従業員番号:72490001  パスワード：1111
+- 
 - 管理画面： https://shiftflow-e14.pages.dev/admin
+- demoアカウント　店舗：demo店舗　パスワード：demo-1234
+- 
 - GitHub: https://github.com/aimu911563-eng/kiroku-exe/blob/main/shiftflow%20README.md
 
 ---
@@ -30,7 +34,11 @@
 勤務時間の入力・集計・管理
 
 - 提出画面： https://shiftflow-e14.pages.dev/worktime
+- demoアカウント 従業員番号: 72490001　パスワード: 1111
+- 
 - 管理画面： https://shiftflow-e14.pages.dev/worktime-admin
+- demoアカウント　パスワード： demo-1234
+- 
 - GitHub: https://github.com/aimu911563-eng/kiroku-exe/blob/main/Worktime%20README.md
 
 ---
