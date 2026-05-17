@@ -666,6 +666,13 @@ leaveRoutes.post('/admin/login', async (c) => {
 
   let store_id = "";
 
+  console.log({
+    hasPassword: !!ADMIN_PASSWORD,
+    hasSecret: !!ADMIN_TOKEN_SECRET,
+    inputLen: password.length,
+    envLen: ADMIN_PASSWORD.length,
+  });
+
   if (password === DEMO_PASSWORD) {
     store_id = "demo";
   } else if (password === ADMIN_PASSWORD) {
@@ -673,12 +680,6 @@ leaveRoutes.post('/admin/login', async (c) => {
   } else {
     return c.json({ error: "パスワードが違います" }, 401);
   }
-
-  console.log({
-    hasLeaveAdminPassword: !!ADMIN_PASSWORD,
-    hasDemoPassword: !!DEMO_PASSWORD,
-    hasLeaveTokenSecret: !!ADMIN_TOKEN_SECRET,
-  });
 
   const token = await sign(
     { role: "admin", store_id },
