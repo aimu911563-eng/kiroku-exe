@@ -930,12 +930,14 @@ leaveRoutes.get('/admin/leaves', adminGuard, async (c) => {
   const employeeId = c.req.query('employeeId');
   const leaveType = c.req.query('leaveType');
   const statusParam = c.req.query('status'); 
+  const adminStoreId = c.get("admin_store_id") as string;
 
   let query = supabase
     .from('leaves')
     .select(
       'id, employee_id, employee_name, leave_type, date, submitted_at, reason, status'
     )
+    .eq("store_id", adminStoreId)
     .order('submitted_at', { ascending: false });
 
   if (employeeId) {
