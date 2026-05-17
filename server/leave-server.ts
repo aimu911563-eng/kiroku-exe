@@ -656,16 +656,84 @@ import { count } from 'console';
 leaveRoutes.post('/admin/login', async (c) => {
   const { password } = await c.req.json<{ password: string }>();
 
-  if (password !== process.env.ADMIN_PASSWORD) {
-    return c.json({ error: 'パスワードが違います' },401);
+  const env = c.env as any;
+
+  const ADMIN_PASSWORD = env.LEAVE_ADMIN_PASSWORD ?? "";
+  const DEMO_PASSWORD = env.DEMO_LEAVE_ADMIN_PASSWORD ?? "";
+
+  const ADMIN_TOKEN_SECRET =
+    env.LEAVE_ADMIN_TOKEN_SECRET ?? "";
+
+  let store_id = "";
+
+  if (password === DEMO_PASSWORD) {
+    store_id = "demo";
+  } else if (password === ADMIN_PASSWORD) {
+    store_id = "terajima";
+  } else {
+    return c.json({ error: "パスワードが違います" }, 401);
   }
+
+  console.log({
+    hasLeaveAdminPassword: !!ADMIN_PASSWORD,
+    hasDemoPassword: !!DEMO_PASSWORD,
+    hasLeaveTokenSecret: !!ADMIN_TOKEN_SECRET,
+  });
+
   const token = await sign(
-     { role: 'admin' },
-     process.env.ADMIN_TOKEN_SECRET!
+    { role: "admin", store_id },
+    ADMIN_TOKEN_SECRET
   );
 
   return c.json({ token });
 });
+
+/*leaveRoutes.post('/admin/login', async (c) => {
+  const { password } = await c.req.json<{ password: string }>();
+
+  const env = c.env as any;
+  const ADMIN_PASSWORD = env.ADMIN_PASSWORD ?? "";
+  const ADMIN_TOKEN_SECRET = env.ADMIN_TOKEN_SECRET ?? "";
+
+  if (!ADMIN_PASSWORD || !ADMIN_TOKEN_SECRET) {
+    return c.json({ error: "admin env is not configured" }, 500);
+  }
+
+  if (password !== ADMIN_PASSWORD) {
+    return c.json({ error: "パスワードが違います" }, 401);
+  }
+
+  const token = await sign(
+    { role: "admin", store_id: "terajima" },
+    ADMIN_TOKEN_SECRET
+  );
+
+  return c.json({ token });
+});*/
+
+/*leaveRoutes.post ('/admin.login', async (c) => {
+  const { password } = await c.req.json<{ password: string }>();
+  const env = c.env as any;
+
+  const ADMIN_PASSWORD = env.ADMIN_PASSWORD ?? "";
+  const DEMO_PASSWORD = env.DEMO_LEAVE_ADMIN_PASSWORD ?? "";
+  const ADMIN_TOKEN_SECRET = env.ADMIN_TOKEN_SECRET ?? "";
+
+  let store_id = "";
+
+  if (password === DEMO_PASSWORD) {
+    store_id = "demo";
+  } else if (password === ADMIN_PASSWORD) {
+    store_id = "terajima";
+  } else {
+    return c.json({ error: "パスワードが違います" }, 401);
+  }
+
+  const token = await sign(
+    { role: "admin", store_id },
+    ADMIN_TOKEN_SECRET
+  );
+})*/
 
 //管理者用API（承認・却下・CSVなど）すべてにこれをかける
 async function adminGuard(c: any, next: any) {
