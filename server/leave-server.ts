@@ -278,9 +278,11 @@ leaveRoutes.post("/login", async (c) => {
 
 //管理者用：有給残数マスター一覧取得
 leaveRoutes.get('/admin/balances', adminGuard, async (c) => {
+  const adminStoreId = c.get("admin_store_id");
   const { data, error } = await supabase
     .from('leave_balances')
     .select('employee_id, employee_name, paid_given, paid_used')
+    .eq("store_id", adminStoreId)
     .order( 'employee_id', { ascending: true });
 
   if (error) {
