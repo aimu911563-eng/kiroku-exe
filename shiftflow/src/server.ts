@@ -841,6 +841,7 @@ app.post("/api/admin/login", async (c) => {
 // ===== worktime admin dashboard =====
 app.get("/api/worktime/admin/dashboard", requireAdmin, async (c) => {
   const week_start = c.req.query("week_start") || "";
+  const storeId = c.get("admin_store_id");
   if (!week_start) return c.json({ error: "week_start is required" }, 400);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
     return c.json({ error: "week_start must be YYYY-MM-DD" }, 400);
@@ -853,6 +854,7 @@ app.get("/api/worktime/admin/dashboard", requireAdmin, async (c) => {
     .select("employee_id, employee_name, is_active, worktime_group, store_id")
     .eq("is_active", true)
     .eq("is_staff", true)
+    .eq("store_id", storeId)
     .order("employee_id");
 
   if (empRes.error) {
