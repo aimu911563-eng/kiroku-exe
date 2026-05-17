@@ -26,6 +26,7 @@ type Env = {
   ADMIN_PASSWORD: string;
   ADMIN_TOKEN_SECRET: string;
   WORKTIME_ADMIN_PASSWORD: string;
+  DEMO_WORKTIME_ADMIN_PASSWORD: string;
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -951,7 +952,7 @@ app.get("/api/worktime/admin/dashboard", requireAdmin, async (c) => {
 });*/
 
 // ローカルだと動かない↓
-app.post("/api/worktime/admin/login", async (c) => {
+/*app.post("/api/worktime/admin/login", async (c) => {
   const body = await c.req.json().catch(() => null);
   const password = String(body?.password ?? "");
 
@@ -971,6 +972,31 @@ app.post("/api/worktime/admin/login", async (c) => {
   if (password !== ADMIN_PASSWORD) {
     return c.json({ ok: false, error: "Invalid password" }, 401);
   }
+  const token = issueAdminToken({ store_id });
+  return c.json({ ok: true, token });
+});*/
+
+//demoログイン追加
+app.post("/api/worktime/admin/login", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const password = String(body?.password ?? "");
+
+  const ADMIN_PASSWORD = c.env.ADMIN_PASSWORD ?? "";
+  const DEMO_PASSWORD = c.env.DEMO_WORKTIME_ADMIN_PASSWORD ?? "";
+
+  let store_id = "";
+
+  if (password === DEMO_PASSWORD) {
+    store_id = "demo";
+  } else if (password === ADMIN_PASSWORD) {
+    store_id =
+      c.env.WORKTIME_ADMIN_PASSWORD ??
+      c.env.ADMIN_STORE_ID ??
+      "";
+  } else {
+    return c.json({ ok: false, error: "Invalid password" }, 401);
+  }
+
   const token = issueAdminToken({ store_id });
   return c.json({ ok: true, token });
 });
