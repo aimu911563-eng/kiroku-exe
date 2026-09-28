@@ -86,7 +86,7 @@ h2 {
   font-size: 20px;
   font-weight: bold;
 }
-
+/* ーーーーーーーーアラートーーーーーーーーーーーーーー */
 .alert-high {
   border-left: 6px solid red;
 }
@@ -94,3 +94,29 @@ h2 {
 .alert-medium {
   border-left: 6px solid orange;
 }
+
+.alert-item {
+  background: rgb(235, 226, 226);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+}
+/* ーーーーーーーーーーーーーーーーーーーーーーーーーー */
+
+/* ---------------shift----------------------- */
+.shift-item {
+  background: #f4e4ef;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px; 
+}
+/* ------------------------------------------- */
+
+/* -------------inventory--------------------- */
+.inventory-item {
+  background: #dce4f6;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px; 
+}
+/* ------------------------------------------- */

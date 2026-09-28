@@ -17,10 +17,15 @@ import { LeaveFormPayload } from './main';
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "";
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
-const supabase = createClient (
+/*const supabase = createClient (
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_ANON_KEY!
-)
+)*/
+
+const supabase = createClient(
+  process.env.LEAVE_SUPABASE_URL!,
+  process.env.LEAVE_SUPABASE_SERVICE_ROLE_KEY!
+);
 
 //動作確認用
 leaveRoutes.get('/', (c) => c.text('root ok'))

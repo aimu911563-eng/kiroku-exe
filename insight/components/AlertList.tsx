@@ -26,7 +26,7 @@ export function AlertCard({ alerts }: Props) {
         <div className="card-inner card-inner-alert">
             <>
             {alerts.map((alert) => (
-                    <div key={`${alert.category}-${alert.message}`}>
+                    <div className="alert-item" key={`${alert.category}-${alert.message}`}>
                     <div>{categorylabel[alert.category]} : {levellabel[alert.level]}</div>
                     <div>{alert.message}</div>
                 </div>

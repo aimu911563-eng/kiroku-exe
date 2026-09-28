@@ -10,9 +10,14 @@ console.log(
   !!process.env.SHIFT_SUPABASE_SERVICE_ROLE_KEY
 );
 
-const supabase = createClient(
+/*const supabase = createClient(
   process.env.SHIFT_SUPABASE_URL!,
   process.env.SHIFT_SUPABASE_SERVICE_ROLE_KEY! 
+);*/
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 publicRoutes.get("/employees", async (c) => {

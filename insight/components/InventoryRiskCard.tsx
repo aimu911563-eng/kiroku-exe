@@ -18,7 +18,7 @@ export function InventoryRiskCard({ inventory }: Props) {
           <h2>在庫状況</h2>
             <div className="card-inner card-inner-inventory">
                 {inventory.risks.map((risk) => (
-                    <div key={risk.itemCode}>
+                    <div className="inventory-item" key={risk.itemCode}>
                         <div>{risk.itemName}</div>
                         <div>現在：{risk.currentQty}個</div>
                         <div>使用予測：{risk.orderedQty}個</div>

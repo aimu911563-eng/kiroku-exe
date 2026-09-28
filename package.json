@@ -15,7 +15,7 @@
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@hono/node-server": "^1.19.6",
-    "@types/node": "^24.10.4",
+    "@types/node": "^24.12.4",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
