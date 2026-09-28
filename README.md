@@ -55,7 +55,10 @@
 有給申請・承認・履歴管理システム
 
 - 提出画面： https://kiroku-exe.pages.dev/
+- demoアカウント　従業員番号: 72490001  パスワード： 1111
+- 
 - 管理画面： https://kiroku-exe.pages.dev/admin
+- demo パスワード：demo
 - GitHub: https://github.com/aimu911563-eng/kiroku-exe/blob/main/kiroku-exe%20README.md
 
 
