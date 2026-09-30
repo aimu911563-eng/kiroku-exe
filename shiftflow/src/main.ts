@@ -261,7 +261,9 @@ function updateShiftSimulator() {
   if (averageEl) averageEl.textContent = `1日平均 ${days ? formatMinutes(Math.round(total / days / 15) * 15) : "0時間"}`;
 }
 
-function renderMascotGrowth() {
+let mascotWakeTimer: number | undefined;
+
+function renderMascotGrowth(playLoginWakeup = false) {
   const stages = [
     { min: 0, next: 3, key: "little", name: "ちび恐竜" },
     { min: 3, next: 5, key: "badge", name: "名札恐竜" },
@@ -280,7 +282,8 @@ function renderMascotGrowth() {
   const mascot = document.getElementById("growthMascot");
   const stageEl = document.getElementById("growthStage");
   const progress = document.getElementById("growthProgress");
-  const month = new Date().getMonth() + 1;
+  const now = new Date();
+  const month = now.getMonth() + 1;
   const landscape = month >= 3 && month <= 5 ? "spring" : month >= 6 && month <= 8 ? "summer" : month >= 9 && month <= 11 ? "autumn" : "winter";
   const season = month === 10 ? { key: "halloween", label: "🎃 ハロウィン衣装中" } : month === 12 ? { key: "christmas", label: "🎄 クリスマス衣装中" } : month === 1 ? { key: "newyear", label: "🎍 お正月衣装中" } : null;
   if (mascot) {
@@ -288,7 +291,21 @@ function renderMascotGrowth() {
     mascot.dataset.season = season?.key ?? "";
     mascot.dataset.landscape = landscape;
     const card = mascot.closest<HTMLElement>(".mascotGrowthCard");
-    if (card) card.dataset.landscape = landscape;
+    if (card) {
+      card.dataset.landscape = landscape;
+      const weekdayFromMonday = (now.getDay() + 6) % 7;
+      const mondayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() - weekdayFromMonday);
+      const weekIndex = Math.floor(mondayUtc / (7 * 24 * 60 * 60 * 1000));
+      card.dataset.weather = weekdayFromMonday === (weekIndex * 5 + 2) % 7 ? "rain" : "clear";
+      const sleeping = playLoginWakeup && (now.getHours() >= 22 || now.getHours() < 5);
+      card.dataset.motion = sleeping ? "sleeping" : "walking";
+      mascot.dataset.motion = sleeping ? "sleeping" : "walking";
+      if (mascotWakeTimer) window.clearTimeout(mascotWakeTimer);
+      if (sleeping) mascotWakeTimer = window.setTimeout(() => {
+        card.dataset.motion = "walking";
+        mascot.dataset.motion = "walking";
+      }, 3000);
+    }
   }
   if (stageEl) stageEl.textContent = stage.name;
   if (progress) progress.textContent = stage.next === null ? `累計${submissionCount}回提出・立派に育ちました！` : `累計${submissionCount}回提出・あと${stage.next - submissionCount}回で成長`;
@@ -860,7 +877,7 @@ async function handleEmployeeLogin() {
     store_id: result.store_id,
   };
   submissionCount = result.submission_count;
-  renderMascotGrowth();
+  renderMascotGrowth(true);
 
   const transitionStarted = performance.now();
   if (loginTransitionOverlay) loginTransitionOverlay.style.display = "flex";
