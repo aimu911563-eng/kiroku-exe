@@ -1,23 +1,22 @@
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
-import { debug } from "console";
 
 export const publicRoutes = new Hono();
 
-console.log("SHIFT_SUPABASE_URL exists?", !!process.env.SHIFT_SUPABASE_URL);
-console.log(
-  "SHIFT_SUPABASE_SERVICE_ROLE_KEY exists?",
-  !!process.env.SHIFT_SUPABASE_SERVICE_ROLE_KEY
-);
+const shiftSupabaseUrl = process.env.SHIFT_SUPABASE_URL;
+const shiftSupabaseServiceRoleKey = process.env.SHIFT_SUPABASE_SERVICE_ROLE_KEY;
 
-/*const supabase = createClient(
-  process.env.SHIFT_SUPABASE_URL!,
-  process.env.SHIFT_SUPABASE_SERVICE_ROLE_KEY! 
-);*/
+if (!shiftSupabaseUrl || !shiftSupabaseServiceRoleKey) {
+  throw new Error(
+    "SHIFT_SUPABASE_URL and SHIFT_SUPABASE_SERVICE_ROLE_KEY are required",
+  );
+}
 
+// Employee master data belongs to ShiftFlow, even when this route is consumed
+// by the Inventory UI.
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  shiftSupabaseUrl,
+  shiftSupabaseServiceRoleKey,
 );
 
 publicRoutes.get("/employees", async (c) => {

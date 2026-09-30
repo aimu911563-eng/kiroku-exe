@@ -1,24 +1,10 @@
 import { Hono } from "hono";
-import { createClient } from '@supabase/supabase-js'
-import { required } from "zod/mini";
-import { fa } from "zod/v4/locales";import { allowedNodeEnvironmentFlags } from "process";
-import { compare } from "bcryptjs";
+import { inventorySupabase as supabase } from "./inventory-supabase";
 
 export const inventoryRoutes = new Hono();
 
 // 疎通確認（ブラウザで開ける）
 inventoryRoutes.get("/health", (c) => c.json({ ok: true }));
-
-/*const supabase = createClient (
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-)*/
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 
 function ymdJst(d = new Date()) {
   const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);

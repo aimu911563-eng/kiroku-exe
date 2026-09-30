@@ -68,7 +68,7 @@ export default function OrderInputPage() {
   return <main className="orderShell">
     <header className="orderHero"><div><span className="orderEyebrow">SMART ORDER</span><h1>発注自動計算</h1><p>{STORE_NAMES[STORE_ID] ?? STORE_ID}（{STORE_ID}）</p></div><a className="orderButton ghost" href={`/order-admin?store_id=${STORE_ID}`}>管理画面</a></header>
     <section className="orderPanel">
-      <p className="orderHint">発注日は<strong>{config.orderDays.map((day) => ["日","月","火","水","木","金","土"][day]).join("・曜日")}</strong>です。冷凍庫と冷蔵庫（W/I）の数量を入力すると、発注数を自動計算します。</p>
+      <p className="orderHint">発注日は<strong>{config.orderDays.map((day) => `${["日","月","火","水","木","金","土"][day]}曜日`).join("・")}</strong>です。冷凍庫と冷蔵庫（W/I）の数量を入力すると、発注数を自動計算します。</p>
       <div className="orderToolbar"><label className="orderField">発注日<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button className="orderButton ghost" onClick={() => loadDate(date)} disabled={loading}>{loading ? "読込中…" : "再読み込み"}</button><button className="orderButton primary" onClick={saveAll} disabled={loading || !rows.length}>在庫を保存</button></div>
       {message && <div className={`orderAlert ${rows.length ? "" : "error"}`}>{message}</div>}
       {!loading && !rows.length && <div className="orderEmpty">対象データがありません</div>}

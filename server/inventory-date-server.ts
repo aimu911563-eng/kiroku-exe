@@ -1,13 +1,8 @@
 import { Hono } from "hono";
-import { createClient } from "@supabase/supabase-js";
+import { inventorySupabase as supabase } from "./inventory-supabase";
 
 export const orderRoutes = new Hono();
 export const inventoryDateRoutes = new Hono();
-
-const supabase = createClient(
-  process.env.LEAVE_SUPABASE_URL!,
-  process.env.LEAVE_SUPABASE_SERVICE_ROLE_KEY!
-);
 
 inventoryDateRoutes.get("/items", async (c) => {
   const store_id = String(c.req.query("store_id") ?? "").trim();
@@ -29,6 +24,4 @@ inventoryDateRoutes.get("/items", async (c) => {
 
   return c.json({ ok: true, data });
 });
-
-
 

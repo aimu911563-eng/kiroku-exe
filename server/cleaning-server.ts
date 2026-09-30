@@ -1,12 +1,7 @@
 import { Hono } from "hono";
-import { createClient } from "@supabase/supabase-js";
+import { inventorySupabase as supabase } from "./inventory-supabase";
 
 export const cleaningRoutes = new Hono();
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 function todayJST(): string {
   // JSTの「今日」をYYYY-MM-DDで返す（サーバーがUTCでもズレない）
