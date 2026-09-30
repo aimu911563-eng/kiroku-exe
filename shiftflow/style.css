@@ -2257,7 +2257,7 @@ label.dayLabel[data-day="6"] {
 .loginTransitionCard p { margin: 6px 0 0; color: #777780; font-size: 12px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .loginPixelMascot, .loginSpinner { animation: none; }
+  .loginPixelMascot, .loginSpinner, .growthPixelMascot { animation: none; }
 }
 
 .employeeAnnouncement {
@@ -2270,19 +2270,28 @@ label.dayLabel[data-day="6"] {
   border: 1px solid #cfe3ff;
   border-radius: 18px;
   background: linear-gradient(145deg, #f3f8ff, #fff);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
-.employeeAnnouncement .miniMascot { font-size: 34px; text-align: center; }.employeeAnnouncement span { color: #397941; font-size: 11px; font-weight: 800; }.employeeAnnouncement p { margin: 4px 0 0; color: #3f3f46; line-height: 1.55; white-space: pre-wrap; }
+.employeeAnnouncement > div:last-child { min-width: 0; }.employeeAnnouncement .miniMascot { font-size: 34px; text-align: center; }.employeeAnnouncement span { color: #397941; font-size: 11px; font-weight: 800; }.employeeAnnouncement p { max-width: 100%; margin: 4px 0 0; color: #3f3f46; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
 
 .shiftInsights { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 20px; }
 .mascotGrowthCard, .shiftSimulatorCard { min-height: 116px; padding: 16px; border: 1px solid #e2e5ea; border-radius: 18px; background: #fff; }
-.mascotGrowthCard { display: grid; grid-template-columns: 58px 1fr; gap: 12px; align-items: center; }.growthMascot { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: #f1f8ed; font-size: 34px; animation: loginMascotBounce .8s ease-in-out infinite alternate; }.mascotGrowthCard span, .shiftSimulatorCard > span { display: block; color: #777780; font-size: 11px; font-weight: 750; }.mascotGrowthCard strong { display: block; margin-top: 3px; font-size: 18px; }.mascotGrowthCard p { margin: 5px 0 0; color: #6e6e73; font-size: 11px; line-height: 1.45; }
+.mascotGrowthCard { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center; }.growthMascot { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 20px; background: #f1f8ed; }.growthPixelMascot { margin: 0; transform: scale(.82); transform-origin: center; animation: growthMascotFloat .8s ease-in-out infinite alternate; }.growthCostume { position: absolute; z-index: 3; pointer-events: none; }
+@keyframes growthMascotFloat { from { transform: scale(.82) translateY(2px); } to { transform: scale(.82) translateY(-4px); } }
+.growthMascot[data-stage="scarf"] .growthCostume { right: -2px; top: 27px; width: 13px; height: 7px; border-radius: 2px; background: #ff6259; box-shadow: -7px 5px 0 #e4473f; transform: rotate(8deg); }
+.growthMascot[data-stage="crown"] .growthCostume { right: 5px; top: -11px; width: 26px; height: 15px; background: #f7c948; clip-path: polygon(0 100%,0 35%,25% 68%,50% 0,75% 68%,100% 35%,100% 100%); }
+.growthMascot[data-stage="star"] .growthCostume { right: 5px; top: -11px; width: 26px; height: 24px; background: #f7c948; clip-path: polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 94%,50% 72%,21% 94%,32% 57%,2% 35%,39% 35%); filter: drop-shadow(0 2px 2px rgba(130,90,0,.2)); }
+.mascotGrowthCard span, .shiftSimulatorCard > span { display: block; color: #777780; font-size: 11px; font-weight: 750; }.mascotGrowthCard strong { display: block; margin-top: 3px; font-size: 18px; }.mascotGrowthCard p { margin: 5px 0 0; color: #6e6e73; font-size: 11px; line-height: 1.45; }
 .shiftSimulatorCard { background: linear-gradient(145deg, #edf6ff, #f7f4ff); }.shiftSimulatorCard strong { display: block; margin: 6px 0 10px; color: #0071e3; font-size: 30px; letter-spacing: -.03em; }.shiftSimulatorCard div { display: flex; flex-wrap: wrap; gap: 7px; }.shiftSimulatorCard small { padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.78); color: #52525a; font-weight: 700; }
 
-.announcementTextarea { min-height: 110px; resize: vertical; line-height: 1.6; }.announcementAdminFooter { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; margin-top: 12px; }.announcementToggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }.announcementToggle input { width: 19px; height: 19px; }.announcementAdminFooter > span { color: #777780; font-size: 12px; }
+.announcementAdminCard { display: block; width: 100%; min-width: 0; overflow: hidden; }.announcementTextarea { display: block; width: 100%; min-height: 110px; padding: 13px 14px; border: 1px solid #d2d2d7; border-radius: 14px; background: #fff; color: #1d1d1f; box-sizing: border-box; resize: vertical; line-height: 1.6; }.announcementTextarea:focus { border-color: #0071e3; outline: none; box-shadow: 0 0 0 4px rgba(0,113,227,.12); }.announcementAdminFooter { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 14px; align-items: center; margin-top: 12px; }.announcementToggle { display: inline-flex; min-width: 0; align-items: center; gap: 8px; font-weight: 700; }.announcementToggle input { flex: 0 0 auto; width: 19px; height: 19px; }.announcementAdminFooter > span { color: #777780; font-size: 12px; white-space: nowrap; }
 
 @media (max-width: 680px) {
   .shiftInsights { grid-template-columns: 1fr; }
   .announcementAdminFooter { grid-template-columns: 1fr auto; }.announcementAdminFooter .btn { grid-column: 1 / -1; width: 100%; }
+  .employeeAnnouncement { grid-template-columns: 40px minmax(0,1fr); padding: 12px; }.employeeAnnouncement .miniMascot { font-size: 28px; }
 }
 
 .successKeywordMessage {
