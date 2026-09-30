@@ -45,6 +45,7 @@ button:disabled { cursor: default; opacity: .45; }
 .monthControls { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
 .monthControls button, .moveButtons button { width: 38px; height: 38px; border: 0; border-radius: 50%; background: #f0f0f2; }
 .budgetLegend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.orderDaySettings { display: grid; grid-template-columns: minmax(180px,1fr) auto auto; gap: 18px; align-items: center; margin-bottom: 18px; padding: 16px; border: 1px solid #e5e5ea; border-radius: 18px; background: #fafafa; }.orderDaySettings p { margin: 4px 0 0; color: #6e6e73; font-size: 12px; }.weekdayPicker { display: flex; gap: 6px; }.weekdayPicker button { width: 38px; height: 38px; border: 1px solid #d2d2d7; border-radius: 50%; background: #fff; color: #6e6e73; font-weight: 800; }.weekdayPicker button.selected { border-color: #0071e3; background: #0071e3; color: #fff; box-shadow: 0 4px 12px rgba(0,113,227,.22); }
 .budgetLegend span, .budgetBadge { padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .base { color: #075ca8; background: #e8f3ff; }.onion { color: #946200; background: #fff4ce; }.mushroom { color: #7047a8; background: #f3eaff; }
 .budgetCalendar { overflow-x: auto; }
@@ -58,8 +59,8 @@ button:disabled { cursor: default; opacity: .45; }
 .stickySave { position: sticky; bottom: 14px; display: flex; justify-content: flex-end; margin-top: 18px; pointer-events: none; }.stickySave button { pointer-events: auto; box-shadow: 0 10px 30px rgba(0,113,227,.25); }
 .itemHeaderActions, .newItemActions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 .newItemForm { margin-bottom: 24px; padding: 18px; border: 1px solid #cfe3ff; border-radius: 20px; background: linear-gradient(145deg, #f4f9ff, #fff); }
-.newItemTitle { margin-bottom: 15px; }.newItemTitle strong { font-size: 17px; }.newItemTitle p { margin: 4px 0 0; color: #6e6e73; font-size: 12px; }
-.newItemFields { display: grid; grid-template-columns: .9fr 1.5fr 1fr .7fr; gap: 12px; }.newItemActions { margin-top: 15px; }
+.newItemTitle { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; }.newItemTitle strong { font-size: 17px; }.newItemTitle p { margin: 4px 0 0; color: #6e6e73; font-size: 12px; }.generatedCode { padding: 7px 10px; border-radius: 9px; background: #e8f3ff; color: #075ca8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.newItemFields { display: grid; grid-template-columns: 1.5fr 1fr .7fr; gap: 12px; }.newItemActions { margin-top: 15px; }
 .itemCategoryList { display: grid; gap: 24px; }
 .itemCategorySection { overflow: hidden; border: 1px solid #e5e5ea; border-radius: 20px; background: #fafafa; }
 .itemCategorySection > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #e5e5ea; background: #f4f4f6; }
@@ -76,6 +77,7 @@ button:disabled { cursor: default; opacity: .45; }
   .orderToolbar { grid-template-columns: 1fr 1fr; }.orderToolbar .orderField { grid-column: 1 / -1; }
   .itemEditorCard { grid-template-columns: 28px minmax(0,1fr); }.yieldField, .moveButtons { grid-column: 2; }.moveButtons { justify-content: flex-end; }
   .itemHeaderActions { justify-content: stretch; }.itemHeaderActions .orderButton { flex: 1; }.newItemFields { grid-template-columns: 1fr; }.newItemActions .orderButton { flex: 1; }
+  .orderDaySettings { grid-template-columns: 1fr; }.weekdayPicker { justify-content: space-between; }.weekdayPicker button { width: min(11vw, 42px); height: min(11vw, 42px); }.orderDaySettings > .orderButton { width: 100%; }
   .orderTableWrap { border: 0; overflow: visible; }.orderTable { min-width: 0; }.orderTable thead { display: none; }.orderTable, .orderTable tbody, .orderTable tr, .orderTable td { display: block; width: 100% !important; }
   .orderTable tr { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; padding: 13px; border: 1px solid #e5e5ea; border-radius: 16px; background: #fff; }.orderTable td { padding: 4px; border: 0; }.orderTable .itemName { grid-column: 1 / -1; }.orderTable td::before { display: block; margin-bottom: 4px; color: #86868b; font-size: 9px; font-weight: 800; }.orderTable td:nth-child(2)::before { content: "必要数"; }.orderTable td:nth-child(3)::before { content: "冷凍"; }.orderTable td:nth-child(4)::before { content: "冷蔵"; }.orderTable td:nth-child(5)::before { content: "在庫計"; }.orderTable td:nth-child(6)::before { content: "発注数"; }.orderTable input { width: 100%; }
 }

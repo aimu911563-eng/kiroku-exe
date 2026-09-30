@@ -10,17 +10,18 @@ const params = new URLSearchParams(window.location.search);
 const STORE_ID = params.get("store_id") || "7249";
 const STORE_NAMES: Record<string, string> = { "7249": "寺島", "7539": "浜北小松" };
 const STORE_CONFIG: Record<string, { orderDays: number[] }> = { "7249": { orderDays: [2, 5] }, "7539": { orderDays: [1, 4] } };
-const config = STORE_CONFIG[STORE_ID] ?? STORE_CONFIG["7249"];
+const defaultOrderDays = (STORE_CONFIG[STORE_ID] ?? STORE_CONFIG["7249"]).orderDays;
 
 function localDateKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
-function initialOrderDate() {
+function nextOrderDate(orderDays: number[]) {
   const date = new Date();
-  for (let i = 0; i < 8; i += 1) { if (config.orderDays.includes(date.getDay())) return localDateKey(date); date.setDate(date.getDate() + 1); }
+  for (let i = 0; i < 8; i += 1) { if (orderDays.includes(date.getDay())) return localDateKey(date); date.setDate(date.getDate() + 1); }
   return localDateKey(new Date());
 }
 
 export default function OrderInputPage() {
-  const [date, setDate] = useState(initialOrderDate);
+  const [orderDays, setOrderDays] = useState(defaultOrderDays);
+  const [date, setDate] = useState(() => nextOrderDate(defaultOrderDays));
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,12 +39,19 @@ export default function OrderInputPage() {
       setRows(data);
       setFridgeDrafts(Object.fromEntries(data.map((row) => [row.item_code, Number(row.fridge_qty) ? String(row.fridge_qty) : ""])));
       setFreezerDrafts(Object.fromEntries(data.map((row) => [row.item_code, Number(row.freezer_qty) ? String(row.freezer_qty) : ""])));
-      if (!data.length) setMessage(config.orderDays.includes(new Date(`${targetDate}T12:00:00`).getDay()) ? "この発注日の予算がまだ登録されていません。管理画面で予算を入力してください。" : "この日は発注日ではありません。案内されている曜日を選択してください。");
+      if (!data.length) setMessage(orderDays.includes(new Date(`${targetDate}T12:00:00`).getDay()) ? "この発注日の予算がまだ登録されていません。管理画面で予算を入力してください。" : "この日は発注日ではありません。案内されている曜日を選択してください。");
     } catch (error) { setRows([]); setMessage(error instanceof Error ? error.message : "読み込みに失敗しました"); }
     finally { setLoading(false); }
   }
 
-  useEffect(() => { loadDate(date); }, [date]);
+  useEffect(() => {
+    fetch(`/api/order/settings?store_id=${encodeURIComponent(STORE_ID)}`).then((response) => response.json()).then((data) => {
+      if (!data?.ok || !Array.isArray(data.order_days) || !data.order_days.length) return;
+      setOrderDays(data.order_days);
+      setDate((current) => data.order_days.includes(new Date(`${current}T12:00:00`).getDay()) ? current : nextOrderDate(data.order_days));
+    }).catch(() => undefined);
+  }, []);
+  useEffect(() => { loadDate(date); }, [date, orderDays]);
 
   async function saveAll() {
     setLoading(true);
@@ -68,7 +76,7 @@ export default function OrderInputPage() {
   return <main className="orderShell">
     <header className="orderHero"><div><span className="orderEyebrow">SMART ORDER</span><h1>発注自動計算</h1><p>{STORE_NAMES[STORE_ID] ?? STORE_ID}（{STORE_ID}）</p></div><a className="orderButton ghost" href={`/order-admin?store_id=${STORE_ID}`}>管理画面</a></header>
     <section className="orderPanel">
-      <p className="orderHint">発注日は<strong>{config.orderDays.map((day) => `${["日","月","火","水","木","金","土"][day]}曜日`).join("・")}</strong>です。冷凍庫と冷蔵庫（W/I）の数量を入力すると、発注数を自動計算します。</p>
+      <p className="orderHint">発注日は<strong>{orderDays.map((day) => `${["日","月","火","水","木","金","土"][day]}曜日`).join("・")}</strong>です。冷凍庫と冷蔵庫（W/I）の数量を入力すると、発注数を自動計算します。</p>
       <div className="orderToolbar"><label className="orderField">発注日<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button className="orderButton ghost" onClick={() => loadDate(date)} disabled={loading}>{loading ? "読込中…" : "再読み込み"}</button><button className="orderButton primary" onClick={saveAll} disabled={loading || !rows.length}>在庫を保存</button></div>
       {message && <div className={`orderAlert ${rows.length ? "" : "error"}`}>{message}</div>}
       {!loading && !rows.length && <div className="orderEmpty">対象データがありません</div>}

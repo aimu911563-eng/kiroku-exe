@@ -38,6 +38,16 @@ function orderAdminStore(c: any) {
     return verifyOrderAdminToken(auth.startsWith("Bearer ") ? auth.slice(7).trim() : "");
 }
 
+const DEFAULT_ORDER_DAYS: Record<string, number[]> = { "7249": [2, 5], "7539": [1, 4] };
+
+orderRoutes.get("/settings", async (c) => {
+    const storeId = String(c.req.query("store_id") ?? "").trim();
+    if (!/^(7249|7539)$/.test(storeId)) return c.json({ ok: false, error: "store_id required" }, 400);
+    const { data, error } = await supabase.from("order_settings").select("order_days,updated_at").eq("store_id", storeId).maybeSingle();
+    if (error) return c.json({ ok: false, error: error.message }, 500);
+    return c.json({ ok: true, store_id: storeId, order_days: data?.order_days ?? DEFAULT_ORDER_DAYS[storeId], updated_at: data?.updated_at ?? null });
+});
+
 orderRoutes.post("/admin/login", async (c) => {
     const body = await c.req.json().catch(() => null);
     const storeId = String(body?.store_id ?? "").trim();
@@ -50,6 +60,21 @@ orderRoutes.post("/admin/login", async (c) => {
         return c.json({ ok: false, error: "店舗またはパスワードが違います" }, 401);
     }
     return c.json({ ok: true, token: signOrderAdminToken(storeId), store_id: storeId });
+});
+
+orderRoutes.put("/admin/settings", async (c) => {
+    const storeId = orderAdminStore(c);
+    if (!storeId) return c.json({ ok: false, error: "Unauthorized" }, 401);
+    const body = await c.req.json().catch(() => null);
+    const days: number[] = Array.isArray(body?.order_days)
+        ? [...new Set<number>(body.order_days.map((day: unknown) => Number(day)))].sort((a, b) => a - b)
+        : [];
+    if (days.length < 1 || days.length > 7 || days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
+        return c.json({ ok: false, error: "発注曜日を1つ以上選択してください" }, 400);
+    }
+    const { error } = await supabase.from("order_settings").upsert({ store_id: storeId, order_days: days, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
+    if (error) return c.json({ ok: false, error: error.message }, 500);
+    return c.json({ ok: true, store_id: storeId, order_days: days });
 });
 
 orderRoutes.get("/admin/items", async (c) => {
@@ -88,19 +113,28 @@ orderRoutes.put("/admin/items", async (c) => {
         category: String(item?.category ?? ""),
         budget_type: item?.category === "fresh_veg" ? "onion" : item?.category === "mushroom" ? "mushroom" : "base",
         display_order: index + 1,
+        is_new: item?.is_new === true,
     }));
     if (normalized.some((item: any) => !/^[A-Za-z0-9_-]{1,40}$/.test(item.item_code) || !item.name || !Number.isFinite(item.per_100k) || item.per_100k < 0 || !["main", "side", "fresh_veg", "mushroom"].includes(item.category))) {
         return c.json({ ok: false, error: "商品コード、食材名、区分またはイールド数を確認してください" }, 400);
     }
-    if (new Set(normalized.map((item: any) => item.item_code)).size !== normalized.length) {
-        return c.json({ ok: false, error: "商品コードが重複しています" }, 400);
-    }
-
     const existingResult = await supabase.from("inventory_items").select("item_code").eq("store_id", storeId);
     if (existingResult.error) return c.json({ ok: false, error: existingResult.error.message }, 500);
     const existingCodes = new Set((existingResult.data ?? []).map((row) => String(row.item_code)));
-    const existingItems = normalized.filter((item: any) => existingCodes.has(item.item_code));
-    const newItems = normalized.filter((item: any) => !existingCodes.has(item.item_code));
+    const usedCodes = new Set(existingCodes);
+    const prefixes: Record<string, string> = { main: "MAIN", side: "SIDE", fresh_veg: "VEG", mushroom: "MUSHROOM" };
+    for (const item of normalized.filter((row: any) => row.is_new)) {
+        const prefix = prefixes[item.category];
+        let number = 1;
+        while (usedCodes.has(`${prefix}_${String(number).padStart(3, "0")}`)) number += 1;
+        item.item_code = `${prefix}_${String(number).padStart(3, "0")}`;
+        usedCodes.add(item.item_code);
+    }
+    if (new Set(normalized.map((item: any) => item.item_code)).size !== normalized.length) {
+        return c.json({ ok: false, error: "商品コードが重複しています" }, 400);
+    }
+    const existingItems = normalized.filter((item: any) => !item.is_new && existingCodes.has(item.item_code));
+    const newItems = normalized.filter((item: any) => item.is_new || !existingCodes.has(item.item_code));
     const now = new Date().toISOString();
     const existingUpdateResults = await Promise.all([
         existingItems.length ? supabase.from("inventory_items").upsert(
