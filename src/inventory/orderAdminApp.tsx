@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 type BudgetType = "base" | "onion" | "mushroom";
+type ItemCategory = "main" | "side" | "fresh_veg" | "mushroom";
 type Item = { item_code: string; name: string; category: string; priority: number; display_order: number; per_100k: number | string; budget_type: BudgetType };
 type Budget = { order_date: string; base_budget: number | string; onion_budget: number | string; mushroom_budget: number | string };
 
@@ -9,6 +10,9 @@ const TOKEN_KEY = `order_admin_token_${STORE_ID}`;
 const ORDER_DAYS: Record<string, number[]> = { "7249": [2, 5], "7539": [1, 4] };
 const STORE_NAMES: Record<string, string> = { "7249": "寺島", "7539": "浜北小松" };
 const budgetLabels: Record<BudgetType, string> = { base: "食材", onion: "オニ＆ピーマン", mushroom: "マッシュ" };
+const categoryLabels: Record<ItemCategory, string> = { main: "ピザ食材", side: "サイド", fresh_veg: "オニオン・ピーマン", mushroom: "マッシュルーム" };
+const categoryOrder = Object.keys(categoryLabels) as ItemCategory[];
+const emptyNewItem = { item_code: "", name: "", category: "main" as ItemCategory, per_100k: "" };
 
 function monthKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; }
 function dateKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
@@ -36,6 +40,8 @@ export default function OrderAdminApp() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItem, setNewItem] = useState(emptyNewItem);
 
   async function login(event: React.FormEvent) {
     event.preventDefault(); setLoginError("");
@@ -74,6 +80,10 @@ export default function OrderAdminApp() {
     const start = new Date(year, monthNumber - 1, 1 - first.getDay());
     return Array.from({ length: 42 }, (_, index) => { const day = new Date(start); day.setDate(start.getDate() + index); return day; });
   }, [month]);
+  const groupedItems = useMemo(() => categoryOrder.map((category) => ({
+    category,
+    items: items.map((item, index) => ({ item, index })).filter(({ item }) => item.category === category),
+  })), [items]);
 
   function changeMonth(offset: number) { const [y, m] = month.split("-").map(Number); setMonth(monthKey(new Date(y, m - 1 + offset, 1))); }
   function updateBudget(date: string, key: keyof Budget, value: string) {
@@ -99,6 +109,20 @@ export default function OrderAdminApp() {
   function moveItem(from: number, to: number) {
     if (to < 0 || to >= items.length || from === to) return;
     setItems((current) => { const next = [...current]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next; });
+  }
+  function addItem(event: React.FormEvent) {
+    event.preventDefault();
+    const itemCode = newItem.item_code.trim();
+    const name = newItem.name.trim();
+    const per100k = Number(newItem.per_100k);
+    if (!/^[A-Za-z0-9_-]{1,40}$/.test(itemCode)) return setMessage("商品コードは半角英数字・ハイフン・アンダーバーで入力してください");
+    if (!name || newItem.per_100k === "" || !Number.isFinite(per100k) || per100k < 0) return setMessage("食材名とイールド数を入力してください");
+    if (items.some((item) => item.item_code.toLowerCase() === itemCode.toLowerCase())) return setMessage("同じ商品コードがすでにあります");
+    const budgetType: BudgetType = newItem.category === "fresh_veg" ? "onion" : newItem.category === "mushroom" ? "mushroom" : "base";
+    const created: Item = { item_code: itemCode, name, category: newItem.category, priority: 1, display_order: items.length + 1, per_100k: newItem.per_100k, budget_type: budgetType };
+    const lastCategoryIndex = items.reduce((last, item, index) => item.category === newItem.category ? index : last, -1);
+    setItems((current) => { const next = [...current]; next.splice(lastCategoryIndex + 1, 0, created); return next; });
+    setNewItem(emptyNewItem); setShowAddItem(false); setMessage("新しい食材を追加しました。「変更を保存」でDBに登録されます");
   }
   async function saveItems() {
     setLoading(true);
@@ -127,12 +151,13 @@ export default function OrderAdminApp() {
       })}</div></div>
       <div className="stickySave"><button className="orderButton primary" disabled={loading || !touchedDates.size} onClick={saveBudgets}>{loading ? "保存中…" : `${touchedDates.size || 0}日分を保存`}</button></div>
     </section> : <section className="orderPanel">
-      <div className="orderSectionHeader"><div><span className="orderEyebrow">ITEM MASTER</span><h2>食材・イールド</h2><p>ドラッグまたは矢印で、発注画面の表示順を変更できます。</p></div><button className="orderButton primary" disabled={loading} onClick={saveItems}>{loading ? "保存中…" : "変更を保存"}</button></div>
-      <div className="itemEditorList">{items.map((item, index) => <article key={item.item_code} draggable onDragStart={() => setDragIndex(index)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragIndex !== null) moveItem(dragIndex, index); setDragIndex(null); }} className="itemEditorCard">
-        <div className="dragHandle" aria-label="並び替え">⠿</div><div className="itemEditorMain"><span className={`budgetBadge ${item.budget_type}`}>{budgetLabels[item.budget_type]}</span><small>{item.item_code}</small><input aria-label="食材名" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} /></div>
+      <div className="orderSectionHeader"><div><span className="orderEyebrow">ITEM MASTER</span><h2>食材・イールド</h2><p>4区分ごとに編集し、同じ区分内で表示順を変更できます。</p></div><div className="itemHeaderActions"><button className="orderButton ghost" onClick={() => setShowAddItem((current) => !current)}>{showAddItem ? "閉じる" : "＋ 新しいアイテム"}</button><button className="orderButton primary" disabled={loading} onClick={saveItems}>{loading ? "保存中…" : "変更を保存"}</button></div></div>
+      {showAddItem && <form className="newItemForm" onSubmit={addItem}><div className="newItemTitle"><div><strong>新しいアイテム</strong><p>追加後に「変更を保存」を押すとDBへ登録されます。</p></div></div><div className="newItemFields"><label className="orderField">商品コード<input autoFocus value={newItem.item_code} placeholder="例：CHEESE_01" onChange={(e) => setNewItem((current) => ({ ...current, item_code: e.target.value }))} /></label><label className="orderField">食材名<input value={newItem.name} placeholder="例：モッツァレラチーズ" onChange={(e) => setNewItem((current) => ({ ...current, name: e.target.value }))} /></label><label className="orderField">区分<select value={newItem.category} onChange={(e) => setNewItem((current) => ({ ...current, category: e.target.value as ItemCategory }))}>{categoryOrder.map((category) => <option key={category} value={category}>{categoryLabels[category]}</option>)}</select></label><label className="orderField">イールド数<input inputMode="decimal" value={newItem.per_100k} placeholder="0" onChange={(e) => { const value = e.target.value; if (!value || /^\d*\.?\d*$/.test(value)) setNewItem((current) => ({ ...current, per_100k: value })); }} /></label></div><div className="newItemActions"><button type="button" className="orderButton ghost" onClick={() => { setNewItem(emptyNewItem); setShowAddItem(false); }}>キャンセル</button><button className="orderButton primary" type="submit">一覧に追加</button></div></form>}
+      <div className="itemCategoryList">{groupedItems.map(({ category, items: sectionItems }) => <section className={`itemCategorySection category-${category}`} key={category}><header><div><span>{categoryLabels[category]}</span><small>{sectionItems.length}件</small></div><p>{category === "main" || category === "side" ? "食材予算" : budgetLabels[category === "fresh_veg" ? "onion" : "mushroom"]}</p></header><div className="itemEditorList">{sectionItems.map(({ item, index }, sectionIndex) => <article key={item.item_code} draggable onDragStart={() => setDragIndex(index)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragIndex !== null && items[dragIndex]?.category === category) moveItem(dragIndex, index); setDragIndex(null); }} className="itemEditorCard">
+        <div className="dragHandle" aria-label="並び替え">⠿</div><div className="itemEditorMain"><span className={`budgetBadge ${item.budget_type}`}>{budgetLabels[item.budget_type]}</span><small>{item.item_code}</small><input aria-label="食材名" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} /><select aria-label="区分" value={item.category} onChange={(e) => { const category = e.target.value as ItemCategory; updateItem(index, { category, budget_type: category === "fresh_veg" ? "onion" : category === "mushroom" ? "mushroom" : "base" }); }}>{categoryOrder.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}</select></div>
         <label className="yieldField"><span>イールド数</span><input inputMode="decimal" value={item.per_100k} onChange={(e) => { const value = e.target.value; if (!value || /^\d*\.?\d*$/.test(value)) updateItem(index, { per_100k: value }); }} /></label>
-        <div className="moveButtons"><button onClick={() => moveItem(index, index - 1)} disabled={index === 0}>↑</button><button onClick={() => moveItem(index, index + 1)} disabled={index === items.length - 1}>↓</button></div>
-      </article>)}</div>
+        <div className="moveButtons"><button onClick={() => moveItem(index, sectionItems[sectionIndex - 1]?.index ?? -1)} disabled={sectionIndex === 0}>↑</button><button onClick={() => moveItem(index, sectionItems[sectionIndex + 1]?.index ?? items.length)} disabled={sectionIndex === sectionItems.length - 1}>↓</button></div>
+      </article>)}</div></section>)}</div>
     </section>}
   </main>;
 }

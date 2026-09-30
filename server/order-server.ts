@@ -85,25 +85,51 @@ orderRoutes.put("/admin/items", async (c) => {
         item_code: String(item?.item_code ?? "").trim(),
         name: String(item?.name ?? "").trim(),
         per_100k: Number(item?.per_100k),
-        budget_type: String(item?.budget_type ?? "base"),
+        category: String(item?.category ?? ""),
+        budget_type: item?.category === "fresh_veg" ? "onion" : item?.category === "mushroom" ? "mushroom" : "base",
         display_order: index + 1,
     }));
-    if (normalized.some((item: any) => !item.item_code || !item.name || !Number.isFinite(item.per_100k) || item.per_100k < 0 || !["base", "onion", "mushroom"].includes(item.budget_type))) {
-        return c.json({ ok: false, error: "食材名またはイールド数を確認してください" }, 400);
+    if (normalized.some((item: any) => !/^[A-Za-z0-9_-]{1,40}$/.test(item.item_code) || !item.name || !Number.isFinite(item.per_100k) || item.per_100k < 0 || !["main", "side", "fresh_veg", "mushroom"].includes(item.category))) {
+        return c.json({ ok: false, error: "商品コード、食材名、区分またはイールド数を確認してください" }, 400);
     }
-    const [itemResult, yieldResult] = await Promise.all([
-        supabase.from("inventory_items").upsert(
-            normalized.map((item: any) => ({ store_id: storeId, item_code: item.item_code, name: item.name, display_order: item.display_order, updated_at: new Date().toISOString() })),
+    if (new Set(normalized.map((item: any) => item.item_code)).size !== normalized.length) {
+        return c.json({ ok: false, error: "商品コードが重複しています" }, 400);
+    }
+
+    const existingResult = await supabase.from("inventory_items").select("item_code").eq("store_id", storeId);
+    if (existingResult.error) return c.json({ ok: false, error: existingResult.error.message }, 500);
+    const existingCodes = new Set((existingResult.data ?? []).map((row) => String(row.item_code)));
+    const existingItems = normalized.filter((item: any) => existingCodes.has(item.item_code));
+    const newItems = normalized.filter((item: any) => !existingCodes.has(item.item_code));
+    const now = new Date().toISOString();
+    const existingUpdateResults = await Promise.all([
+        existingItems.length ? supabase.from("inventory_items").upsert(
+            existingItems.map((item: any) => ({ store_id: storeId, item_code: item.item_code, name: item.name, category: item.category, display_order: item.display_order, updated_at: now })),
             { onConflict: "store_id,item_code" },
-        ),
-        supabase.from("yield_rates").upsert(
-            normalized.map((item: any) => ({ store_id: storeId, item_code: item.item_code, per_100k: item.per_100k, budget_type: item.budget_type, updated_at: new Date().toISOString() })),
+        ) : Promise.resolve({ error: null }),
+        existingItems.length ? supabase.from("yield_rates").upsert(
+            existingItems.map((item: any) => ({ store_id: storeId, item_code: item.item_code, per_100k: item.per_100k, budget_type: item.budget_type, updated_at: now })),
             { onConflict: "store_id,item_code" },
-        ),
+        ) : Promise.resolve({ error: null }),
     ]);
-    const error = itemResult.error || yieldResult.error;
+    let error = existingUpdateResults.find((result) => result.error)?.error;
+    if (!error && newItems.length) {
+        const itemInsert = await supabase.from("inventory_items").insert(
+            newItems.map((item: any) => ({ store_id: storeId, item_code: item.item_code, name: item.name, category: item.category, display_order: item.display_order, priority: 1, is_active: true, unit: "ケース", pack_qty: 1, updated_at: now })),
+        );
+        error = itemInsert.error;
+        if (!error) {
+            const yieldInsert = await supabase.from("yield_rates").insert(
+                newItems.map((item: any) => ({ store_id: storeId, item_code: item.item_code, per_100k: item.per_100k, budget_type: item.budget_type, extra_qty: 0, use_extra: false, multiplier: 1, updated_at: now })),
+            );
+            error = yieldInsert.error;
+            if (error) {
+                await supabase.from("inventory_items").delete().eq("store_id", storeId).in("item_code", newItems.map((item: any) => item.item_code));
+            }
+        }
+    }
     if (error) return c.json({ ok: false, error: error.message }, 500);
-    return c.json({ ok: true, updated: normalized.length });
+    return c.json({ ok: true, updated: existingItems.length, created: newItems.length });
 });
 
 orderRoutes.get("/admin/budgets", async (c) => {
@@ -179,4 +205,3 @@ orderRoutes.get("/calc", async (c) => {
         return c.json({ ok: false, error: e.message }, 500);
     }
 });
-
