@@ -54,8 +54,9 @@ button:disabled { cursor: default; opacity: .45; }
 .budgetDay { min-height: 120px; padding: 9px; border-top: 1px solid #e5e5ea; border-left: 1px solid #e5e5ea; background: #fafafa; }
 .budgetDay:nth-child(7n) { border-right: 1px solid #e5e5ea; }.budgetDay:nth-last-child(-n+7) { border-bottom: 1px solid #e5e5ea; }
 .budgetDay.outside { color: #c7c7cc; background: #f5f5f7; }.budgetDay.orderDay { min-height: 230px; background: #fff; }
-.budgetDayNumber { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }.budgetDayNumber span { color: #248a3d; font-size: 9px; font-weight: 800; }
+.budgetDayNumber { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }.budgetDayNumber div { display: flex; gap: 4px; }.budgetDayNumber span { color: #248a3d; font-size: 9px; font-weight: 800; }.budgetDay.extraDay { box-shadow: inset 0 0 0 2px #af8df0; }.budgetDay.extraDay .budgetDayNumber span:first-child { color: #7047a8; }
 .budgetInputs { display: grid; gap: 7px; }.budgetInputs label { display: grid; gap: 3px; }.budgetInputs label span { font-size: 9px; font-weight: 800; }.budgetInputs input { min-height: 34px; padding: 5px 7px; font-size: 13px; }
+.extraDateButton { width: 100%; margin-top: 22px; padding: 7px; border: 1px dashed #b7b7bc; border-radius: 10px; background: transparent; color: #6e6e73; font-size: 10px; font-weight: 750; }.extraDateButton:hover { border-color: #0071e3; color: #0071e3; background: #f2f8ff; }.extraDateButton.remove { margin-top: 8px; border-color: transparent; color: #7047a8; }
 .stickySave { position: sticky; bottom: 14px; display: flex; justify-content: flex-end; margin-top: 18px; pointer-events: none; }.stickySave button { pointer-events: auto; box-shadow: 0 10px 30px rgba(0,113,227,.25); }
 .itemHeaderActions, .newItemActions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 .newItemForm { margin-bottom: 24px; padding: 18px; border: 1px solid #cfe3ff; border-radius: 20px; background: linear-gradient(145deg, #f4f9ff, #fff); }

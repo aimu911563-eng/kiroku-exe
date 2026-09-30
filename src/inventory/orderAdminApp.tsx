@@ -45,6 +45,8 @@ export default function OrderAdminApp() {
   const [newItem, setNewItem] = useState(emptyNewItem);
   const [orderDays, setOrderDays] = useState(DEFAULT_ORDER_DAYS[STORE_ID] ?? [1, 4]);
   const [savedOrderDays, setSavedOrderDays] = useState(DEFAULT_ORDER_DAYS[STORE_ID] ?? [1, 4]);
+  const [extraOrderDates, setExtraOrderDates] = useState<string[]>([]);
+  const [savedExtraOrderDates, setSavedExtraOrderDates] = useState<string[]>([]);
 
   async function login(event: React.FormEvent) {
     event.preventDefault(); setLoginError("");
@@ -75,7 +77,7 @@ export default function OrderAdminApp() {
   }
 
   async function loadSettings() {
-    try { const data = await request(`/settings?store_id=${STORE_ID}`); setOrderDays(data.order_days); setSavedOrderDays(data.order_days); }
+    try { const data = await request(`/settings?store_id=${STORE_ID}`); setOrderDays(data.order_days); setSavedOrderDays(data.order_days); setExtraOrderDates(data.extra_order_dates ?? []); setSavedExtraOrderDates(data.extra_order_dates ?? []); }
     catch (error) { setMessage((error as Error).message); }
   }
 
@@ -104,10 +106,13 @@ export default function OrderAdminApp() {
   function toggleOrderDay(day: number) {
     setOrderDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort((a, b) => a - b));
   }
+  function toggleExtraOrderDate(date: string) {
+    setExtraOrderDates((current) => current.includes(date) ? current.filter((value) => value !== date) : [...current, date].sort());
+  }
   async function saveOrderDays() {
     if (!orderDays.length) return setMessage("発注曜日を1つ以上選択してください");
     setLoading(true);
-    try { const data = await request("/admin/settings", { method: "PUT", body: JSON.stringify({ order_days: orderDays }) }); setOrderDays(data.order_days); setSavedOrderDays(data.order_days); setMessage("発注曜日を保存しました"); }
+    try { const data = await request("/admin/settings", { method: "PUT", body: JSON.stringify({ order_days: orderDays, extra_order_dates: extraOrderDates }) }); setOrderDays(data.order_days); setSavedOrderDays(data.order_days); setExtraOrderDates(data.extra_order_dates); setSavedExtraOrderDates(data.extra_order_dates); setMessage("発注日の設定を保存しました"); }
     catch (error) { setMessage((error as Error).message); }
     finally { setLoading(false); }
   }
@@ -168,13 +173,13 @@ export default function OrderAdminApp() {
     {message && <div className="orderAlert">{message}</div>}
     {tab === "budgets" ? <section className="orderPanel">
       <div className="orderSectionHeader"><div><span className="orderEyebrow">MONTHLY BUDGET</span><h2>予算カレンダー</h2><p>設定した発注日に3種類の予算を入力します。</p></div><div className="monthControls"><button onClick={() => changeMonth(-1)}>‹</button><strong>{month.replace("-", "年")}月</strong><button onClick={() => changeMonth(1)}>›</button></div></div>
-      <div className="orderDaySettings"><div><strong>発注曜日</strong><p>曜日をタップして、発注日を自由に追加・解除できます。</p></div><div className="weekdayPicker">{["日","月","火","水","木","金","土"].map((label, day) => <button type="button" key={label} className={orderDays.includes(day) ? "selected" : ""} onClick={() => toggleOrderDay(day)}>{label}</button>)}</div><button className="orderButton primary" disabled={loading || !orderDays.length || JSON.stringify(orderDays) === JSON.stringify(savedOrderDays)} onClick={saveOrderDays}>曜日を保存</button></div>
+      <div className="orderDaySettings"><div><strong>発注日の設定</strong><p>繰り返す曜日を選び、カレンダーから一日限定の日付も追加できます。</p></div><div className="weekdayPicker">{["日","月","火","水","木","金","土"].map((label, day) => <button type="button" key={label} className={orderDays.includes(day) ? "selected" : ""} onClick={() => toggleOrderDay(day)}>{label}</button>)}</div><button className="orderButton primary" disabled={loading || !orderDays.length || (JSON.stringify(orderDays) === JSON.stringify(savedOrderDays) && JSON.stringify(extraOrderDates) === JSON.stringify(savedExtraOrderDates))} onClick={saveOrderDays}>設定を保存</button></div>
       <div className="budgetLegend"><span className="base">食材</span><span className="onion">オニ＆ピーマン</span><span className="mushroom">マッシュ</span></div>
       <div className="budgetCalendar"><div className="calendarWeekdays">{["日","月","火","水","木","金","土"].map((d) => <span key={d}>{d}</span>)}</div><div className="calendarGrid">{calendarDays.map((day) => {
-        const key = dateKey(day); const currentMonth = key.startsWith(month); const orderDay = orderDays.includes(day.getDay()); const row = budgets[key];
-        return <article key={key} className={`budgetDay ${!currentMonth ? "outside" : ""} ${orderDay && currentMonth ? "orderDay" : ""}`}><div className="budgetDayNumber"><strong>{day.getDate()}</strong>{row && <span>保存済</span>}</div>{currentMonth && orderDay ? <div className="budgetInputs">
+        const key = dateKey(day); const currentMonth = key.startsWith(month); const recurringDay = orderDays.includes(day.getDay()); const extraDay = extraOrderDates.includes(key); const orderDay = recurringDay || extraDay; const row = budgets[key];
+        return <article key={key} className={`budgetDay ${!currentMonth ? "outside" : ""} ${orderDay && currentMonth ? "orderDay" : ""} ${extraDay ? "extraDay" : ""}`}><div className="budgetDayNumber"><strong>{day.getDate()}</strong><div>{extraDay && <span>一日限定</span>}{row && <span>保存済</span>}</div></div>{currentMonth && orderDay ? <><div className="budgetInputs">
           {(["base_budget","onion_budget","mushroom_budget"] as const).map((field) => <label key={field} className={field.split("_")[0]}><span>{field === "base_budget" ? "食材" : field === "onion_budget" ? "オニ・ピーマン" : "マッシュ"}</span><input inputMode="decimal" value={row?.[field] ?? ""} placeholder="0" onChange={(e) => updateBudget(key, field, e.target.value)} /></label>)}
-        </div> : null}</article>;
+        </div>{extraDay && !recurringDay && <button type="button" className="extraDateButton remove" onClick={() => toggleExtraOrderDate(key)}>一日限定を解除</button>}</> : currentMonth ? <button type="button" className="extraDateButton" onClick={() => toggleExtraOrderDate(key)}>＋ この日だけ追加</button> : null}</article>;
       })}</div></div>
       <div className="stickySave"><button className="orderButton primary" disabled={loading || !touchedDates.size} onClick={saveBudgets}>{loading ? "保存中…" : `${touchedDates.size || 0}日分を保存`}</button></div>
     </section> : <section className="orderPanel">

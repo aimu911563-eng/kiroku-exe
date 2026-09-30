@@ -43,9 +43,9 @@ const DEFAULT_ORDER_DAYS: Record<string, number[]> = { "7249": [2, 5], "7539": [
 orderRoutes.get("/settings", async (c) => {
     const storeId = String(c.req.query("store_id") ?? "").trim();
     if (!/^(7249|7539)$/.test(storeId)) return c.json({ ok: false, error: "store_id required" }, 400);
-    const { data, error } = await supabase.from("order_settings").select("order_days,updated_at").eq("store_id", storeId).maybeSingle();
+    const { data, error } = await supabase.from("order_settings").select("order_days,extra_order_dates,updated_at").eq("store_id", storeId).maybeSingle();
     if (error) return c.json({ ok: false, error: error.message }, 500);
-    return c.json({ ok: true, store_id: storeId, order_days: data?.order_days ?? DEFAULT_ORDER_DAYS[storeId], updated_at: data?.updated_at ?? null });
+    return c.json({ ok: true, store_id: storeId, order_days: data?.order_days ?? DEFAULT_ORDER_DAYS[storeId], extra_order_dates: data?.extra_order_dates ?? [], updated_at: data?.updated_at ?? null });
 });
 
 orderRoutes.post("/admin/login", async (c) => {
@@ -72,9 +72,15 @@ orderRoutes.put("/admin/settings", async (c) => {
     if (days.length < 1 || days.length > 7 || days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
         return c.json({ ok: false, error: "発注曜日を1つ以上選択してください" }, 400);
     }
-    const { error } = await supabase.from("order_settings").upsert({ store_id: storeId, order_days: days, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
+    const extraDates: string[] = Array.isArray(body?.extra_order_dates)
+        ? [...new Set<string>(body.extra_order_dates.map((date: unknown) => String(date)))].sort()
+        : [];
+    if (extraDates.length > 366 || extraDates.some((date) => !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(`${date}T12:00:00Z`).getTime()))) {
+        return c.json({ ok: false, error: "一日限定の日付を確認してください" }, 400);
+    }
+    const { error } = await supabase.from("order_settings").upsert({ store_id: storeId, order_days: days, extra_order_dates: extraDates, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
     if (error) return c.json({ ok: false, error: error.message }, 500);
-    return c.json({ ok: true, store_id: storeId, order_days: days });
+    return c.json({ ok: true, store_id: storeId, order_days: days, extra_order_dates: extraDates });
 });
 
 orderRoutes.get("/admin/items", async (c) => {
