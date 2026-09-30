@@ -263,18 +263,30 @@ function updateShiftSimulator() {
 
 function renderMascotGrowth() {
   const stages = [
-    { min: 0, next: 5, key: "little", name: "ちび恐竜" },
-    { min: 5, next: 15, key: "scarf", name: "スカーフ恐竜" },
-    { min: 15, next: 30, key: "crown", name: "王冠恐竜" },
-    { min: 30, next: null, key: "star", name: "スター恐竜" },
+    { min: 0, next: 3, key: "little", name: "ちび恐竜" },
+    { min: 3, next: 5, key: "badge", name: "名札恐竜" },
+    { min: 5, next: 10, key: "scarf", name: "スカーフ恐竜" },
+    { min: 10, next: 15, key: "hat", name: "帽子恐竜" },
+    { min: 15, next: 20, key: "crown", name: "王冠恐竜" },
+    { min: 20, next: 30, key: "cape", name: "マント恐竜" },
+    { min: 30, next: 40, key: "star", name: "スター恐竜" },
+    { min: 40, next: 50, key: "sunglasses", name: "サングラス恐竜" },
+    { min: 50, next: 75, key: "chef", name: "コック恐竜" },
+    { min: 75, next: 100, key: "goldscarf", name: "金色スカーフ恐竜" },
+    { min: 100, next: 150, key: "manager", name: "店長恐竜" },
+    { min: 150, next: null, key: "legend", name: "レジェンド恐竜" },
   ] as const;
   const stage = [...stages].reverse().find((item) => submissionCount >= item.min) ?? stages[0];
   const mascot = document.getElementById("growthMascot");
   const stageEl = document.getElementById("growthStage");
   const progress = document.getElementById("growthProgress");
-  if (mascot) mascot.dataset.stage = stage.key;
+  const month = new Date().getMonth() + 1;
+  const season = month === 10 ? { key: "halloween", label: "🎃 ハロウィン衣装中" } : month === 12 ? { key: "christmas", label: "🎄 クリスマス衣装中" } : month === 1 ? { key: "newyear", label: "🎍 お正月衣装中" } : null;
+  if (mascot) { mascot.dataset.stage = stage.key; mascot.dataset.season = season?.key ?? ""; }
   if (stageEl) stageEl.textContent = stage.name;
   if (progress) progress.textContent = stage.next === null ? `累計${submissionCount}回提出・立派に育ちました！` : `累計${submissionCount}回提出・あと${stage.next - submissionCount}回で成長`;
+  const seasonEl = document.getElementById("growthSeason");
+  if (seasonEl) seasonEl.textContent = season?.label ?? "";
 }
 
 async function loadEmployeeAnnouncement() {
