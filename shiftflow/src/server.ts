@@ -3,18 +3,20 @@
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { email, z } from "zod";
-is_holiday: z.boolean().optional();
-import "dotenv/config";
+import { z } from "zod";
+import {
+  BUSINESS_HOURS,
+  timeToMinutes,
+  validateShiftDataForStore,
+  type BusinessHoursDefinition,
+  type ShiftDayKey,
+  type StoreId,
+} from "./shift-time";
+import { holidaysForWeek, japaneseHolidays } from "./japanese-holidays";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
-
-export const leaveSupabase = createClient(
-  process.env.LEAVE_SUPABASE_URL!,
-  process.env.LEAVE_SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 type Env = {
@@ -32,26 +34,7 @@ type Env = {
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/", (c) => c.text("shiftflow-api ok"));
-app.get("/api/health", (c) => c.json({ ok: true }));
-
-
-const getSupabase = (c: any) => {
-  return createClient(
-    c.env.SUPABASE_URL,
-    c.env.SUPABASE_SERVICE_ROLE_KEY
-  );
-};
-
-app.get("/api/example", async (c) => {
-  const supabase = getSupabase(c);
-
-  const { data, error } = await supabase
-    .from("shift_submissions")
-    .select("*");
-
-  return c.json({ data, error });
-});
-
+app.get("/api/health", (c) => c.json({ ok: true, service: "shiftflow-api" }));
 
 
 //管理者トークン　HMACでstore_idを発行、検証
@@ -75,7 +58,8 @@ function verifyAdminToken(token: string): { store_id: string } | null {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = sign(body);
-  if (sig !== expected) return null;
+  if (sig.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
 
   try {
     const json = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
@@ -116,11 +100,11 @@ const shiftSchema = z.object({
   employee_name: z.string().min(1),
   week_start: z.string().min(1), // 後で YYYY-MM-DD に縛ってもOK
   data: z.record(z.string(), z.string()),
-  is_holiday: z.boolean(),
+  is_holiday: z.boolean().optional(),
   comment: z.string().max(300).optional().nullable(),
 });
 
-app.get("/api/health", (c) => c.json({ ok: true }));
+
 
 
 //＝＝＝＝＝＝＝＝＝　管理者 (admin) ＝＝＝＝＝＝＝＝＝
@@ -131,6 +115,7 @@ app.use("/api/*", async (c, next) => {
 
 import bcrypt from 'bcryptjs'
 import type { MiddlewareHandler } from "hono";
+import { isEmployeeIdFormat, isEmployeeIdValidForExistingStore, isEmployeeIdValidForNewRegistration } from "./employee-id";
 
 type Variables = {
   admin_store_id: string;
@@ -223,6 +208,109 @@ app.get('/api/admin/submissions', requireAdmin, async (c) => {
   return c.json({ ok: true, rows});
 });
 
+const plannerAssignmentSchema = z.object({
+  start: z.string(),
+  end: z.string(),
+});
+type PlannerAssignment = z.infer<typeof plannerAssignmentSchema>;
+const plannerSchema = z.object({
+  week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  staffing_requirements: z.object({
+    weekday: z.number().int().min(1).max(20),
+    weekendHoliday: z.number().int().min(1).max(20),
+  }),
+  assignments: z.record(z.string(), z.record(z.string(), plannerAssignmentSchema)),
+});
+
+app.get("/api/admin/planner", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const weekStart = c.req.query("week_start")?.trim() ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+    return c.json({ ok: false, error: "week_start required" }, 400);
+  }
+  const [employeeResult, submissionResult, scheduleResult] = await Promise.all([
+    supabase.from("employees").select("employee_id, employee_name").eq("store_id", storeId).eq("is_active", true).order("employee_id"),
+    supabase.from("shift_submissions").select("employee_id, employee_name, data").eq("store_id", storeId).eq("week_start", weekStart),
+    supabase.from("shift_schedules").select("assignments, required_staff, required_staff_weekday, required_staff_weekend_holiday, updated_at, published_at").eq("store_id", storeId).eq("week_start", weekStart).maybeSingle(),
+  ]);
+  const error = employeeResult.error || submissionResult.error || scheduleResult.error;
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({
+    ok: true,
+    employees: employeeResult.data ?? [],
+    submissions: submissionResult.data ?? [],
+    schedule: scheduleResult.data ?? null,
+    holidays: [...holidaysForWeek(weekStart)].map(([date, name]) => ({ date, name })),
+  });
+});
+
+app.put("/api/admin/planner", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const parsed = plannerSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ ok: false, error: "勤務表の形式が正しくありません" }, 400);
+  const { week_start, staffing_requirements, assignments } = parsed.data;
+  const hours = await loadBusinessHours(storeId);
+  const holidays = holidaysForWeek(week_start);
+  const dayKeys: ShiftDayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const [year, month, day] = week_start.split("-").map(Number);
+  const monday = new Date(year, month - 1, day);
+  const holidayDays = new Set<ShiftDayKey>();
+  dayKeys.forEach((dayKey, index) => {
+    const date = new Date(monday);
+    date.setDate(date.getDate() + index);
+    const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    if (holidays.has(ymd)) holidayDays.add(dayKey);
+  });
+  const employeeIds = new Set<string>();
+  for (const [dayKey, employees] of Object.entries(assignments)) {
+    if (!dayKeys.includes(dayKey as ShiftDayKey)) return c.json({ ok: false, error: "曜日が正しくありません" }, 400);
+    for (const [employeeId, assignment] of Object.entries(employees)) {
+      employeeIds.add(employeeId);
+      const error = validateShiftDataForStore(
+        storeId,
+        { [dayKey]: `${assignment.start}-${assignment.end}` },
+        holidayDays,
+        hours ?? undefined,
+      );
+      if (error) return c.json({ ok: false, error }, 400);
+    }
+  }
+  if (employeeIds.size) {
+    const employees = await supabase.from("employees").select("employee_id").eq("store_id", storeId).eq("is_active", true).in("employee_id", [...employeeIds]);
+    if (employees.error) return c.json({ ok: false, error: employees.error.message }, 500);
+    if ((employees.data ?? []).length !== employeeIds.size) return c.json({ ok: false, error: "無効な従業員が含まれています" }, 400);
+  }
+  const result = await supabase.from("shift_schedules").upsert({
+    store_id: storeId,
+    week_start,
+    assignments,
+    required_staff: staffing_requirements.weekday,
+    required_staff_weekday: staffing_requirements.weekday,
+    required_staff_weekend_holiday: staffing_requirements.weekendHoliday,
+    updated_at: new Date().toISOString(),
+    published_at: null,
+  }, { onConflict: "store_id,week_start" }).select("updated_at").single();
+  if (result.error) return c.json({ ok: false, error: result.error.message }, 500);
+  return c.json({ ok: true, updated_at: result.data.updated_at });
+});
+
+app.post("/api/admin/planner/publish", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const body = await c.req.json().catch(() => null) as { week_start?: string } | null;
+  const weekStart = body?.week_start?.trim() ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return c.json({ ok: false, error: "week_start required" }, 400);
+  const publishedAt = new Date().toISOString();
+  const result = await supabase.from("shift_schedules")
+    .update({ published_at: publishedAt })
+    .eq("store_id", storeId)
+    .eq("week_start", weekStart)
+    .select("week_start")
+    .maybeSingle();
+  if (result.error) return c.json({ ok: false, error: result.error.message }, 500);
+  if (!result.data) return c.json({ ok: false, error: "先に勤務表を保存してください" }, 404);
+  return c.json({ ok: true, published_at: publishedAt });
+});
+
 //提出内容取得（１人）
 app.get("/api/admin/submission", requireAdmin, async (c) => {
   const storeId = c.get("admin_store_id") as string;
@@ -302,6 +390,79 @@ app.get("/api/public/stores", async (c) => {
   return c.json({ ok: true, stores: data ?? [] });
 });
 
+const businessHoursSchema = z.object({
+  weekday: z.object({ open: z.string(), close: z.string() }),
+  weekendHoliday: z.object({ open: z.string(), close: z.string() }),
+});
+
+function validBusinessHours(value: unknown): value is BusinessHoursDefinition {
+  const parsed = businessHoursSchema.safeParse(value);
+  if (!parsed.success) return false;
+  return [parsed.data.weekday, parsed.data.weekendHoliday].every((period) => {
+    const open = timeToMinutes(period.open);
+    const close = timeToMinutes(period.close);
+    return open !== null && close !== null && open % 15 === 0 && close % 15 === 0 && open < close && close <= 24 * 60;
+  });
+}
+
+async function loadBusinessHours(storeId: string): Promise<BusinessHoursDefinition | null> {
+  const fallback = BUSINESS_HOURS[storeId as StoreId] ?? null;
+  const result = await supabase.from("stores").select("business_hours").eq("id", storeId).maybeSingle();
+  if (result.error || !validBusinessHours(result.data?.business_hours)) return fallback;
+  return result.data.business_hours;
+}
+
+app.get("/api/business-hours", async (c) => {
+  const storeId = c.req.query("store_id")?.trim() ?? "";
+  const weekStart = c.req.query("week_start")?.trim() ?? "";
+  if (!storeId || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+    return c.json({ ok: false, error: "store_id and week_start required" }, 400);
+  }
+  const hours = await loadBusinessHours(storeId);
+  if (!hours) return c.json({ ok: false, error: "営業時間設定が見つかりません" }, 404);
+  const holidays = [...holidaysForWeek(weekStart)].map(([date, name]) => ({ date, name }));
+  return c.json({ ok: true, hours, holidays });
+});
+
+app.get("/api/admin/business-hours", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const hours = await loadBusinessHours(storeId);
+  if (!hours) return c.json({ ok: false, error: "営業時間設定が見つかりません" }, 404);
+  return c.json({ ok: true, store_id: storeId, hours });
+});
+
+app.get("/api/admin/announcement", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const { data, error } = await supabase.from("store_announcements").select("message,is_active,updated_at").eq("store_id", storeId).maybeSingle();
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, announcement: data ?? { message: "", is_active: false, updated_at: null } });
+});
+
+app.put("/api/admin/announcement", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const body = await c.req.json().catch(() => null) as { message?: string; is_active?: boolean } | null;
+  const message = String(body?.message ?? "").trim();
+  const isActive = body?.is_active === true;
+  if (message.length > 300) return c.json({ ok: false, error: "お知らせは300文字以内です" }, 400);
+  if (isActive && !message) return c.json({ ok: false, error: "公開するメッセージを入力してください" }, 400);
+  const { error } = await supabase.from("store_announcements").upsert({ store_id: storeId, message, is_active: isActive, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, announcement: { message, is_active: isActive } });
+});
+
+app.put("/api/admin/business-hours", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const body = await c.req.json().catch(() => null);
+  if (!validBusinessHours((body as { hours?: unknown } | null)?.hours)) {
+    return c.json({ ok: false, error: "営業時間は15分単位で、開店より閉店を後にしてください" }, 400);
+  }
+  const hours = (body as { hours: BusinessHoursDefinition }).hours;
+  const result = await supabase.from("stores").update({ business_hours: hours }).eq("id", storeId).select("id").maybeSingle();
+  if (result.error) return c.json({ ok: false, error: result.error.message }, 500);
+  if (!result.data) return c.json({ ok: false, error: "店舗が見つかりません" }, 404);
+  return c.json({ ok: true, store_id: storeId, hours });
+});
+
 
 //店舗一覧API
 app.get("/api/admin/stores", async (c) => {
@@ -336,8 +497,8 @@ app.post("/api/admin/employees", requireAdmin, async (c) => {
     pin?: string;
   };
 
-  if (!employee_id || !/^\d{8}$/.test(employee_id)) {
-    return c.json({ ok: false, error: "employee_id must be 8 digits" }, 400);
+  if (!employee_id || !isEmployeeIdValidForNewRegistration(employee_id, storeId)) {
+    return c.json({ ok: false, error: storeId === "kosai" ? "employee_id must be 9 digits" : "employee_id must be 8 digits" }, 400);
   }
   if (!employee_name || employee_name.trim().length === 0) {
     return c.json({ ok: false, error: "employee_name required" }, 400);
@@ -373,6 +534,49 @@ app.post("/api/admin/employees", requireAdmin, async (c) => {
   return c.json({ ok: true });
 });
 
+app.get("/api/admin/employees", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const { data, error } = await supabase
+    .from("employees")
+    .select("employee_id, employee_name")
+    .eq("store_id", storeId)
+    .eq("is_active", true)
+    .order("employee_id", { ascending: true });
+
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, employees: data ?? [] });
+});
+
+app.delete("/api/admin/employees", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const body = await c.req.json().catch(() => null);
+  const rawEmployeeIds = (body as { employee_ids?: unknown } | null)?.employee_ids;
+  const employeeIds: string[] = Array.isArray(rawEmployeeIds)
+    ? [...new Set(rawEmployeeIds.map((value: unknown) => String(value).trim()))]
+    : [];
+
+  if (employeeIds.length === 0 || employeeIds.length > 100) {
+    return c.json({ ok: false, error: "employee_ids must contain 1 to 100 items" }, 400);
+  }
+  if (employeeIds.some((employeeId) => !isEmployeeIdValidForExistingStore(employeeId, storeId))) {
+    return c.json({ ok: false, error: "invalid employee_id for store" }, 400);
+  }
+
+  const { data, error } = await supabase
+    .from("employees")
+    .update({ is_active: false })
+    .eq("store_id", storeId)
+    .eq("is_active", true)
+    .in("employee_id", employeeIds)
+    .select("employee_id");
+
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({
+    ok: true,
+    deleted_employee_ids: (data ?? []).map((row) => String(row.employee_id)),
+  });
+});
+
 //従業員ログイン
 type EmployeePayload = {
   employee_id: string;
@@ -386,8 +590,8 @@ app.post("/api/employee/login", async (c) => {
 
   const { employee_id, pin } = body as { employee_id?: string; pin?: string };
 
-  if (!employee_id || !/\d{8}$/.test(employee_id)) {
-    return c.json({ ok: false, error: "employee_id must be 8 digits" }, 400);
+  if (!employee_id || !isEmployeeIdFormat(employee_id)) {
+    return c.json({ ok: false, error: "employee_id must be 8 or 9 digits" }, 400);
   }
   if (!pin || !/^\d{4}$/.test(pin)) {
     return c.json({ ok: false, error: "pin must be 4 digits" }, 400);
@@ -407,17 +611,13 @@ app.post("/api/employee/login", async (c) => {
 
   if (empRes.error) return c.json({ ok: false, error: empRes.error.message }, 500);
   if (!empRes.data) return c.json({ ok: false, error: "not found" }, 401);
+  if (!isEmployeeIdValidForExistingStore(employee_id, empRes.data.store_id)) {
+    return c.json({ ok: false, error: "invalid employee_id for store" }, 401);
+  }
   if (!empRes.data.is_active) return c.json({ ok: false, error: "inactive" }, 403);
   if (!empRes.data.pin_hash) return c.json({ ok: false, error: "pin not set" }, 403);
 
   const inputHash = hashEmployeePin(pin, salt);
-
-  console.log("LOGIN DEBUG", {
-    employee_id,
-    inputHash: inputHash.slice(0, 8),
-    dbHash: empRes.data.pin_hash.slice(0, 8),
-    saltHead: salt.slice(0, 4),
-  });
 
   if (inputHash !== empRes.data.pin_hash) {
     return c.json({ ok: false, error: "invalid credentials" }, 401);
@@ -442,6 +642,13 @@ app.post("/api/employee/login", async (c) => {
     }
   }
 
+  const submissionCountResult = await supabase
+    .from("shift_submissions")
+    .select("employee_id", { count: "exact", head: true })
+    .eq("store_id", empRes.data.store_id)
+    .eq("employee_id", employee_id);
+  const submission_count = submissionCountResult.error ? 0 : Number(submissionCountResult.count ?? 0);
+
   const payload: EmployeePayload = {
     employee_id,
     store_id: empRes.data.store_id,
@@ -455,6 +662,7 @@ app.post("/api/employee/login", async (c) => {
     employee_name: empRes.data.employee_name, 
     store_id: empRes.data.store_id,
     monthly_target_minutes,
+    submission_count,
   });
 
 });
@@ -474,9 +682,16 @@ const requireEmployee: MiddlewareHandler<{ Bindings: Env; Variables: Variables }
   await next();
 }
 
+app.get("/api/employee/announcement", requireEmployee, async (c) => {
+  const storeId = c.get("employee_store_id") as string;
+  const { data, error } = await supabase.from("store_announcements").select("message,updated_at").eq("store_id", storeId).eq("is_active", true).maybeSingle();
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, announcement: data ?? null });
+});
+
 app.get("/api/shifts", requireEmployee, async (c) => {
-  const employeeId = c.get("employee_id");
-  const storeId = c.get("employee_store_id");
+  const employeeId = c.get("employee_id") as string;
+  const storeId = c.get("employee_store_id") as string;
 
   const weekStart = c.req.query("week_start")?.trim();
   if (!weekStart) return c.json({ ok: false, error: "week_start required" }, 400);
@@ -496,9 +711,66 @@ app.get("/api/shifts", requireEmployee, async (c) => {
   return c.json({ ok: true, submission: data ?? null });
 })
 
+app.get("/api/employee/calendar", requireEmployee, async (c) => {
+  const employeeId = c.get("employee_id") as string;
+  const storeId = c.get("employee_store_id") as string;
+  const month = c.req.query("month")?.trim() ?? "";
+  if (!/^\d{4}-\d{2}$/.test(month)) return c.json({ ok: false, error: "month must be YYYY-MM" }, 400);
+  const [year, monthNumber] = month.split("-").map(Number);
+  const calendarDayKeys: ShiftDayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const monthStart = new Date(year, monthNumber - 1, 1);
+  const monthEnd = new Date(year, monthNumber, 0);
+  const queryStart = new Date(monthStart);
+  queryStart.setDate(queryStart.getDate() - 6);
+  const dateISO = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const [scheduleResult, submissionResult] = await Promise.all([
+    supabase.from("shift_schedules")
+      .select("week_start, assignments, published_at")
+      .eq("store_id", storeId)
+      .not("published_at", "is", null)
+      .gte("week_start", dateISO(queryStart))
+      .lte("week_start", dateISO(monthEnd)),
+    supabase.from("shift_submissions")
+      .select("week_start, data")
+      .eq("store_id", storeId)
+      .eq("employee_id", employeeId)
+      .gte("week_start", dateISO(queryStart))
+      .lte("week_start", dateISO(monthEnd)),
+  ]);
+  const error = scheduleResult.error || submissionResult.error;
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  const entries = new Map<string, { confirmed?: string; requested?: string }>();
+  const addWeek = (weekStart: string, values: Record<string, string>, kind: "confirmed" | "requested") => {
+    const [y, m, d] = weekStart.split("-").map(Number);
+    const monday = new Date(y, m - 1, d);
+    calendarDayKeys.forEach((dayKey, index) => {
+      const value = String(values?.[dayKey] ?? "").trim();
+      if (!value) return;
+      const date = new Date(monday);
+      date.setDate(date.getDate() + index);
+      const key = dateISO(date);
+      entries.set(key, { ...(entries.get(key) ?? {}), [kind]: value });
+    });
+  };
+  (submissionResult.data ?? []).forEach((row) => addWeek(String(row.week_start), row.data ?? {}, "requested"));
+  (scheduleResult.data ?? []).forEach((row) => {
+    const assignments = row.assignments as Record<string, Record<string, PlannerAssignment>>;
+    const values: Record<string, string> = {};
+    calendarDayKeys.forEach((dayKey) => {
+      const assignment = assignments?.[dayKey]?.[employeeId];
+      values[dayKey] = assignment ? `${assignment.start}-${assignment.end}` : "";
+    });
+    addWeek(String(row.week_start), values, "confirmed");
+  });
+  const holidays = japaneseHolidays(year)
+    .filter((holiday) => holiday.date.startsWith(`${month}-`));
+  return c.json({ ok: true, month, entries: Object.fromEntries(entries), holidays });
+})
+
 app.post("/api/shifts", requireEmployee, async (c) => {
   const employeeId = c.get("employee_id");
   const storeId = c.get("employee_store_id");
+  if (!employeeId || !storeId) return c.json({ ok: false, error: "Unauthorized" }, 401);
   const json = await c.req.json().catch(() => null);
   const parsed = shiftSchema.safeParse(json);
 
@@ -508,31 +780,20 @@ app.post("/api/shifts", requireEmployee, async (c) => {
 
   const body = parsed.data;
 
-  const toMinutes = (time: string) => {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-  };
-
-  for (const value of Object.values(body.data ?? {})) {
-    if (typeof value !== "string") continue;
-    if (!value.includes("-")) continue;
-
-    const [start, end] = value.split("-").map((v) => v.trim());
-    if (!start || !end) continue;
-
-    const startMin = toMinutes(start);
-    const endMin = toMinutes(end);
-
-    if (startMin >= endMin) {
-      return c.json(
-        {
-          ok: false,
-          error: `終了時間は開始時間より後にしてください（${start} - ${end}）`,
-        },
-        400
-      );
-    }
-  }
+  const holidayDates = holidaysForWeek(body.week_start);
+  const dayKeys: ShiftDayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const [year, month, day] = body.week_start.split("-").map(Number);
+  const weekStart = new Date(year, month - 1, day);
+  const holidayDays = new Set<ShiftDayKey>();
+  dayKeys.forEach((dayKey, index) => {
+    const date = new Date(weekStart);
+    date.setDate(date.getDate() + index);
+    const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    if (holidayDates.has(ymd)) holidayDays.add(dayKey);
+  });
+  const hours = await loadBusinessHours(storeId);
+  const shiftError = validateShiftDataForStore(storeId, body.data, holidayDays, hours ?? undefined);
+  if (shiftError) return c.json({ ok: false, error: shiftError }, 400);
 
   if (isPastDeadline(body.week_start)) {
     return c.text("締め切りを過ぎています（木曜0:00以降は提出不可）", 403);
@@ -633,7 +894,7 @@ type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 const DAY_KEYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 function sanitizeMinutesData(input: any): Record<DayKey, number> {
-  const out = {} as Record<DAY_KEYS, number>;
+  const out = {} as Record<DayKey, number>;
 
   for (const k of DAY_KEYS) {
     const v = input?.[k];
@@ -810,9 +1071,6 @@ app.post("/api/admin/login", async (c) => {
     if (!password) return c.json({ ok: false, error: "パスワードが必要です" }, 400);
     if (password !== expectedPw) return c.json({ ok: false, error: "パスワードが違います" }, 401);
 
-    console.log("[admin/login] expectedPw=", JSON.stringify(expectedPw), "len=", expectedPw.length);
-    console.log("[admin/login] gotPw     =", JSON.stringify(password), "len=", password.length);
-
     //store_id　が実在するかチェック（不正store_idでトークン発酵させない）
     const { data: store, error } = await supabase
       .from("stores")
@@ -822,17 +1080,6 @@ app.post("/api/admin/login", async (c) => {
 
     if (error) return c.json({ ok: false, error: error.message }, 500);
     if (!store) return c.json({ ok: false, error: "不正な店舗です" }, 400);
-
-    const got = password.trim();
-    const exp = expectedPw.trim();
-
-    console.log("[admin/login] expTrimLen=", exp.length, "gotTrimLen=", got.length);
-    console.log("storeId =", JSON.stringify(storeId));
-    console.log("demoPw exists =", !!process.env.DEMO_ADMIN_PASSWORD);
-    console.log("adminPw exists =", !!process.env.ADMIN_PASSWORD);
-    console.log("expectedPw =", JSON.stringify(expectedPw));
-    console.log("gotPw =", JSON.stringify(password));
-
 
     const token = issueAdminToken({ store_id: storeId });
     return c.json({ ok: true, token});
@@ -992,7 +1239,7 @@ app.post("/api/worktime/admin/login", async (c) => {
     store_id = "demo";
   } else if (password === ADMIN_PASSWORD) {
     store_id =
-      c.env.WORKTIME_ADMIN_PASSWORD ??
+      c.env.WORKTIME_ADMIN_STORE_ID ??
       c.env.ADMIN_STORE_ID ??
       "";
   } else {
@@ -1283,7 +1530,7 @@ async function sendResendEmail(params: {
 
 app.post("/api/worktime/admin/remind", requireAdmin, async (c) => {
   const store_id = c.get("admin_store_id") as string | undefined;
-  void store_id;
+  if (!store_id) return c.json({ ok: false, error: "store unavailable" }, 403);
 
   const body = await c.req.json().catch(() => ({}));
   const week_start = String(body?.week_start ?? "").trim();
@@ -1296,6 +1543,7 @@ app.post("/api/worktime/admin/remind", requireAdmin, async (c) => {
   const empRes = await supabase
     .from("employees")
     .select("employee_id, employee_name, email, is_active")
+    .eq("store_id", store_id)
     .eq("is_staff", true)
     .eq("is_active", true)
     .order("employee_id");
@@ -1314,6 +1562,7 @@ app.post("/api/worktime/admin/remind", requireAdmin, async (c) => {
   const subRes = await supabase
     .from("worktime_submissions")
     .select("employee_id")
+    .eq("store_id", store_id)
     .eq("week_start", week_start);
 
   if (subRes.error) {
@@ -1394,8 +1643,13 @@ app.post("/api/worktime/admin/remind", requireAdmin, async (c) => {
 
 // 有給サマリを表示　worktime admin
 app.get("/api/leave/admin/summary", requireAdmin, async (c) => {
-  const store_id = "demo";
-  const { data, error } = await leaveSupabase
+  const store_id = c.get("admin_store_id") as string;
+  const leaveUrl = process.env.LEAVE_SUPABASE_URL;
+  const leaveKey = process.env.LEAVE_SUPABASE_SERVICE_ROLE_KEY;
+  if (!leaveUrl || !leaveKey) {
+    return c.json({ ok: false, error: "leave summary unavailable" }, 503);
+  }
+  const { data, error } = await createClient(leaveUrl, leaveKey)
     .from("leave_admin_summary_v1")
     .select("*")
     .eq("store_id", store_id)
@@ -1467,12 +1721,3 @@ app.onError((err, c) => {
 });
 
 export default app;
-
-//serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 8787) });
-//console.log("ShiftFlow API running on http://localhost:8787");
-
-if (process.env.NODE_ENV !== "production") {
-  const { serve } = await import("@hono/node-server");
-  serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 8787) });
-  console.log("ShiftFlow API running on http://localhost:8787");
-}

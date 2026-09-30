@@ -88,6 +88,11 @@
           <div id="deadlineWarn" class="hidden" style="margin-top: 6px; color: #b00; font-weight: 600;"></div>
         </div>
 
+        <section id="employeeAnnouncement" class="employeeAnnouncement" style="display:none;">
+          <div class="miniMascot" aria-hidden="true">🦖</div>
+          <div><span>店長からのお知らせ</span><p id="employeeAnnouncementText"></p></div>
+        </section>
+
         <!-- 対象週（週の開始日＝月曜日） -->
         <section id="shiftArea" class="surface shiftEntryCard" style="display: none;">
           <div class="shiftEntryHeader">
@@ -102,6 +107,18 @@
           </div>
 
           <p id="hoursPreview" class="hoursPreview"></p>
+
+          <div class="shiftInsights">
+            <section class="mascotGrowthCard">
+              <div id="growthMascot" class="growthMascot" aria-hidden="true">🥚</div>
+              <div><span>恐竜の成長</span><strong id="growthStage">たまご</strong><p id="growthProgress">提出すると成長します</p></div>
+            </section>
+            <section class="shiftSimulatorCard">
+              <span>勤務時間シミュレーター</span>
+              <strong id="simulatorTotal">0時間</strong>
+              <div><small id="simulatorDays">希望 0日</small><small id="simulatorAverage">1日平均 0時間</small></div>
+            </section>
+          </div>
 
           <!-- シフト入力テーブル -->
           <section>

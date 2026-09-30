@@ -80,6 +80,9 @@ const calendarStatus = document.getElementById("calendarStatus") as HTMLDivEleme
 const successOverlay = document.getElementById("submissionSuccessOverlay") as HTMLDivElement | null;
 const loginTransitionOverlay = document.getElementById("loginTransitionOverlay") as HTMLDivElement | null;
 const employeeLoginButton = document.getElementById("employeeLoginBtn") as HTMLButtonElement | null;
+const employeeAnnouncement = document.getElementById("employeeAnnouncement") as HTMLElement | null;
+const employeeAnnouncementText = document.getElementById("employeeAnnouncementText") as HTMLParagraphElement | null;
+let submissionCount = 0;
 
 function setLoginUserLabell(name: string) {
   if (loginUserLabel) loginUserLabel.textContent = `👤 ${name}`;
@@ -225,6 +228,52 @@ function totalShiftMinutes(data: ShiftData) {
     const end = timeToMinutes(match[2]);
     return start === null || end === null ? total : total + Math.max(0, end - start);
   }, 0);
+}
+
+function formatMinutes(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}時間${rest}分` : `${hours}時間`;
+}
+
+function updateShiftSimulator() {
+  const data = collectShiftData();
+  const total = totalShiftMinutes(data);
+  const days = Object.values(data).filter(Boolean).length;
+  const totalEl = document.getElementById("simulatorTotal");
+  const daysEl = document.getElementById("simulatorDays");
+  const averageEl = document.getElementById("simulatorAverage");
+  if (totalEl) totalEl.textContent = formatMinutes(total);
+  if (daysEl) daysEl.textContent = `希望 ${days}日`;
+  if (averageEl) averageEl.textContent = `1日平均 ${days ? formatMinutes(Math.round(total / days / 15) * 15) : "0時間"}`;
+}
+
+function renderMascotGrowth() {
+  const stages = [
+    { min: 0, next: 1, icon: "🥚", name: "たまご" },
+    { min: 1, next: 5, icon: "🐣", name: "ちび恐竜" },
+    { min: 5, next: 15, icon: "🦖", name: "冒険恐竜" },
+    { min: 15, next: null, icon: "🦖", name: "ベテラン恐竜" },
+  ] as const;
+  const stage = [...stages].reverse().find((item) => submissionCount >= item.min) ?? stages[0];
+  const mascot = document.getElementById("growthMascot");
+  const stageEl = document.getElementById("growthStage");
+  const progress = document.getElementById("growthProgress");
+  if (mascot) { mascot.textContent = stage.icon; mascot.dataset.stage = stage.name; }
+  if (stageEl) stageEl.textContent = stage.name;
+  if (progress) progress.textContent = stage.next === null ? `累計${submissionCount}回提出・立派に育ちました！` : `累計${submissionCount}回提出・あと${stage.next - submissionCount}回で成長`;
+}
+
+async function loadEmployeeAnnouncement() {
+  const token = getToken();
+  if (!token || !employeeAnnouncement || !employeeAnnouncementText) return;
+  try {
+    const response = await fetch("/api/employee/announcement", { headers: { Authorization: `Bearer ${token}` } });
+    const data = await response.json();
+    const message = String(data?.announcement?.message ?? "").trim();
+    employeeAnnouncementText.textContent = message;
+    employeeAnnouncement.style.display = response.ok && message ? "grid" : "none";
+  } catch { employeeAnnouncement.style.display = "none"; }
 }
 
 function fallbackDailyFact(date: Date) {
@@ -718,6 +767,7 @@ async function employeeLogin(employee_id: string, pin: string) {
     token: json.token as string, 
     store_id: json.store_id as string,
     employee_name: json.employee_name as string,
+    submission_count: Number(json.submission_count ?? 0),
   };
 }
 
@@ -777,6 +827,8 @@ async function handleEmployeeLogin() {
     employee_name: result.employee_name,
     store_id: result.store_id,
   };
+  submissionCount = result.submission_count;
+  renderMascotGrowth();
 
   const transitionStarted = performance.now();
   if (loginTransitionOverlay) loginTransitionOverlay.style.display = "flex";
@@ -786,6 +838,7 @@ async function handleEmployeeLogin() {
     setLoginUserLabell(`${result.employee_name} (${result.store_id})`);
     await loadExistingSubmissionIfAny().catch((error) => console.error("loadExistingSubmission error:", error));
     await loadEmployeeCalendar().catch((error) => console.error("loadEmployeeCalendar error:", error));
+    await loadEmployeeAnnouncement();
     const remaining = Math.max(0, 700 - (performance.now() - transitionStarted));
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
     updateAuthUI();
@@ -798,6 +851,8 @@ async function handleEmployeeLogin() {
 function handleEmployeeLogout() {
   clearToken();
   currentEmployee = null;
+  submissionCount = 0;
+  if (employeeAnnouncement) employeeAnnouncement.style.display = "none";
 
   // 入力系（optional chaining で代入しない）
   const pinInput = getEl<HTMLInputElement>("pinInput");
@@ -929,6 +984,7 @@ async function loadExistingSubmissionIfAny() {
   }
 
   applyBusinessHoursToInputs(submission.data ?? {});
+  updateShiftSimulator();
   updatePreview(submission);
 }
 
@@ -976,6 +1032,7 @@ function restoreDraft() {
     const draft = JSON.parse(localStorage.getItem(key) ?? "null");
     if (!draft?.data) return;
     applyBusinessHoursToInputs(draft.data);
+    updateShiftSimulator();
     if (commentEl) commentEl.value = String(draft.comment ?? "").slice(0, 300);
     updateCommentCount();
     const status = document.getElementById("submitStatus");
@@ -991,7 +1048,7 @@ function clearDraft() {
 }
 
 document.querySelectorAll<HTMLSelectElement>('select[data-day][data-kind]').forEach((select) => {
-  select.addEventListener("change", saveDraft);
+  select.addEventListener("change", () => { saveDraft(); updateShiftSimulator(); });
 });
 commentEl?.addEventListener("input", saveDraft);
 
@@ -1055,6 +1112,7 @@ shiftForm.addEventListener("submit", async (event) => {
     }
 
     const savedMode = json.mode === "updated" ? "updated" : "submitted";
+    if (savedMode === "submitted") { submissionCount += 1; renderMascotGrowth(); }
     showSubmissionSuccess(currentEmployee.employee_name, payload.data, payload.comment, savedMode);
 
     clearDraft();
@@ -1083,6 +1141,7 @@ function clearShiftInputs() {
   });
 
   updatePreview({}); 
+  updateShiftSimulator();
 }
 
 // 初期化

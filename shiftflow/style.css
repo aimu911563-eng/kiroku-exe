@@ -2260,6 +2260,31 @@ label.dayLabel[data-day="6"] {
   .loginPixelMascot, .loginSpinner { animation: none; }
 }
 
+.employeeAnnouncement {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid #cfe3ff;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #f3f8ff, #fff);
+}
+.employeeAnnouncement .miniMascot { font-size: 34px; text-align: center; }.employeeAnnouncement span { color: #397941; font-size: 11px; font-weight: 800; }.employeeAnnouncement p { margin: 4px 0 0; color: #3f3f46; line-height: 1.55; white-space: pre-wrap; }
+
+.shiftInsights { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 20px; }
+.mascotGrowthCard, .shiftSimulatorCard { min-height: 116px; padding: 16px; border: 1px solid #e2e5ea; border-radius: 18px; background: #fff; }
+.mascotGrowthCard { display: grid; grid-template-columns: 58px 1fr; gap: 12px; align-items: center; }.growthMascot { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: #f1f8ed; font-size: 34px; animation: loginMascotBounce .8s ease-in-out infinite alternate; }.mascotGrowthCard span, .shiftSimulatorCard > span { display: block; color: #777780; font-size: 11px; font-weight: 750; }.mascotGrowthCard strong { display: block; margin-top: 3px; font-size: 18px; }.mascotGrowthCard p { margin: 5px 0 0; color: #6e6e73; font-size: 11px; line-height: 1.45; }
+.shiftSimulatorCard { background: linear-gradient(145deg, #edf6ff, #f7f4ff); }.shiftSimulatorCard strong { display: block; margin: 6px 0 10px; color: #0071e3; font-size: 30px; letter-spacing: -.03em; }.shiftSimulatorCard div { display: flex; flex-wrap: wrap; gap: 7px; }.shiftSimulatorCard small { padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.78); color: #52525a; font-weight: 700; }
+
+.announcementTextarea { min-height: 110px; resize: vertical; line-height: 1.6; }.announcementAdminFooter { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; margin-top: 12px; }.announcementToggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }.announcementToggle input { width: 19px; height: 19px; }.announcementAdminFooter > span { color: #777780; font-size: 12px; }
+
+@media (max-width: 680px) {
+  .shiftInsights { grid-template-columns: 1fr; }
+  .announcementAdminFooter { grid-template-columns: 1fr auto; }.announcementAdminFooter .btn { grid-column: 1 / -1; width: 100%; }
+}
+
 .successKeywordMessage {
   margin-top: 12px;
   padding: 13px;

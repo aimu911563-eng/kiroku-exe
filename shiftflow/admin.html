@@ -6,81 +6,196 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css">
   <title>ShiftFlow Admin</title>
-  <style>
-</style>
 
 </head>
-<body>
-  <div style="max-width:980px;margin:40px auto;font-family:system-ui;">
-    <h1>ShiftFlow 管理画面</h1>
+<body class="adminPage">
+  <main class="adminShell">
+    <header class="adminHeader">
+      <div>
+        <p class="eyebrow">ShiftFlow</p>
+        <h1>シフト管理</h1>
+        <p class="adminLead">提出状況と従業員を、ひとつの画面で管理できます。</p>
+      </div>
+    </header>
 
-    <section id="loginBox" style="margin-top:16px;padding:16px;border:1px solid #ddd;border-radius:12px;">
-      <p style="margin:0 0 12px;">管理者パスワード</p>
-      <input id="pw" type="password" placeholder="password" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;" />
-      <label style="display: block;" margin-top:12px;>
+    <section id="loginBox" class="surface loginCard">
+      <div class="sectionHeading">
+        <h2>管理者ログイン</h2>
+        <p>店舗を選び、管理者パスワードを入力してください。</p>
+      </div>
+      <label class="fieldLabel">
         店舗
-        <select id="store" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-top: 6px; ">
+        <select id="store" class="fieldControl">
             <option value="">選択してください</option>
             <option value="terajima">寺島</option>
             <option value="hamakita">浜北小松</option>
             <option value="kosai">湖西</option>
         </select>
       </label>
-      <button id="loginBtn" style="margin-top:12px;padding:10px 14px;">ログイン</button>
-      <p id="loginMsg" style="margin:12px 0 0;color:#b00;"></p>
+      <label class="fieldLabel">
+        管理者パスワード
+        <input id="pw" class="fieldControl" type="password" placeholder="パスワードを入力" />
+      </label>
+      <button id="loginBtn" class="btn btnPrimary btnWide">ログイン</button>
+      <p id="loginMsg" class="statusMessage" aria-live="polite"></p>
     </section>
     
     
 
     <div id="employeeModalOverlay" class="modalOverlay hidden">
-        <div class="modalCard">
-            <h3>新人登録</h3>
+        <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="employeeCreateTitle">
+            <div class="modalHeader">
+              <span class="modalIcon modalIconAdd" aria-hidden="true">＋</span>
+              <div>
+                <p class="eyebrow">従業員管理</p>
+                <h3 id="employeeCreateTitle">新人を登録</h3>
+                <p>ログインに使う従業員情報を入力します。</p>
+              </div>
+            </div>
 
             <label>
-                従業員番号（8桁）
-                <input id="empIdInput" inputmode="numeric" maxlength="8" placeholder="72490001" />
+                <span id="empIdLabel">従業員番号（8桁）</span>
+                <input id="empIdInput" inputmode="numeric" maxlength="9" placeholder="例：72490001" />
             </label>
 
             <label>
                 氏名
-                <input id="empNameInput" maxlength="30" placeholder="中村 マルクス 光葉">
+                <input id="empNameInput" maxlength="30" placeholder="氏名を入力">
             </label>
 
             <label>
                 初期PIN（4桁）
-                <input id="empPinInput" inputmode="numeric" maxlength="4" placeholder="MMDD or 1234" />
-                <small>誕生日なら 0305 みたいにゼロ埋め</small>
+                <input id="empPinInput" inputmode="numeric" maxlength="4" placeholder="例：0305" />
+                <small>4桁で入力します。誕生日の場合はゼロを含めます。</small>
+            </label>
+
+            <label class="modalConfirmCheck">
+                <input id="employeeCreateConfirmCheck" type="checkbox">
+                <span>従業員番号・氏名・初期PINを確認しました</span>
             </label>
 
             <div class="modalActions">
-                <button id="closeEmployeeModal">キャンセル</button>
-                <button id="submitEmployeeModal">登録</button>
+                <button id="closeEmployeeModal" class="btn btnGhost">キャンセル</button>
+                <button id="submitEmployeeModal" class="btn btnPrimary" disabled>登録する</button>
             </div>
 
             <p id="employeeModalError" class="errorText hidden"></p>
         </div>
     </div>
 
-    <section id="adminBox" 
-      style="
-        display: none; 
-        margin-top: 16px; 
-        padding: 20px; 
-        border: 1px solid #ddd; 
-        border-radius: 12px; 
+    <div id="employeeDeleteModalOverlay" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="employeeDeleteTitle">
+      <div class="modalCard employeeDeleteModalCard">
+        <div class="modalHeader">
+          <span class="modalIcon modalIconDelete" aria-hidden="true">−</span>
+          <div>
+            <p class="eyebrow">従業員管理</p>
+            <h3 id="employeeDeleteTitle">従業員を削除</h3>
+            <p class="modalDescription">対象者を選択してください。複数選択できます。</p>
+          </div>
+        </div>
 
-        max-width: 980px;
+        <div id="employeeDeleteLoading" class="employeeDeleteState">読み込み中...</div>
+        <div id="employeeDeleteList" class="employeeDeleteList hidden"></div>
+        <p id="employeeDeleteEmpty" class="employeeDeleteState hidden">削除できる従業員はいません。</p>
+        <p id="employeeDeleteError" class="errorText hidden"></p>
 
-        width: 100%;
-        box-sizing: border-box;
-        margin-left: auto;
-        margin-right: auto;
-        "
-    >
+        <div id="employeeDeleteConfirm" class="deleteConfirm hidden">
+          <strong><span id="employeeDeleteCount">0</span>名を本当に削除しますか？</strong>
+          <span>管理画面と提出対象から外れ、ログインできなくなります。過去の提出データは残ります。</span>
+          <label class="modalConfirmCheck employeeDeleteFinalCheck">
+            <input id="employeeDeleteConfirmCheck" type="checkbox">
+            <span>選択した従業員と削除後の影響を確認しました</span>
+          </label>
+        </div>
+
+        <div class="modalActions">
+          <button id="closeEmployeeDeleteModal" class="btn btnGhost">キャンセル</button>
+          <button id="openEmployeeDeleteConfirm" class="btn btnDanger" disabled>削除する</button>
+          <button id="submitEmployeeDelete" class="btn btnDanger hidden" disabled>本当に削除する</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="businessHoursConfirmOverlay" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="businessHoursConfirmTitle">
+      <div class="modalCard businessHoursConfirmCard">
+        <div class="modalHeader">
+          <span class="modalIcon businessHoursModalIcon" aria-hidden="true">✓</span>
+          <div>
+            <p class="eyebrow">営業時間設定</p>
+            <h3 id="businessHoursConfirmTitle">この内容で保存しますか？</h3>
+            <p class="modalDescription">従業員が選択できるシフト時間に反映されます。</p>
+          </div>
+        </div>
+        <div id="businessHoursConfirmSummary" class="businessHoursConfirmSummary"></div>
+        <label class="modalConfirmCheck">
+          <input id="businessHoursConfirmCheck" type="checkbox">
+          <span>店舗と営業時間の内容を確認しました</span>
+        </label>
+        <div class="modalActions">
+          <button id="cancelBusinessHoursSave" type="button" class="btn btnGhost">戻る</button>
+          <button id="confirmBusinessHoursSave" type="button" class="btn btnPrimary" disabled>確認して保存</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="adminBox" class="adminContent">
+        <section class="surface businessHoursCard">
+          <div class="sectionHeading">
+            <h2>営業時間</h2>
+            <p>シフトを選択できる時間帯の基準です。入力可能時刻は閉店後1時間、最長24:30までです。</p>
+          </div>
+          <div class="businessHoursGrid">
+            <fieldset>
+              <legend>平日（月〜木）</legend>
+              <label class="fieldLabel">開店<select id="weekdayOpen" class="fieldControl hoursSelect"></select></label>
+              <label class="fieldLabel">閉店<select id="weekdayClose" class="fieldControl hoursSelect"></select></label>
+            </fieldset>
+            <fieldset>
+              <legend>金・土・日・祝</legend>
+              <label class="fieldLabel">開店<select id="weekendOpen" class="fieldControl hoursSelect"></select></label>
+              <label class="fieldLabel">閉店<select id="weekendClose" class="fieldControl hoursSelect"></select></label>
+            </fieldset>
+          </div>
+          <div class="businessHoursFooter">
+            <p id="businessHoursMessage" class="statusMessage" aria-live="polite"></p>
+            <button id="saveBusinessHours" type="button" class="btn btnPrimary">営業時間を保存</button>
+          </div>
+        </section>
+
+        <section class="surface employeeManagementCard">
+          <div class="sectionHeading">
+            <h2>従業員管理</h2>
+            <p>新人の登録や、退職した従業員の削除ができます。</p>
+          </div>
+          <div class="employeeActions">
+            <button id="openEmployeeModal" class="actionButton actionButtonPrimary">
+              <span class="actionButtonIcon" aria-hidden="true">＋</span>
+              <span><strong>新人を登録</strong><small>従業員番号・氏名・PINを追加</small></span>
+            </button>
+            <button id="openEmployeeDeleteModal" class="actionButton actionButtonDanger">
+              <span class="actionButtonIcon" aria-hidden="true">−</span>
+              <span><strong>従業員を削除</strong><small>複数選択して退職扱いに変更</small></span>
+            </button>
+          </div>
+        </section>
+
+        <section class="surface announcementAdminCard">
+          <div class="sectionHeading">
+            <h2>店長からのお知らせ</h2>
+            <p>ログイン後、従業員画面で恐竜がこのメッセージを案内します。</p>
+          </div>
+          <textarea id="announcementMessage" class="fieldControl announcementTextarea" maxlength="300" placeholder="例：今週末は新商品スタートです。よろしくお願いします！"></textarea>
+          <div class="announcementAdminFooter">
+            <label class="announcementToggle"><input id="announcementActive" type="checkbox"><span>従業員に公開する</span></label>
+            <span id="announcementCount">0/300</span>
+            <button id="saveAnnouncement" type="button" class="btn btnPrimary">お知らせを保存</button>
+          </div>
+          <p id="announcementMessageStatus" class="statusMessage" aria-live="polite"></p>
+        </section>
+
+        <section class="surface submissionCard">
         <div class="toolbar">
             <div class="toolbarLeft">
-                <button id="openEmployeeModal" class="linkLike">新人登録はこちら</button>
-
                 <button id="loadBtn" class="btn">サマリ</button>
                 <button id="logoutBtn" class="btn btnGhost">ログアウト</button>
             </div>
@@ -111,8 +226,59 @@
                 </div>
             </div>
         </div>
+        </section>
+
+        <section class="surface plannerCard">
+          <div class="plannerHeader">
+            <div class="sectionHeading">
+              <h2>シフト作成ボード</h2>
+              <p>希望人数を分析し、時間帯ごとの過不足を確認できます。</p>
+            </div>
+            <div class="plannerControls">
+              <label>平日 必要人数<input id="requiredStaffWeekday" class="input" type="number" min="1" max="20" value="2"></label>
+              <label>金土日祝 必要人数<input id="requiredStaffWeekend" class="input" type="number" min="1" max="20" value="2"></label>
+              <button id="loadPlanner" type="button" class="btn btnPrimary">分析する</button>
+            </div>
+          </div>
+
+          <div id="plannerEmpty" class="plannerEmpty">対象週を選び「分析する」を押してください。</div>
+          <div id="plannerContent" class="hidden">
+            <div class="plannerSubheading">
+              <h3>人員ヒートマップ</h3>
+              <span>赤：不足　緑：充足　青：余裕</span>
+            </div>
+            <div id="staffingWarnings" class="staffingWarnings"></div>
+            <section class="staffingChartCard">
+              <div class="staffingChartHeader">
+                <div>
+                  <h4>時間別人数グラフ</h4>
+                  <p>棒の高さが勤務人数、点線が必要人数です。</p>
+                </div>
+                <div id="staffingChartDays" class="staffingChartDays" aria-label="表示する曜日"></div>
+              </div>
+              <div class="staffingChartScroll">
+                <div id="staffingChart" class="staffingChart"></div>
+              </div>
+            </section>
+            <div id="heatmapWrap" class="heatmapWrap"></div>
+
+            <div class="plannerSubheading boardHeading" style="display:none;" aria-hidden="true">
+              <div>
+                <h3>勤務表</h3>
+                <span>カードを別の曜日へドラッグできます。スマホではカード内の曜日を変更します。</span>
+              </div>
+              <div class="plannerPublishActions">
+                <span id="plannerPublishState" class="publishState" style="display:none;" aria-hidden="true">未公開</span>
+                <button id="savePlanner" type="button" class="btn btnGhost">シフト案を保存</button>
+                <button id="publishPlanner" type="button" class="btn btnPrimary" style="display:none;" aria-hidden="true" tabindex="-1">従業員に公開</button>
+              </div>
+            </div>
+            <div id="plannerBoard" class="plannerBoard" style="display:none;" aria-hidden="true"></div>
+            <p id="plannerMessage" class="statusMessage" aria-live="polite" style="display:none;"></p>
+          </div>
+        </section>
     </section>
-  </div>
+  </main>
 
   <script type="module" src="/src/admin.ts"></script>
 </body>
