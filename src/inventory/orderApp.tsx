@@ -1,417 +1,87 @@
-import { useEffect, useMemo, useState  } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type OrderRow = {
-  store_id: string;
-  order_date: string;
-  display_order: number;
-  item_code: string;
-  name: string;
-  category: string;
-  priority: number;
-  per_100k: number;
-  budget_type: "base" | "onion" | "mushroom";
-  target_budget: number | null;
-  required_qty: number;
-  fridge_qty: number;
-  freezer_qty: number;
-  stock_qty: number;
-  order_qty: number;
-  input_by?: string | null;
-  updated_at?: string | null;
+  store_id: string; order_date: string; display_order: number; item_code: string; name: string; category: string;
+  priority: number; per_100k: number; budget_type: "base" | "onion" | "mushroom"; target_budget: number | null;
+  required_qty: number; fridge_qty: number; freezer_qty: number; stock_qty: number; order_qty: number;
 };
 
-const API_BASE = "/api";
-const today = new Date().toISOString().slice(0, 10);
 const params = new URLSearchParams(window.location.search);
 const STORE_ID = params.get("store_id") || "7249";
-const STORE_NAMES: Record<string, string> = {
-  "7249": "寺島",
-  "7539": "浜北",
-};
-const storeName = STORE_NAMES[STORE_ID] || STORE_ID;
-const STORE_CONFIG: Record<string, { name: string; orderDays: number[] }> = {
-    "7249" : { name: "寺島", orderDays: [2, 5]},
-    "7539" : { name: "浜北", orderDays: [1, 4]},
-};
-const config = STORE_CONFIG[STORE_ID];
+const STORE_NAMES: Record<string, string> = { "7249": "寺島", "7539": "浜北小松" };
+const STORE_CONFIG: Record<string, { orderDays: number[] }> = { "7249": { orderDays: [2, 5] }, "7539": { orderDays: [1, 4] } };
+const config = STORE_CONFIG[STORE_ID] ?? STORE_CONFIG["7249"];
 
+function localDateKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
+function initialOrderDate() {
+  const date = new Date();
+  for (let i = 0; i < 8; i += 1) { if (config.orderDays.includes(date.getDay())) return localDateKey(date); date.setDate(date.getDate() + 1); }
+  return localDateKey(new Date());
+}
 
 export default function OrderInputPage() {
-    const [date, setDate] = useState(today);
-    const [rows, setRows] = useState<OrderRow[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState("");
-    const [fridgeDrafts, setFridgeDrafts] = useState<Record<string, string>>({});
-    const [freezerDrafts, setFreezerDrafts] = useState<Record<string, string>>({});
-    const [toast, setToast] = useState<string | null>(null);
+  const [date, setDate] = useState(initialOrderDate);
+  const [rows, setRows] = useState<OrderRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [fridgeDrafts, setFridgeDrafts] = useState<Record<string, string>>({});
+  const [freezerDrafts, setFreezerDrafts] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<string | null>(null);
 
+  async function loadDate(targetDate = date) {
+    setLoading(true); setMessage("");
+    try {
+      const response = await fetch(`/api/order/calc?store_id=${encodeURIComponent(STORE_ID)}&date=${encodeURIComponent(targetDate)}`);
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) throw new Error(json?.error || "読み込みに失敗しました");
+      const data: OrderRow[] = Array.isArray(json.data) ? json.data : [];
+      setRows(data);
+      setFridgeDrafts(Object.fromEntries(data.map((row) => [row.item_code, Number(row.fridge_qty) ? String(row.fridge_qty) : ""])));
+      setFreezerDrafts(Object.fromEntries(data.map((row) => [row.item_code, Number(row.freezer_qty) ? String(row.freezer_qty) : ""])));
+      if (!data.length) setMessage(config.orderDays.includes(new Date(`${targetDate}T12:00:00`).getDay()) ? "この発注日の予算がまだ登録されていません。管理画面で予算を入力してください。" : "この日は発注日ではありません。案内されている曜日を選択してください。");
+    } catch (error) { setRows([]); setMessage(error instanceof Error ? error.message : "読み込みに失敗しました"); }
+    finally { setLoading(false); }
+  }
 
+  useEffect(() => { loadDate(date); }, [date]);
 
-    async function loadDate(targetDate = date) {
-        setLoading(true);
-        setMessage("");
+  async function saveAll() {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/inventory/bulk-input", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        store_id: STORE_ID, date, items: rows.map((row) => ({ item_code: row.item_code, fridge_qty: Number(fridgeDrafts[row.item_code] || 0), freezer_qty: Number(freezerDrafts[row.item_code] || 0) })),
+      }) });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) throw new Error(json?.error || "保存に失敗しました");
+      setToast("在庫数を保存しました"); setTimeout(() => setToast(null), 2800); await loadDate(date);
+    } catch (error) { setToast(error instanceof Error ? error.message : "保存に失敗しました"); setLoading(false); }
+  }
 
-        try {
-            const res = await fetch(
-            `/api/order/calc?store_id=${encodeURIComponent(STORE_ID)}&date=${encodeURIComponent(targetDate)}`
-            );
-            const json = await res.json();
+  const grouped = useMemo(() => [
+    ["ピザ食材", rows.filter((row) => row.category === "main")],
+    ["サイド", rows.filter((row) => row.category === "side")],
+    ["オニオン・ピーマン", rows.filter((row) => row.category === "fresh_veg")],
+    ["マッシュルーム", rows.filter((row) => row.category === "mushroom")],
+  ] as const, [rows]);
+  const updateDraft = (setter: React.Dispatch<React.SetStateAction<Record<string, string>>>, code: string, value: string) => { if (!value || /^\d*\.?\d*$/.test(value)) setter((current) => ({ ...current, [code]: value })); };
 
-            if (!json.ok) {
-            throw new Error(json.error || "読み込み失敗しました");
-            }
-
-            const data: OrderRow[] = Array.isArray(json.data) ? json.data : [];
-            setRows(data);
-
-            const nextFridge: Record<string, string> = {};
-            const nextFreezer: Record<string, string> = {};
-
-            for (const row of data) {
-                nextFridge[row.item_code] = row.fridge_qty && Number(row.fridge_qty) 
-                    !== 0 ? String(row.fridge_qty) 
-                    : "";
-                nextFreezer[row.item_code] = row.freezer_qty && Number(row.freezer_qty) 
-                    !== 0 ? String(row.freezer_qty) 
-                    : "";
-            }
-
-            setFridgeDrafts(nextFridge);
-            setFreezerDrafts(nextFreezer);
-        } catch (err) {
-            console.log(err);
-            setMessage(err instanceof Error ? err.message : "読み込み失敗しました");
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    useEffect (() => {
-        loadDate(date);
-    }, [date]);
-    
-    
-    async function saveAll() {
-        setMessage("");
-
-        const items = rows.map((row) => ({
-            item_code: row.item_code,
-            fridge_qty: Number(fridgeDrafts[row.item_code] || 0),
-            freezer_qty: Number(freezerDrafts[row.item_code] || 0),
-        }));
-
-        try {
-            const res = await fetch(`${API_BASE}/inventory/bulk-input`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                store_id: STORE_ID,
-                date,
-                items,
-            }),
-            });
-
-            if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`HTTP ${res.status}: ${text}`);
-            }
-
-            const json = await res.json();
-
-            if (!json.ok) {
-            throw new Error(json.error || "保存に失敗しました");
-            }
-
-            setToast("保存しました");
-            setTimeout(() => setToast(null), 3000);
-
-            await loadDate(date);
-        } catch (err) {
-            console.error(err);
-            setToast("保存に失敗しました")
-        }
-    }
-
-    const grouped = useMemo(() => {
-        return {
-            main: rows.filter((row) => row.category === "main"),
-            side: rows.filter((row) => row.category === "side"),
-            freshVeg: rows.filter((row) => row.category === "fresh_veg"),
-            mushroom: rows.filter((row) => row.category === "mushroom"),
-        };
-    }, [rows]);
-
-    function updateFridgeDraft(itemCode: string, value: string) {
-        if (value !== "" && !/^\d*\.?\d*$/.test(value)) return;
-        setFridgeDrafts((prev) => ({ ...prev, [itemCode]: value }));
-    }
-
-    function updateFreezerDraft(itemCode: string, value: string) {
-        if (value !== "" && !/^\d*\.?\d*$/.test(value)) return;
-        setFreezerDrafts((prev) => ({ ...prev, [itemCode]: value }));
-    }
-
-    return (
-        <div style={{ maxWidth: 660, margin: "0 auto", padding: 12, }}>
-            <h1 style={{ fontSize: 22, marginBottom: 40, textAlign: "center" }}>発注自動計算</h1>
-                <div style={{ fontSize: 12, color: "#666", marginTop: 8, marginBottom:10 }}>
-                    店舗: {storeName}  ({STORE_ID})
-                </div>
-
-                <div style={{
-                    display: "flex",
-                    gap: 12,
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    marginBottom: 12,
-                }}
-                >
-                <div style={{ marginBottom: 14, lineHeight: 1.6 }}>
-                    <div style={{ fontSize: 13, color: "#444" }}>
-                        発注日は {config.orderDays.map(d => ["日","月","火","水","木","金","土"][d]).join("・")} を選択してください
-                    </div>
-                    <div style={{ fontSize: 13, color: "#444" }}>
-                        冷蔵庫(W/I)・冷凍庫の在庫を入力すると発注数が自動計算されます
-                    </div>
-                    <div style={{ fontSize: 12, color: "#777", marginTop: 6 }}>
-                        WEB発注時は、ユーザーIDに自分の従業員番号を入力してください
-                    </div>
-                </div>
-
-                <label style={{ display: "flex", flexDirection: "column", minWidth: 120, fontSize: 12, fontWeight: 600 }}>
-                    発注日{" "}
-                    <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        style={{ padding: 8 }}
-                    />
-                </label>
-
-                <button onClick={() => 
-                  loadDate(date)} 
-                  disabled={loading} 
-                  style={{
-                        minWidth: 110,
-                        height: 38,
-                        padding: "0 10px",
-                        whiteSpace: "nowrap",
-                        background: "#333",
-                        color: "#fff",
-                    }}
-                >
-                    {loading ? "読み込み中..." : "読み込み"}
-                </button>
-
-                <button 
-                  onClick={saveAll} 
-                  disabled={loading || rows.length === 0}
-                  style={{
-                        minWidth: 110,
-                        height: 38,
-                        padding: "0 10px",
-                        whiteSpace: "nowrap",
-                        background: "#fff",
-                        color: "#333",
-                    }}
-                >
-                    一括保存
-                </button>
-            </div>
-
-            {rows.length === 0 && (
-                <div style={{ color: "#999", marginTop: 20 }}>
-                    この日の予算データが登録されていません
-                </div>
-            )}
-
-            <Section 
-                title="ピザ食材"
-                rows={grouped.main}
-                fridgeDrafts={fridgeDrafts}
-                freezerDrafts={freezerDrafts}
-                onFridgeChange={updateFridgeDraft}
-                onFreezerChange={updateFreezerDraft}
-            />
-
-            <Section 
-                title="サイド"
-                rows={grouped.side}
-                fridgeDrafts={fridgeDrafts}
-                freezerDrafts={freezerDrafts}
-                onFridgeChange={updateFridgeDraft}
-                onFreezerChange={updateFreezerDraft}
-            />
-
-            <Section 
-                title="生鮮野菜"
-                rows={grouped.freshVeg}
-                fridgeDrafts={fridgeDrafts}
-                freezerDrafts={freezerDrafts}
-                onFridgeChange={updateFridgeDraft}
-                onFreezerChange={updateFreezerDraft}
-            />
-
-            <Section 
-                title="特別発注マッシュルーム"
-                rows={grouped.mushroom}
-                fridgeDrafts={fridgeDrafts}
-                freezerDrafts={freezerDrafts}
-                onFridgeChange={updateFridgeDraft}
-                onFreezerChange={updateFreezerDraft}
-            />
-
-            {toast && (
-                <div style={{
-                    position: "fixed",
-                    bottom: 20,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    background: "#333",
-                    color: "#fff",
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    opacity: 0.9,
-                }}>
-                    {toast}
-                </div>
-            )}
-        </div>
-    );
+  return <main className="orderShell">
+    <header className="orderHero"><div><span className="orderEyebrow">SMART ORDER</span><h1>発注自動計算</h1><p>{STORE_NAMES[STORE_ID] ?? STORE_ID}（{STORE_ID}）</p></div><a className="orderButton ghost" href={`/order-admin?store_id=${STORE_ID}`}>管理画面</a></header>
+    <section className="orderPanel">
+      <p className="orderHint">発注日は<strong>{config.orderDays.map((day) => ["日","月","火","水","木","金","土"][day]).join("・曜日")}</strong>です。冷凍庫と冷蔵庫（W/I）の数量を入力すると、発注数を自動計算します。</p>
+      <div className="orderToolbar"><label className="orderField">発注日<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button className="orderButton ghost" onClick={() => loadDate(date)} disabled={loading}>{loading ? "読込中…" : "再読み込み"}</button><button className="orderButton primary" onClick={saveAll} disabled={loading || !rows.length}>在庫を保存</button></div>
+      {message && <div className={`orderAlert ${rows.length ? "" : "error"}`}>{message}</div>}
+      {!loading && !rows.length && <div className="orderEmpty">対象データがありません</div>}
+      {grouped.map(([title, sectionRows]) => <OrderSection key={title} title={title} rows={sectionRows} fridgeDrafts={fridgeDrafts} freezerDrafts={freezerDrafts} onFridge={(code, value) => updateDraft(setFridgeDrafts, code, value)} onFreezer={(code, value) => updateDraft(setFreezerDrafts, code, value)} />)}
+    </section>
+    {toast && <div className="orderToast" role="status">{toast}</div>}
+  </main>;
 }
 
-function Section({
-    title,
-    rows,
-    fridgeDrafts,
-    freezerDrafts,
-    onFridgeChange,
-    onFreezerChange,
-} : {
-    title: string;
-    rows: OrderRow[];
-    fridgeDrafts: Record<string, string>;
-    freezerDrafts: Record<string, string>;
-    onFridgeChange: (itemCode: string, value: string) => void;
-    onFreezerChange: (itemCode: string, value: string) => void;
-}) {
-    if (rows.length === 0) return null;
-
-    return (
-        <div style={{ marginBottom: 24 }}>
-            <h2 style={{ fontSize: 22, marginBottom: 8}}>{title}</h2>
-
-            <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", padding: 6, fontSize: 12, tableLayout: "fixed" }}>
-                    <thead>
-                        <tr>
-                            <Th width="30%">食材名</Th>
-                            <Th width="12%">必要数</Th>
-                            <Th width="16%">冷凍</Th>
-                            <Th width="16%">冷蔵(W/I)</Th>
-                            <Th width="10%">合計</Th>
-                            <Th width="12%">発注数</Th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((row) => {
-                            const fridge = Number(fridgeDrafts[row.item_code] || 0);
-                            const freezer = Number(freezerDrafts[row.item_code] || 0);
-                            const total = fridge + freezer;
-                            //const orderQty = Math.max(Number(row.required_qty || 0) - total, 0);
-                            const rawOrderQty = Math.max(Number(row.required_qty || 0) - total, 0);
-                            const orderQty = Math.ceil(rawOrderQty);
-
-                            return (
-                                <tr key={row.item_code}>
-                                    <Td width="30%" 
-                                        style={{
-                                            textAlign: "center",
-                                            lineHeight: "1.25",
-                                            wordBreak: "break-word",
-                                        }}
-                                    >
-                                        {row.name}
-                                    </Td>
-                                    <Td width="12%">
-                                        {row.required_qty}
-                                    </Td>
-                                    <Td width="16%">
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={fridgeDrafts[row.item_code] ?? ""}
-                                            placeholder="0"
-                                            onChange={(e) => onFridgeChange(row.item_code, e.target.value)}
-                                            style={{ width: 40, padding: "6px 4px", textAlign: "center", }}
-                                        />
-                                    </Td>
-                                    <Td width="16%">
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={freezerDrafts[row.item_code] ?? ""}
-                                            placeholder="0"
-                                            onChange={(e) => onFreezerChange(row.item_code, e.target.value)}
-                                            style={{ width: 40, padding: "6px 4px", textAlign: "center" }}
-                                        />
-                                    </Td>
-                                    <Td width="10%" >
-                                        {total}
-                                    </Td>
-                                    <Td width="12%" style={{ 
-                                        color: orderQty === 0 
-                                          ? "#aaa" 
-                                          : orderQty >= 10
-                                          ? "#d32f2f"
-                                          : "#1976d2",
-                                        fontWeight: orderQty === 0 ? 400 : 600,
-                                        backgroundColor: orderQty > 0 ? "#e3f2fd" : "transparent",
-                                    }}>
-                                        {orderQty.toFixed(2)}
-                                    </Td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-    );
-}
-
-function Th ({ children, width, style, } : { children: React.ReactNode; width?: string; style?: React.CSSProperties; }) {
-    return (
-        <th 
-            style={{
-            textAlign: "center",
-            borderBottom: "1px solid #ccc",
-            padding: "10px 8px",
-            whiteSpace: "nowrap",
-            width,
-            ...style,
-            }}
-        >
-            {children}
-        </th>
-    );
-}
-
-function Td ({ children, width, style } : { children: React.ReactNode; width?: string; style?: React.CSSProperties; }) {
-    return (
-        <td 
-            style={{
-            textAlign: "center",
-            borderBottom: "1px solid #eee",
-            padding: "6px 4px",
-            verticalAlign: "middle",
-            width,            
-            ...style,
-            }}
-        >
-            {children}
-        </td>
-    );
+function OrderSection({ title, rows, fridgeDrafts, freezerDrafts, onFridge, onFreezer }: { title: string; rows: OrderRow[]; fridgeDrafts: Record<string,string>; freezerDrafts: Record<string,string>; onFridge: (code:string,value:string)=>void; onFreezer: (code:string,value:string)=>void }) {
+  if (!rows.length) return null;
+  return <section className="orderSection"><h2>{title}</h2><div className="orderTableWrap"><table className="orderTable"><thead><tr><th style={{width:"32%"}}>食材名</th><th>必要数</th><th>冷凍</th><th>冷蔵</th><th>在庫計</th><th>発注数</th></tr></thead><tbody>{rows.map((row) => {
+    const fridge = Number(fridgeDrafts[row.item_code] || 0); const freezer = Number(freezerDrafts[row.item_code] || 0); const total = fridge + freezer; const orderQty = Math.ceil(Math.max(Number(row.required_qty || 0) - total, 0));
+    return <tr key={row.item_code}><td className="itemName">{row.name}</td><td>{row.required_qty}</td><td><input inputMode="decimal" value={freezerDrafts[row.item_code] ?? ""} placeholder="0" onChange={(e) => onFreezer(row.item_code,e.target.value)} /></td><td><input inputMode="decimal" value={fridgeDrafts[row.item_code] ?? ""} placeholder="0" onChange={(e) => onFridge(row.item_code,e.target.value)} /></td><td>{total}</td><td className={`orderQty ${orderQty === 0 ? "zero" : ""}`}>{orderQty}</td></tr>;
+  })}</tbody></table></div></section>;
 }

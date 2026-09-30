@@ -2,6 +2,10 @@
 
 店舗業務を効率化するためのWebアプリ群
 
+ローカル起動・API 接続先・DB の対応は [開発ガイド](docs/DEVELOPMENT.md) を参照してください。
+ルートで `npm run dev:kiroku`（画面 :5173）、`npm run dev:shiftflow`（画面 :5174）、
+または `npm run dev:all` で画面と API をまとめて起動できます。
+
 # 概要
 店舗運営の現場で感じた課題をもとに、
 シフト管理・勤務時間管理・在庫管理・有給申請などの業務を効率化するWebアプリを個人開発しています。
@@ -48,6 +52,8 @@
 
 - 常時画面： https://kiroku-exe.pages.dev/inventory
 - GitHub: https://github.com/aimu911563-eng/kiroku-exe/blob/main/inventory%20README.md
+- 浜北発注： https://kiroku-exe.pages.dev/order?store_id=7539
+- 浜北発注管理： https://kiroku-exe.pages.dev/order-admin?store_id=7539
 
 ---
 
