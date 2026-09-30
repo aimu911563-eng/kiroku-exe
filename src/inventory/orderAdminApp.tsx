@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type BudgetType = "base" | "onion" | "mushroom";
 type ItemCategory = "main" | "side" | "fresh_veg" | "mushroom";
@@ -41,6 +41,8 @@ export default function OrderAdminApp() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [touchDragCode, setTouchDragCode] = useState<string | null>(null);
+  const touchDragCodeRef = useRef<string | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState(emptyNewItem);
   const [orderDays, setOrderDays] = useState(DEFAULT_ORDER_DAYS[STORE_ID] ?? [1, 4]);
@@ -136,6 +138,40 @@ export default function OrderAdminApp() {
     if (to < 0 || to >= items.length || from === to) return;
     setItems((current) => { const next = [...current]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next; });
   }
+  function startTouchReorder(event: React.PointerEvent<HTMLButtonElement>, itemCode: string) {
+    if (event.pointerType === "mouse") return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    touchDragCodeRef.current = itemCode;
+    setTouchDragCode(itemCode);
+    navigator.vibrate?.(18);
+  }
+  function continueTouchReorder(event: React.PointerEvent<HTMLButtonElement>) {
+    const itemCode = touchDragCodeRef.current;
+    if (!itemCode || event.pointerType === "mouse") return;
+    event.preventDefault();
+    if (event.clientY < 90) window.scrollBy(0, -14);
+    else if (event.clientY > window.innerHeight - 90) window.scrollBy(0, 14);
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-item-code]");
+    const targetCode = target?.dataset.itemCode;
+    if (!targetCode || targetCode === itemCode) return;
+    setItems((current) => {
+      const from = current.findIndex((item) => item.item_code === itemCode);
+      const to = current.findIndex((item) => item.item_code === targetCode);
+      if (from < 0 || to < 0 || current[from].category !== current[to].category) return current;
+      const next = [...current];
+      const [moving] = next.splice(from, 1);
+      next.splice(to, 0, moving);
+      return next;
+    });
+  }
+  function endTouchReorder(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType === "mouse") return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    touchDragCodeRef.current = null;
+    setTouchDragCode(null);
+    navigator.vibrate?.(10);
+  }
   function addItem(event: React.FormEvent) {
     event.preventDefault();
     const itemCode = nextItemCode(newItem.category);
@@ -187,10 +223,10 @@ export default function OrderAdminApp() {
       </div><button type="button" className="orderButton primary sheetDone" onClick={() => setActiveBudgetDate(null)}>入力を完了</button></section></div>; })()}
       <div className="stickySave"><button className="orderButton primary" disabled={loading || !touchedDates.size} onClick={saveBudgets}>{loading ? "保存中…" : `${touchedDates.size || 0}日分を保存`}</button></div>
     </section> : <section className="orderPanel">
-      <div className="orderSectionHeader"><div><span className="orderEyebrow">ITEM MASTER</span><h2>食材・イールド</h2><p>4区分ごとに編集し、同じ区分内で表示順を変更できます。</p></div><div className="itemHeaderActions"><button className="orderButton ghost" onClick={() => setShowAddItem((current) => !current)}>{showAddItem ? "閉じる" : "＋ 新しいアイテム"}</button><button className="orderButton primary" disabled={loading} onClick={saveItems}>{loading ? "保存中…" : "変更を保存"}</button></div></div>
+      <div className="orderSectionHeader"><div><span className="orderEyebrow">ITEM MASTER</span><h2>食材・イールド</h2><p>左のつまみを押したまま上下へ動かすと、同じ区分内で並び替えできます。</p></div><div className="itemHeaderActions"><button className="orderButton ghost" onClick={() => setShowAddItem((current) => !current)}>{showAddItem ? "閉じる" : "＋ 新しいアイテム"}</button><button className="orderButton primary" disabled={loading} onClick={saveItems}>{loading ? "保存中…" : "変更を保存"}</button></div></div>
       {showAddItem && <form className="newItemForm" onSubmit={addItem}><div className="newItemTitle"><div><strong>新しいアイテム</strong><p>商品コードは区分から自動発行されます。追加後に「変更を保存」を押すとDBへ登録されます。</p></div><span className="generatedCode">{nextItemCode(newItem.category)}</span></div><div className="newItemFields"><label className="orderField">食材名<input autoFocus value={newItem.name} placeholder="例：モッツァレラチーズ" onChange={(e) => setNewItem((current) => ({ ...current, name: e.target.value }))} /></label><label className="orderField">区分<select value={newItem.category} onChange={(e) => setNewItem((current) => ({ ...current, category: e.target.value as ItemCategory }))}>{categoryOrder.map((category) => <option key={category} value={category}>{categoryLabels[category]}</option>)}</select></label><label className="orderField">イールド数<input inputMode="decimal" value={newItem.per_100k} placeholder="0" onChange={(e) => { const value = e.target.value; if (!value || /^\d*\.?\d*$/.test(value)) setNewItem((current) => ({ ...current, per_100k: value })); }} /></label></div><div className="newItemActions"><button type="button" className="orderButton ghost" onClick={() => { setNewItem(emptyNewItem); setShowAddItem(false); }}>キャンセル</button><button className="orderButton primary" type="submit">一覧に追加</button></div></form>}
-      <div className="itemCategoryList">{groupedItems.map(({ category, items: sectionItems }) => <section className={`itemCategorySection category-${category}`} key={category}><header><div><span>{categoryLabels[category]}</span><small>{sectionItems.length}件</small></div><p>{category === "main" || category === "side" ? "食材予算" : budgetLabels[category === "fresh_veg" ? "onion" : "mushroom"]}</p></header><div className="itemEditorList">{sectionItems.map(({ item, index }, sectionIndex) => <article key={item.item_code} draggable onDragStart={() => setDragIndex(index)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragIndex !== null && items[dragIndex]?.category === category) moveItem(dragIndex, index); setDragIndex(null); }} className="itemEditorCard">
-        <div className="dragHandle" aria-label="並び替え">⠿</div><div className="itemEditorMain"><span className={`budgetBadge ${item.budget_type}`}>{budgetLabels[item.budget_type]}</span><small>{item.item_code}</small><input aria-label="食材名" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} /><select aria-label="区分" value={item.category} onChange={(e) => { const category = e.target.value as ItemCategory; updateItem(index, { category, budget_type: category === "fresh_veg" ? "onion" : category === "mushroom" ? "mushroom" : "base" }); }}>{categoryOrder.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}</select></div>
+      <div className="itemCategoryList">{groupedItems.map(({ category, items: sectionItems }) => <section className={`itemCategorySection category-${category}`} key={category}><header><div><span>{categoryLabels[category]}</span><small>{sectionItems.length}件</small></div><p>{category === "main" || category === "side" ? "食材予算" : budgetLabels[category === "fresh_veg" ? "onion" : "mushroom"]}</p></header><div className="itemEditorList">{sectionItems.map(({ item, index }, sectionIndex) => <article key={item.item_code} data-item-code={item.item_code} draggable onDragStart={() => setDragIndex(index)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragIndex !== null && items[dragIndex]?.category === category) moveItem(dragIndex, index); setDragIndex(null); }} className={`itemEditorCard ${touchDragCode === item.item_code ? "touchDragging" : ""}`}>
+        <button type="button" className="dragHandle" aria-label={`${item.name}を並び替え`} onPointerDown={(event) => startTouchReorder(event, item.item_code)} onPointerMove={continueTouchReorder} onPointerUp={endTouchReorder} onPointerCancel={endTouchReorder}>⠿</button><div className="itemEditorMain"><span className={`budgetBadge ${item.budget_type}`}>{budgetLabels[item.budget_type]}</span><small>{item.item_code}</small><input aria-label="食材名" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} /><select aria-label="区分" value={item.category} onChange={(e) => { const category = e.target.value as ItemCategory; updateItem(index, { category, budget_type: category === "fresh_veg" ? "onion" : category === "mushroom" ? "mushroom" : "base" }); }}>{categoryOrder.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}</select></div>
         <label className="yieldField"><span>イールド数</span><input inputMode="decimal" value={item.per_100k} onChange={(e) => { const value = e.target.value; if (!value || /^\d*\.?\d*$/.test(value)) updateItem(index, { per_100k: value }); }} /></label>
         <div className="moveButtons"><button onClick={() => moveItem(index, sectionItems[sectionIndex - 1]?.index ?? -1)} disabled={sectionIndex === 0}>↑</button><button onClick={() => moveItem(index, sectionItems[sectionIndex + 1]?.index ?? items.length)} disabled={sectionIndex === sectionItems.length - 1}>↓</button></div>
       </article>)}</div></section>)}</div>
