@@ -78,6 +78,8 @@ const calendarMonth = document.getElementById("calendarMonth") as HTMLInputEleme
 const calendarGrid = document.getElementById("calendarGrid") as HTMLDivElement | null;
 const calendarStatus = document.getElementById("calendarStatus") as HTMLDivElement | null;
 const successOverlay = document.getElementById("submissionSuccessOverlay") as HTMLDivElement | null;
+const loginTransitionOverlay = document.getElementById("loginTransitionOverlay") as HTMLDivElement | null;
+const employeeLoginButton = document.getElementById("employeeLoginBtn") as HTMLButtonElement | null;
 
 function setLoginUserLabell(name: string) {
   if (loginUserLabel) loginUserLabel.textContent = `👤 ${name}`;
@@ -759,9 +761,11 @@ async function handleEmployeeLogin() {
   if (!pin || !/^\d{4}$/.test(pin)) return setAuthMsg("PINは4桁で入力してね");
   
 
-  const result = await employeeLogin(employee_id, pin);
+  if (employeeLoginButton) { employeeLoginButton.disabled = true; employeeLoginButton.textContent = "確認中…"; }
+  const result = await employeeLogin(employee_id, pin).catch(() => ({ ok: false as const, error: "通信に失敗しました。もう一度試してください" }));
   if (!result.ok) {
     setAuthMsg(result.error);
+    if (employeeLoginButton) { employeeLoginButton.disabled = false; employeeLoginButton.textContent = "ログイン"; }
     return
   };
   
@@ -774,14 +778,21 @@ async function handleEmployeeLogin() {
     store_id: result.store_id,
   };
 
-  await refreshSchedule();
-  
-  setAuthMsg(`ログインしました: ${result.employee_name}`);
-  setLoginUserLabell(`${result.employee_name} (${result.store_id})`);
-  //setLoginUserLabel(result.employee_name);
-  updateAuthUI();
-  await loadExistingSubmissionIfAny();
-  await loadEmployeeCalendar();
+  const transitionStarted = performance.now();
+  if (loginTransitionOverlay) loginTransitionOverlay.style.display = "flex";
+  try {
+    await refreshSchedule().catch((error) => console.error("refreshSchedule error:", error));
+    setAuthMsg(`ログインしました: ${result.employee_name}`);
+    setLoginUserLabell(`${result.employee_name} (${result.store_id})`);
+    await loadExistingSubmissionIfAny().catch((error) => console.error("loadExistingSubmission error:", error));
+    await loadEmployeeCalendar().catch((error) => console.error("loadEmployeeCalendar error:", error));
+    const remaining = Math.max(0, 700 - (performance.now() - transitionStarted));
+    if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
+    updateAuthUI();
+  } finally {
+    if (loginTransitionOverlay) loginTransitionOverlay.style.display = "none";
+    if (employeeLoginButton) { employeeLoginButton.disabled = false; employeeLoginButton.textContent = "ログイン"; }
+  }
 }
 
 function handleEmployeeLogout() {
