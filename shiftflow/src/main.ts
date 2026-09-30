@@ -283,7 +283,13 @@ function renderMascotGrowth() {
   const month = new Date().getMonth() + 1;
   const landscape = month >= 3 && month <= 5 ? "spring" : month >= 6 && month <= 8 ? "summer" : month >= 9 && month <= 11 ? "autumn" : "winter";
   const season = month === 10 ? { key: "halloween", label: "🎃 ハロウィン衣装中" } : month === 12 ? { key: "christmas", label: "🎄 クリスマス衣装中" } : month === 1 ? { key: "newyear", label: "🎍 お正月衣装中" } : null;
-  if (mascot) { mascot.dataset.stage = stage.key; mascot.dataset.season = season?.key ?? ""; mascot.dataset.landscape = landscape; }
+  if (mascot) {
+    mascot.dataset.stage = stage.key;
+    mascot.dataset.season = season?.key ?? "";
+    mascot.dataset.landscape = landscape;
+    const card = mascot.closest<HTMLElement>(".mascotGrowthCard");
+    if (card) card.dataset.landscape = landscape;
+  }
   if (stageEl) stageEl.textContent = stage.name;
   if (progress) progress.textContent = stage.next === null ? `累計${submissionCount}回提出・立派に育ちました！` : `累計${submissionCount}回提出・あと${stage.next - submissionCount}回で成長`;
   const seasonEl = document.getElementById("growthSeason");
