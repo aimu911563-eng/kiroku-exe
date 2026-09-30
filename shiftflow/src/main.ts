@@ -297,7 +297,9 @@ function renderMascotGrowth(playLoginWakeup = false) {
       const mondayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() - weekdayFromMonday);
       const weekIndex = Math.floor(mondayUtc / (7 * 24 * 60 * 60 * 1000));
       card.dataset.weather = weekdayFromMonday === (weekIndex * 5 + 2) % 7 ? "rain" : "clear";
-      const sleeping = playLoginWakeup && (now.getHours() >= 22 || now.getHours() < 5);
+      const nighttime = now.getHours() >= 22 || now.getHours() < 5;
+      card.dataset.time = nighttime ? "night" : "day";
+      const sleeping = playLoginWakeup && nighttime;
       card.dataset.motion = sleeping ? "sleeping" : "walking";
       mascot.dataset.motion = sleeping ? "sleeping" : "walking";
       if (mascotWakeTimer) window.clearTimeout(mascotWakeTimer);
