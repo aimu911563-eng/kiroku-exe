@@ -1,24 +1,23 @@
 
+import {
+  BUSINESS_HOURS,
+  getShiftBounds,
+  timeOptions,
+  validateShiftDataForStore,
+  type BusinessHoursDefinition,
+  type ShiftDayKey,
+  type StoreId,
+  timeToMinutes,
+} from "./shift-time";
+import { submissionMessages } from "./submission-messages";
+import { isEmployeeIdFormat } from "./employee-id";
+
 console.log("ShiftFlow main.ts 読み込み完了:)");
 
-type ShiftDayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 type ShiftData = Record<ShiftDayKey, string>;
-type StoreId = "terajima" | "kosai" | "hamakita"; //寺島、湖西、浜北
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 const API_BASE = ""
-
-const BUSINESS_HOURS: Record<StoreId, {
-  weekday: { open: string; close: string };
-  weekendHoliday: { open: string; close: string };
-}> = {
-  "terajima": { weekday:{open:"10:00",close:"23:00"}, weekendHoliday:{open:"10:00",close:"24:00"} },
-  "hamakita": { weekday:{open:"10:00",close:"21:00"}, weekendHoliday:{open:"10:00",close:"22:00"} },
-  "kosai": { weekday:{open:"15:00",close:"22:00"}, weekendHoliday:{open:"10:00",close:"22:00"} },
-} satisfies Record<StoreId, {
-  weekday: { open: string; close: string };
-  weekendHoliday: { open: string; close: string };
-}>;
 
 function escapeHtml(str: string): string {
   return str
@@ -36,7 +35,12 @@ type ShiftSubmission = {
   week_start: string;
   data: Record<string, string>;
   comment?: string;
+  status?: "submitted" | "updated";
 };
+
+type SubmissionState = "none" | "submitted" | "updated";
+let submissionState: SubmissionState = "none";
+let hasExistingSubmission = false;
 
 // DOM要素
 const shiftForm = document.getElementById("shiftForm") as HTMLFormElement;
@@ -54,12 +58,6 @@ const storePreview = document.getElementById(
   "storePreview"
 ) as HTMLParagraphElement | null;
 
-// time input
-const shiftInputs = document.querySelectorAll<HTMLInputElement>(
-  "input[data-day][data-kind]"
-);
-
-const holidayToggle = document.getElementById("holidayToggle") as HTMLInputElement | null;
 const hoursPreview = document.getElementById("hoursPreview") as HTMLParagraphElement | null;
 
 const confirmOverlay = document.getElementById("confirmOverlay") as HTMLDivElement | null;
@@ -68,35 +66,18 @@ const confirmCloseBtn = document.getElementById("confirmCloseBtn") as HTMLButton
 const confirmCancelBtn = document.getElementById("confirmCancelBtn") as HTMLButtonElement | null;
 const commentEl = document.getElementById("comment") as HTMLTextAreaElement | null;
 const confirmSubmitBtn = document.getElementById("confirmSubmitBtn") as HTMLButtonElement | null;
-//const submitStatusEl = document.getElementById("submitStatus") as HTMLParagraphElement | null;
+const submitStatusEl = document.getElementById("submitStatus") as HTMLParagraphElement | null;
 const commentCount = document.getElementById("commentCount") as HTMLDivElement | null;
 const EMP_TOKEN_KEY = "shiftflow_employee_token";
 const loginArea = document.getElementById("loginArea") as HTMLDivElement | null;
 const userBar = document.getElementById("userBar") as HTMLDivElement | null;
 const shiftArea = document.getElementById("shiftArea") as HTMLDivElement | null;
 const loginUserLabel = document.getElementById("loginUserLabel") as HTMLSpanElement | null;
-
-// 営業時間入力を＋１時間にする
-function addMinutesToHHMM(hhmm: string, addMin: number): string {
-  // "24:00" は time input 的には最大 "23:59" なので固定
-  if (hhmm === "24:00") return "23:59";
-
-  const m = hhmm.match(/^(\d{2}):(\d{2})$/);
-  if (!m) return hhmm;
-
-  const h = Number(m[1]);
-  const min = Number(m[2]);
-  let total = h * 60 + min + addMin;
-
-  // time input の上限は 23:59
-  if (total > 23 * 60 + 59) total = 23 * 60 + 59;
-  if (total < 0) total = 0;
-
-  const hh = String(Math.floor(total / 60)).padStart(2, "0");
-  const mm = String(total % 60).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
+const employeeCalendar = document.getElementById("employeeCalendar") as HTMLElement | null;
+const calendarMonth = document.getElementById("calendarMonth") as HTMLInputElement | null;
+const calendarGrid = document.getElementById("calendarGrid") as HTMLDivElement | null;
+const calendarStatus = document.getElementById("calendarStatus") as HTMLDivElement | null;
+const successOverlay = document.getElementById("submissionSuccessOverlay") as HTMLDivElement | null;
 
 function setLoginUserLabell(name: string) {
   if (loginUserLabel) loginUserLabel.textContent = `👤 ${name}`;
@@ -107,9 +88,79 @@ function updateAuthUI() {
   if (loginArea) loginArea.style.display = loggedIn ? "none" : "block";
   if (userBar) userBar.style.display = loggedIn ? "block" : "none";
   if (shiftArea) shiftArea.style.display = loggedIn ? "block" : "none";
+  if (employeeCalendar) employeeCalendar.style.display = loggedIn ? "block" : "none";
+}
+
+function currentMonthValue(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+async function loadEmployeeCalendar() {
+  if (!calendarMonth || !calendarGrid || !calendarStatus || !currentEmployee) return;
+  const token = localStorage.getItem(EMP_TOKEN_KEY);
+  if (!token) return;
+  if (!calendarMonth.value) calendarMonth.value = currentMonthValue();
+  calendarStatus.textContent = "読み込み中...";
+  const response = await fetch(`/api/employee/calendar?month=${encodeURIComponent(calendarMonth.value)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.ok) {
+    calendarStatus.textContent = data?.error ?? "カレンダーを取得できませんでした";
+    return;
+  }
+  renderEmployeeCalendar(calendarMonth.value, data.entries ?? {}, data.holidays ?? []);
+  const confirmedCount = Object.values(data.entries ?? {}).filter((entry: any) => entry?.confirmed).length;
+  calendarStatus.textContent = confirmedCount ? `確定シフト ${confirmedCount}日` : "公開された確定シフトはまだありません";
+}
+
+function renderEmployeeCalendar(
+  month: string,
+  entries: Record<string, { confirmed?: string; requested?: string }>,
+  holidays: Array<{ date: string; name: string }>,
+) {
+  if (!calendarGrid) return;
+  const [year, monthNumber] = month.split("-").map(Number);
+  const first = new Date(year, monthNumber - 1, 1);
+  const offset = (first.getDay() + 6) % 7;
+  const gridStart = new Date(year, monthNumber - 1, 1 - offset);
+  const holidayMap = new Map(holidays.map((holiday) => [holiday.date, holiday.name]));
+  const today = toISODate(new Date());
+  const weekdayHeader = ["月", "火", "水", "木", "金", "土", "日"]
+    .map((label, index) => `<div class="calendarWeekday ${index === 5 ? "sat" : index === 6 ? "sun" : ""}">${label}</div>`).join("");
+  const cells: string[] = [];
+  for (let index = 0; index < 42; index++) {
+    const date = new Date(gridStart);
+    date.setDate(date.getDate() + index);
+    const iso = toISODate(date);
+    const entry = entries[iso] ?? {};
+    const holiday = holidayMap.get(iso);
+    const classes = [
+      "calendarDay",
+      date.getMonth() !== monthNumber - 1 ? "outside" : "",
+      date.getDay() === 6 ? "sat" : "",
+      date.getDay() === 0 ? "sun" : "",
+      holiday ? "holiday" : "",
+      iso === today ? "today" : "",
+    ].filter(Boolean).join(" ");
+    cells.push(`<article class="${classes}">
+      <div class="calendarDate"><strong>${date.getDate()}</strong>${holiday ? `<small>${escapeHtml(holiday)}</small>` : ""}</div>
+      ${entry.confirmed ? `<div class="calendarShift confirmed"><span>確定</span>${escapeHtml(entry.confirmed)}</div>` : ""}
+      ${entry.requested ? `<div class="calendarShift requested"><span>希望</span>${escapeHtml(entry.requested)}</div>` : ""}
+    </article>`);
+  }
+  calendarGrid.innerHTML = `${weekdayHeader}${cells.join("")}`;
+}
+
+if (calendarMonth) {
+  calendarMonth.value = currentMonthValue();
+  calendarMonth.addEventListener("change", loadEmployeeCalendar);
 }
 
 const DAY_KEYS = ["mon","tue","wed","thu","fri","sat","sun"] as const;
+let currentBusinessHours: BusinessHoursDefinition | null = null;
+let holidayDates = new Map<string, string>();
+let holidayDays = new Set<ShiftDayKey>();
 
 function updateDayDatesByInputs(weekStartStr: string) {
   if (!weekStartStr) return;
@@ -126,11 +177,13 @@ function updateDayDatesByInputs(weekStartStr: string) {
     const mm = d.getMonth() + 1;
     const dd = d.getDate();
     const dow = jpWeek[i]; // 月〜日
-    const label = `${mm}/${dd}（${dow}）`;
+    const ymd = toISODate(d);
+    const holidayName = holidayDates.get(ymd);
+    const label = `${mm}/${dd}（${dow}）${holidayName ? ` ${holidayName}` : ""}`;
 
     // その曜日の input を拾って行を特定
     const input = document.querySelector<HTMLInputElement>(
-      `input[type="time"][data-day="${day}"]`
+      `[data-day="${day}"][data-kind]`
     );
     if (!input) return;
 
@@ -146,37 +199,104 @@ function updateDayDatesByInputs(weekStartStr: string) {
     // 土日色（class付与）
     tr.classList.toggle("sat", day === "sat");
     tr.classList.toggle("sun", day === "sun");
+    tr.classList.toggle("holiday", Boolean(holidayName));
   });
 }
 
-//スタートがエンドを超えないようにーーー
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
 function validateShiftData(data: ShiftData): boolean {
-  for (const value of Object.values(data)) {
-    if (typeof value !== "string") continue;
-    if (!value.includes("-")) continue;
-
-    const [start, end] = value.split("-").map((v) => v.trim());
-
-    if (!start || !end) continue;
-
-    const startMin = timeToMinutes(start);
-    const endMin = timeToMinutes(end);
-
-    console.log("check", start, end, startMin, endMin);
-
-    if (startMin >= endMin) {
-      alert(`終了時間は開始時間より後にしてください\n${start} - ${end}`);
-      return false;
-    }
-  }
-
-  return true;
+  if (!currentEmployee) return false;
+  const error = validateShiftDataForStore(
+    currentEmployee.store_id,
+    data,
+    holidayDays,
+    currentBusinessHours ?? undefined,
+  );
+  if (error) alert(error);
+  return !error;
 }
+
+function totalShiftMinutes(data: ShiftData) {
+  return Object.values(data).reduce((total, value) => {
+    const match = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(value);
+    if (!match) return total;
+    const start = timeToMinutes(match[1]);
+    const end = timeToMinutes(match[2]);
+    return start === null || end === null ? total : total + Math.max(0, end - start);
+  }, 0);
+}
+
+function fallbackDailyFact(date: Date) {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date.getTime() - start.getTime()) / 86400000);
+  const daysInYear = new Date(date.getFullYear(), 1, 29).getMonth() === 1 ? 366 : 365;
+  return `今日は今年の${dayOfYear}日目。あと${daysInYear - dayOfYear}日あります。`;
+}
+
+async function loadDailyFact(date = new Date()) {
+  const factEl = document.getElementById("dailyFactText");
+  const sourceEl = document.getElementById("dailyFactSource") as HTMLAnchorElement | null;
+  if (!factEl) return;
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const pageTitle = `${month}月${day}日`;
+  const cacheKey = `shiftflow_daily_fact_${date.getFullYear()}-${month}-${day}`;
+  factEl.textContent = "今日の豆知識を探しています…";
+  if (sourceEl) sourceEl.style.display = "none";
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    let fact = cached ?? "";
+    if (!fact) {
+      const params = new URLSearchParams({ action: "parse", page: pageTitle, prop: "text", section: "1", format: "json", origin: "*" });
+      const response = await fetch(`https://ja.wikipedia.org/w/api.php?${params}`);
+      if (!response.ok) throw new Error(`Wikipedia ${response.status}`);
+      const json = await response.json();
+      const html = String(json?.parse?.text?.["*"] ?? "");
+      const documentBody = new DOMParser().parseFromString(html, "text/html");
+      const blocked = /殺人|死亡|死去|処刑|戦争|自殺|虐殺|事故|墜落|爆発|災害|地震|焼き討ち/;
+      const candidates = [...documentBody.querySelectorAll("li")]
+        .map((item) => (item.textContent ?? "").replace(/\[\d+\]/g, "").replace(/\s+/g, " ").trim())
+        .filter((text) => text.length >= 24 && text.length <= 125 && !blocked.test(text));
+      if (!candidates.length) throw new Error("No suitable fact");
+      fact = candidates[(date.getFullYear() + month * 31 + day) % candidates.length];
+      sessionStorage.setItem(cacheKey, fact);
+    }
+    factEl.textContent = `${pageTitle}はこんな日：${fact}`;
+    if (sourceEl) {
+      sourceEl.href = `https://ja.wikipedia.org/wiki/${encodeURIComponent(pageTitle)}`;
+      sourceEl.style.display = "inline-flex";
+    }
+  } catch {
+    factEl.textContent = fallbackDailyFact(date);
+  }
+}
+
+function showSubmissionSuccess(employeeName: string, data: ShiftData, comment: string, mode: "submitted" | "updated" = "submitted") {
+  if (!successOverlay) return;
+  const messages = submissionMessages(new Date(), totalShiftMinutes(data), comment);
+  const title = document.getElementById("submissionSuccessTitle");
+  const greeting = document.getElementById("successGreeting");
+  const hours = document.getElementById("successHours");
+  const totalMessage = document.getElementById("successTotalMessage");
+  const keyword = document.getElementById("successKeywordMessage");
+  if (title) title.textContent = mode === "updated" ? "再提出完了" : "提出完了";
+  if (greeting) greeting.textContent = `${employeeName}さん、${messages.greeting}`;
+  if (hours) hours.textContent = messages.hoursText;
+  if (totalMessage) totalMessage.textContent = messages.total;
+  if (keyword) {
+    keyword.textContent = messages.keyword ?? "";
+    keyword.style.display = messages.keyword ? "block" : "none";
+  }
+  successOverlay.style.display = "flex";
+  void loadDailyFact();
+}
+
+document.getElementById("successCloseBtn")?.addEventListener("click", () => {
+  if (successOverlay) successOverlay.style.display = "none";
+});
+document.getElementById("successCalendarBtn")?.addEventListener("click", () => {
+  if (successOverlay) successOverlay.style.display = "none";
+  employeeCalendar?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 //-------
 
 
@@ -223,28 +343,6 @@ function initWeekStart() {
   updateWeekLabel(iso);
   updateDayDatesByInputs(weekStartInput.value);
 }
-
-// 5分丸め
-function snapToFiveMinutes(input: HTMLInputElement) {
-  const value = input.value;
-  if (!value) return;
-
-  const [h, m] = value.split(":");
-  let minutes = Number(m);
-  if (Number.isNaN(minutes)) return;
-
-  let snapped = Math.round(minutes / 5) * 5;
-  if (snapped > 55) snapped = 55;
-  if (snapped < 0) snapped = 0;
-
-  const mm = String(snapped).padStart(2, "0");
-  input.value = `${h}:${mm}`;
-}
-
-shiftInputs.forEach((input) => {
-  input.addEventListener("change", () => snapToFiveMinutes(input));
-  input.addEventListener("blur", () => snapToFiveMinutes(input));
-});
 
 //週表示＋曜日一覧
 function formatWeekRange(weekStartISO: string) {
@@ -309,7 +407,7 @@ function buildConfirmHtml(payload: {
       <div><b>従業員</b>: ${payload.employee_name} (${payload.employee_id}) </div>
       <div><b>店舗</b>: ${payload.store_id}</div>
       <div><b>週</b>: ${payload.week_start} (${range}) </div>
-      <div><b>祝日扱い</b>: ${payload.is_holiday ? "ON" : "OFF"}</div>
+      <div><b>祝日</b>: 自動判定</div>
     </div>
     
     <table style="width: 100%; border-collapse:collapse;">
@@ -379,30 +477,23 @@ function openConfirm(payload: any): Promise<boolean> {
   });
 }
 
-function isWeekend(day: DayKey) {
-  return day === "sat" || day === "sun";
-}
-  function applyBusinessHoursToTimeInputs(storeId: string, isHoliday: boolean) {
-  const def = BUSINESS_HOURS[storeId as StoreId];
+function applyBusinessHoursToTimeInputs(storeId: string) {
+  const def = currentBusinessHours ?? BUSINESS_HOURS[storeId as StoreId];
   if (!def) return;
 
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
   days.forEach((day) => {
-    const rule = (isWeekend(day) || isHoliday) ? def.weekendHoliday : def.weekday;
-
-    const min = rule.open;
-
-    // ★入力用：close + 60分（表示には使わない）
-    const maxForInput = addMinutesToHHMM(rule.close, 60);
-
-    document
-      .querySelectorAll<HTMLInputElement>(`input[type="time"][data-day="${day}"][data-kind]`)
-      .forEach((el) => {
-        el.min = min;
-        el.max = maxForInput;
-        el.step = "300";
-      });
+    const bounds = getShiftBounds(storeId, day, holidayDays.has(day), def);
+    if (!bounds) return;
+    document.querySelectorAll<HTMLSelectElement>(`select[data-day="${day}"][data-kind]`).forEach((element) => {
+      const previousValue = element.value;
+      const kind = element.dataset.kind === "end" ? "end" : "start";
+      const options = timeOptions(bounds.minMinutes, bounds.maxMinutes, kind);
+      element.innerHTML = `<option value="">${kind === "start" ? "開始" : "終了"}</option>` +
+        options.map((value) => `<option value="${value}">${value}</option>`).join("");
+      element.value = options.includes(previousValue) ? previousValue : "";
+    });
   });
 
   // ★表示用：defのcloseをそのまま
@@ -410,20 +501,34 @@ function isWeekend(day: DayKey) {
     const w = def.weekday, h = def.weekendHoliday;
     hoursPreview.textContent =
       `営業時間（平日 ${w.open}~${w.close} / 金土日祝 ${h.open}~${h.close}）` +
-      (isHoliday ? " ← 祝日ON" : "");
+      `／入力は閉店1時間後まで（最長24:30）。祝日は日ごとに自動判定します`;
   }
 }
 
-
-holidayToggle?.addEventListener("change", () => {
-  if (!currentEmployee) return;
-  applyBusinessHoursToTimeInputs(currentEmployee.store_id, holidayToggle.checked);
-});
+async function refreshSchedule() {
+  if (!currentEmployee || !weekStartInput.value) return;
+  const response = await fetch(`/api/business-hours?store_id=${encodeURIComponent(currentEmployee.store_id)}&week_start=${encodeURIComponent(weekStartInput.value)}`);
+  const data = await response.json().catch(() => null);
+  currentBusinessHours = data?.ok ? data.hours : BUSINESS_HOURS[currentEmployee.store_id as StoreId] ?? null;
+  holidayDates = new Map(
+    (Array.isArray(data?.holidays) ? data.holidays : []).map((holiday: { date: string; name: string }) => [holiday.date, holiday.name]),
+  );
+  holidayDays = new Set();
+  const [year, month, day] = weekStartInput.value.split("-").map(Number);
+  const start = new Date(year, month - 1, day);
+  DAY_KEYS.forEach((dayKey, index) => {
+    const date = new Date(start);
+    date.setDate(date.getDate() + index);
+    if (holidayDates.has(toISODate(date))) holidayDays.add(dayKey);
+  });
+  applyBusinessHoursToTimeInputs(currentEmployee.store_id);
+  updateDayDatesByInputs(weekStartInput.value);
+}
 
 //削除ボタン
 function clearDay(day: DayKey) {
-  document.querySelectorAll<HTMLInputElement>(
-    `input[type="time"][data-day="${day}"][data-kind]`
+  document.querySelectorAll<HTMLSelectElement>(
+    `select[data-day="${day}"][data-kind]`
   ).forEach((el) => {
     el.value = "";
     el.setCustomValidity("");
@@ -435,6 +540,7 @@ document.querySelectorAll<HTMLButtonElement>("[data-clear-day]").forEach((btn) =
     const day = btn.dataset.clearDay as DayKey | undefined;
     if (!day) return;
     clearDay(day)
+    saveDraft();
   })
 })
 
@@ -480,6 +586,37 @@ function isAfterDeadline(weekStartYMD: string, now = new Date()) {
   return now.getTime() >= deadline.getTime();
 }
 
+function updateSubmissionStateUI() {
+  const submitBtn = shiftForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+  const locked = submissionState === "updated";
+  const deadlineBlocked = Boolean(weekStartInput.value && isAfterDeadline(weekStartInput.value));
+
+  shiftArea?.querySelectorAll<HTMLSelectElement | HTMLTextAreaElement>("select[data-day], textarea").forEach((control) => {
+    control.disabled = locked;
+  });
+
+  if (submitBtn) {
+    submitBtn.disabled = locked || deadlineBlocked;
+    submitBtn.textContent = submissionState === "submitted"
+      ? "修正内容を確認する"
+      : locked
+        ? "提出済み（修正上限）"
+        : "入力内容を確認する";
+  }
+
+  if (!submitStatusEl) return;
+  submitStatusEl.className = "submissionStateMessage";
+  if (submissionState === "submitted") {
+    submitStatusEl.textContent = "提出済みです。修正はあと1回できます。再提出すると、この週は以後変更できません。";
+    submitStatusEl.classList.add("isEditable");
+  } else if (locked) {
+    submitStatusEl.textContent = "再提出済みです。この週はもう提出できません。変更が必要な場合は店長へ連絡してください。";
+    submitStatusEl.classList.add("isLocked");
+  } else {
+    submitStatusEl.textContent = "";
+  }
+}
+
 function applyDeadlineUI(weekStartYMD: string) {
   const deadline = getDeadlineForWeekStart(weekStartYMD);
 
@@ -496,7 +633,7 @@ function applyDeadlineUI(weekStartYMD: string) {
 
   const blocked = isAfterDeadline(weekStartYMD);
 
-  if (submitBtn) submitBtn.disabled = blocked;
+  if (submitBtn) submitBtn.disabled = blocked || submissionState === "updated";
 
   if (warn) {
     if (blocked) {
@@ -522,8 +659,8 @@ weekStartEl?.addEventListener("change", () => {
 
 // シフトデータ収集
 function collectShiftData(): ShiftData {
-  const inputs = document.querySelectorAll<HTMLInputElement>(
-    'input[type="time"][data-day][data-kind]'
+  const inputs = document.querySelectorAll<HTMLSelectElement>(
+    'select[data-day][data-kind]'
   );
 
   const temp: Record<ShiftDayKey, { start: string; end: string }> = {
@@ -618,7 +755,7 @@ async function handleEmployeeLogin() {
   const employee_id = (employeeIdInput?.value ?? "").trim();
   const pin = ((document.getElementById("pinInput") as HTMLInputElement | null)?.value ?? "").trim();
 
-  if (!employee_id || !/^\d{8}$/.test(employee_id)) return setAuthMsg("従業員番号は8桁で入力してね");
+  if (!employee_id || !isEmployeeIdFormat(employee_id)) return setAuthMsg("従業員番号は8桁（湖西は9桁）で入力してね");
   if (!pin || !/^\d{4}$/.test(pin)) return setAuthMsg("PINは4桁で入力してね");
   
 
@@ -637,12 +774,14 @@ async function handleEmployeeLogin() {
     store_id: result.store_id,
   };
 
-  applyBusinessHoursToTimeInputs(currentEmployee.store_id as StoreId, !!holidayToggle?.checked);
+  await refreshSchedule();
   
   setAuthMsg(`ログインしました: ${result.employee_name}`);
   setLoginUserLabell(`${result.employee_name} (${result.store_id})`);
   //setLoginUserLabel(result.employee_name);
   updateAuthUI();
+  await loadExistingSubmissionIfAny();
+  await loadEmployeeCalendar();
 }
 
 function handleEmployeeLogout() {
@@ -658,7 +797,9 @@ function handleEmployeeLogout() {
   if (empIdInput) empIdInput.value = "";
 
   if (commentEl) { commentEl.value = ""; updateCommentCount(); }
-  if (holidayToggle) holidayToggle.checked = false;
+  currentBusinessHours = null;
+  holidayDates.clear();
+  holidayDays.clear();
 
   // 表示系
   setAuthMsg("ログアウトしました");
@@ -686,11 +827,11 @@ function applyBusinessHoursToInputs(data: Record<string, string>) {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
   days.forEach((day) => {
-    const startEl = document.querySelector<HTMLInputElement>(
-      `input[type="time"][data-day=${day}][data-kind="start"]`
+    const startEl = document.querySelector<HTMLSelectElement>(
+      `select[data-day=${day}][data-kind="start"]`
     );
-    const endEl = document.querySelector<HTMLInputElement>(
-      `input[type="time"][data-day="${day}"][data-kind="end"]`
+    const endEl = document.querySelector<HTMLSelectElement>(
+      `select[data-day="${day}"][data-kind="end"]`
     );
 
     const v = (data?.[day] ?? "").trim();
@@ -706,22 +847,29 @@ function applyBusinessHoursToInputs(data: Record<string, string>) {
     //17：00-21：00　想定
     if (v.includes("-")) {
       const [s, e] = v.split("-");
-      startEl.value = (s ?? "").trim();
-      endEl.value = (e ?? "").trim();
+      const start = (s ?? "").trim();
+      const end = (e ?? "").trim();
+      if (start && !Array.from(startEl.options).some((option) => option.value === start)) {
+        startEl.add(new Option(`${start}（以前の入力）`, start));
+      }
+      if (end && !Array.from(endEl.options).some((option) => option.value === end)) {
+        endEl.add(new Option(`${end}（以前の入力）`, end));
+      }
+      startEl.value = start;
+      endEl.value = end;
     } else {
       //片方だけ入ってるケースは strat に入れておく
       startEl.value = v;
       endEl.value = "";
     }
 
-    //5分の奴呼ぶ
-    snapToFiveMinutes(startEl);
-    snapToFiveMinutes(endEl);
   });
 }
 
 async function loadExistingSubmissionIfAny() {
   hasExistingSubmission = false;
+  submissionState = "none";
+  updateSubmissionStateUI();
 
   const token = getToken();
   if (!token) return;
@@ -738,6 +886,8 @@ async function loadExistingSubmissionIfAny() {
   if (!json?.ok) {
     if (res.status === 404) {
       hasExistingSubmission = false;
+      submissionState = "none";
+      updateSubmissionStateUI();
       clearShiftInputs();
       return;
     }
@@ -750,12 +900,17 @@ async function loadExistingSubmissionIfAny() {
   //submission が無いなら「初回」扱いで終わる
   if (!submission) {
     hasExistingSubmission = false;
+    submissionState = "none";
+    updateSubmissionStateUI();
     clearShiftInputs();
+    restoreDraft();
     return;
   }
 
   //ここまで来たら「既存あり」
   hasExistingSubmission = true;
+  submissionState = submission.status === "updated" ? "updated" : "submitted";
+  updateSubmissionStateUI();
 
   if (commentEl) {
     commentEl.value = submission.comment ?? "";
@@ -781,9 +936,53 @@ type CurrentEmployee = {
   store_id: string;
 }
 
-let hasExistingSubmission = false; // その週に既存提出があるか
-
 let currentEmployee: CurrentEmployee | null = null;
+
+const DRAFT_VERSION = 1;
+
+function draftKey() {
+  if (!currentEmployee || !weekStartInput.value) return null;
+  return `shiftflow_draft_v${DRAFT_VERSION}:${currentEmployee.employee_id}:${weekStartInput.value}`;
+}
+
+function saveDraft() {
+  const key = draftKey();
+  if (!key || hasExistingSubmission) return;
+  const data = collectShiftData();
+  const comment = commentEl?.value ?? "";
+  const hasContent = Object.values(data).some(Boolean) || Boolean(comment.trim());
+  if (!hasContent) {
+    localStorage.removeItem(key);
+    return;
+  }
+  localStorage.setItem(key, JSON.stringify({ data, comment, savedAt: new Date().toISOString() }));
+}
+
+function restoreDraft() {
+  const key = draftKey();
+  if (!key) return;
+  try {
+    const draft = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (!draft?.data) return;
+    applyBusinessHoursToInputs(draft.data);
+    if (commentEl) commentEl.value = String(draft.comment ?? "").slice(0, 300);
+    updateCommentCount();
+    const status = document.getElementById("submitStatus");
+    if (status) status.textContent = "保存していた下書きを復元しました";
+  } catch {
+    localStorage.removeItem(key);
+  }
+}
+
+function clearDraft() {
+  const key = draftKey();
+  if (key) localStorage.removeItem(key);
+}
+
+document.querySelectorAll<HTMLSelectElement>('select[data-day][data-kind]').forEach((select) => {
+  select.addEventListener("change", saveDraft);
+});
+commentEl?.addEventListener("input", saveDraft);
 
 let isSubmitting = false;
 
@@ -808,7 +1007,7 @@ shiftForm.addEventListener("submit", async (event) => {
     employee_name: currentEmployee.employee_name,
     week_start: weekStartInput.value,
     data: collectShiftData(),
-    is_holiday: !!holidayToggle?.checked,
+    is_holiday: false,
     comment: (commentEl?.value ?? "").trim(),
     mode: hasExistingSubmission ? "update" : "submitted",
   };
@@ -835,18 +1034,23 @@ shiftForm.addEventListener("submit", async (event) => {
 
     const json = await res.json().catch(() => null);
     if (!res.ok || !json?.ok) {
+      if (res.status === 409) {
+        submissionState = "updated";
+        hasExistingSubmission = true;
+        updateSubmissionStateUI();
+      }
       alert(`送信に失敗しました: ${json?.error ?? `HTTP ${res.status}`}`);
       return;
     }
 
-    alert("シフト提出完了:)");
+    const savedMode = json.mode === "updated" ? "updated" : "submitted";
+    showSubmissionSuccess(currentEmployee.employee_name, payload.data, payload.comment, savedMode);
 
-    shiftForm.reset();
-    initWeekStart();
-    // ログイン状態は残すなら employeeId/pin は消さない設計に後で調整
+    clearDraft();
+    await loadExistingSubmissionIfAny();
   } finally {
     isSubmitting = false;
-    submitBtn && (submitBtn.disabled = false);
+    updateSubmissionStateUI();
   }
 });
 
@@ -857,11 +1061,11 @@ function clearShiftInputs() {
   const days = ["mon","tue","wed","thu","fri","sat","sun"] as const;
 
   days.forEach((day) => {
-    const startEl = document.querySelector<HTMLInputElement>(
-      `input[type="time"][data-day="${day}"][data-kind="start"]`
+    const startEl = document.querySelector<HTMLSelectElement>(
+      `select[data-day="${day}"][data-kind="start"]`
     );
-    const endEl = document.querySelector<HTMLInputElement>(
-      `input[type="time"][data-day="${day}"][data-kind="end"]`
+    const endEl = document.querySelector<HTMLSelectElement>(
+      `select[data-day="${day}"][data-kind="end"]`
     );
     if (startEl) startEl.value = "";
     if (endEl) endEl.value = "";
@@ -891,12 +1095,10 @@ weekStartInput.addEventListener("change", async () => {
     isNormalizingWeek = true;
     weekStartInput.value = mondayISO;
 
-    await loadExistingSubmissionIfAny();
-
     isNormalizingWeek = false;
   }
-  
-  updateDayDatesByInputs(weekStartInput.value);
+
+  await refreshSchedule();
   updateWeekLabel(weekStartInput.value);
 
   //週が確定したら既存提出を読み込む
@@ -904,4 +1106,3 @@ weekStartInput.addEventListener("change", async () => {
 });
 
 initWeekStart();
-
