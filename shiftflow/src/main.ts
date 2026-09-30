@@ -161,6 +161,19 @@ if (calendarMonth) {
   calendarMonth.value = currentMonthValue();
   calendarMonth.addEventListener("change", loadEmployeeCalendar);
 }
+document.getElementById("calendarToday")?.addEventListener("click", () => {
+  if (!calendarMonth) return;
+  calendarMonth.value = currentMonthValue();
+  void loadEmployeeCalendar();
+});
+function moveCalendarMonth(offset: number) {
+  if (!calendarMonth || !calendarMonth.value) return;
+  const [year, month] = calendarMonth.value.split("-").map(Number);
+  calendarMonth.value = currentMonthValue(new Date(year, month - 1 + offset, 1));
+  void loadEmployeeCalendar();
+}
+document.getElementById("calendarPrevious")?.addEventListener("click", () => moveCalendarMonth(-1));
+document.getElementById("calendarNext")?.addEventListener("click", () => moveCalendarMonth(1));
 
 const DAY_KEYS = ["mon","tue","wed","thu","fri","sat","sun"] as const;
 let currentBusinessHours: BusinessHoursDefinition | null = null;

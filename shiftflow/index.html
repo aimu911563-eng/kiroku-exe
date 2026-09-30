@@ -89,7 +89,7 @@
         </div>
 
         <section id="employeeAnnouncement" class="employeeAnnouncement" style="display:none;">
-          <div class="miniMascot" aria-hidden="true">🦖</div>
+          <div class="announcementMascot" aria-hidden="true"><div class="pixelMascot announcementPixelMascot"><span class="pixelMascotEye"></span><span class="pixelMascotArm"></span><span class="pixelMascotLeg legOne"></span><span class="pixelMascotLeg legTwo"></span></div></div>
           <div><span>店長からのお知らせ</span><p id="employeeAnnouncementText"></p></div>
         </section>
 
@@ -253,9 +253,12 @@
             <h2>勤務カレンダー</h2>
             <p>公開された確定シフトと、提出した希望時間を確認できます。</p>
           </div>
-          <label class="fieldLabel calendarMonthLabel">表示月
-            <input id="calendarMonth" type="month" class="fieldControl">
-          </label>
+          <div class="calendarControls" aria-label="表示月を変更">
+            <button id="calendarToday" type="button" class="calendarTodayButton">今日</button>
+            <button id="calendarPrevious" type="button" class="calendarArrowButton" aria-label="前の月">‹</button>
+            <button id="calendarNext" type="button" class="calendarArrowButton" aria-label="次の月">›</button>
+            <label class="calendarMonthLabel"><span>表示月</span><input id="calendarMonth" type="month" class="fieldControl"></label>
+          </div>
         </div>
         <div class="calendarLegend">
           <span><i class="legendConfirmed"></i>確定シフト</span>

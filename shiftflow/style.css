@@ -612,6 +612,7 @@ label.dayLabel[data-day="6"] {
 
 .businessHoursCard,
 .employeeManagementCard,
+.announcementAdminCard,
 .submissionCard,
 .plannerCard {
   padding: 24px;
@@ -1913,7 +1914,7 @@ label.dayLabel[data-day="6"] {
 
 .calendarHeader {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 18px;
 }
@@ -1923,10 +1924,7 @@ label.dayLabel[data-day="6"] {
   font-size: 24px;
 }
 
-.calendarMonthLabel {
-  width: 190px;
-  margin-top: 0;
-}
+.calendarControls { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }.calendarTodayButton, .calendarArrowButton { min-height: 40px; border: 1px solid #d2d2d7; background: #fff; color: #3c4043; font-weight: 700; }.calendarTodayButton { padding: 0 16px; border-radius: 20px; font-size: 13px; }.calendarArrowButton { width: 40px; padding: 0; border-radius: 50%; font-size: 24px; line-height: 1; }.calendarTodayButton:hover, .calendarArrowButton:hover { background: #f1f3f4; }.calendarMonthLabel { position: relative; width: 158px; margin: 0; }.calendarMonthLabel > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }.calendarMonthLabel .fieldControl { min-height: 40px; padding: 0 10px; border-radius: 20px; font-size: 13px; }
 
 .calendarLegend {
   display: flex;
@@ -1959,14 +1957,15 @@ label.dayLabel[data-day="6"] {
 }
 
 .calendarScroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  overflow: hidden;
 }
 
 .calendarGrid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(105px, 1fr));
-  min-width: 735px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid #e5e5ea;
   border-radius: 15px;
@@ -1987,9 +1986,11 @@ label.dayLabel[data-day="6"] {
 .calendarWeekday.sun { color: #dc2626; }
 
 .calendarDay {
-  min-height: 112px;
-  padding: 8px;
+  min-width: 0;
+  min-height: clamp(82px, 12vw, 112px);
+  padding: 7px;
   background: #fff;
+  overflow: hidden;
 }
 
 .calendarDay.outside { opacity: .42; }
@@ -2008,6 +2009,7 @@ label.dayLabel[data-day="6"] {
   gap: 4px;
   margin-bottom: 7px;
 }
+.calendarDate strong { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; font-size: 12px; }.calendarDay.today .calendarDate strong { background: #1a73e8; color: #fff; }
 
 .calendarDate small {
   overflow: hidden;
@@ -2018,18 +2020,24 @@ label.dayLabel[data-day="6"] {
 }
 
 .calendarShift {
-  display: grid;
-  gap: 2px;
-  margin-top: 5px;
-  padding: 6px;
-  border-radius: 8px;
-  font-size: 10px;
+  display: block;
+  min-width: 0;
+  margin-top: 4px;
+  padding: 4px 5px;
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 9px;
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .calendarShift span {
-  font-size: 9px;
-  font-weight: 700;
+  margin-right: 3px;
+  font-size: 8px;
+  font-weight: 800;
 }
 
 .calendarShift.confirmed {
@@ -2274,7 +2282,7 @@ label.dayLabel[data-day="6"] {
   box-sizing: border-box;
   overflow: hidden;
 }
-.employeeAnnouncement > div:last-child { min-width: 0; }.employeeAnnouncement .miniMascot { font-size: 34px; text-align: center; }.employeeAnnouncement span { color: #397941; font-size: 11px; font-weight: 800; }.employeeAnnouncement p { max-width: 100%; margin: 4px 0 0; color: #3f3f46; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
+.employeeAnnouncement > div:last-child { min-width: 0; }.announcementMascot { display: grid; width: 56px; height: 56px; place-items: center; overflow: visible; }.announcementPixelMascot { margin: 0; transform: scale(.72); transform-origin: center; }.employeeAnnouncement span { color: #397941; font-size: 11px; font-weight: 800; }.employeeAnnouncement p { max-width: 100%; margin: 4px 0 0; color: #3f3f46; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
 
 .shiftInsights { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 20px; }
 .mascotGrowthCard, .shiftSimulatorCard { min-height: 116px; padding: 16px; border: 1px solid #e2e5ea; border-radius: 18px; background: #fff; }
@@ -2291,7 +2299,7 @@ label.dayLabel[data-day="6"] {
 @media (max-width: 680px) {
   .shiftInsights { grid-template-columns: 1fr; }
   .announcementAdminFooter { grid-template-columns: 1fr auto; }.announcementAdminFooter .btn { grid-column: 1 / -1; width: 100%; }
-  .employeeAnnouncement { grid-template-columns: 40px minmax(0,1fr); padding: 12px; }.employeeAnnouncement .miniMascot { font-size: 28px; }
+  .employeeAnnouncement { grid-template-columns: 52px minmax(0,1fr); padding: 12px; }
 }
 
 .successKeywordMessage {
@@ -2386,22 +2394,29 @@ label.dayLabel[data-day="6"] {
   }
 
   .employeeCalendar {
-    padding: 18px;
+    width: 100%;
+    padding: 12px 8px 14px;
     border-radius: 18px;
+    box-sizing: border-box;
   }
 
   .calendarHeader {
     display: grid;
+    gap: 13px;
+    padding: 4px 6px 0;
   }
 
-  .calendarMonthLabel {
-    width: 100%;
-  }
+  .calendarHeader h2 { font-size: 21px; }.calendarHeader .sectionHeading > p:last-child { font-size: 12px; }.calendarControls { justify-content: flex-start; flex-wrap: wrap; }.calendarTodayButton { min-height: 38px; padding: 0 14px; }.calendarArrowButton { flex: 0 0 38px; width: 38px; height: 38px; min-height: 38px; }.calendarMonthLabel { flex: 1 1 132px; width: auto; min-width: 132px; }.calendarMonthLabel .fieldControl { min-height: 38px; font-size: 12px; }
+
+  .calendarLegend { margin: 14px 6px 8px; gap: 12px; font-size: 11px; }.calendarStatus { margin: 0 6px 7px; font-size: 11px; }
 
   .calendarGrid {
-    grid-template-columns: repeat(7, minmax(92px, 1fr));
-    min-width: 644px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+    border-radius: 10px;
   }
+  .calendarWeekday { padding: 7px 1px; font-size: 10px; }.calendarDay { min-height: 78px; padding: 4px 3px; }.calendarDate { justify-content: center; margin-bottom: 4px; }.calendarDate strong { width: 22px; height: 22px; font-size: 11px; }.calendarDate small { display: none; }.calendarShift { margin-top: 3px; padding: 3px; font-size: 8px; }.calendarShift span { display: none; }
 }
 
 /* Mobile employee layout: keep one day compact and visually balanced. */
