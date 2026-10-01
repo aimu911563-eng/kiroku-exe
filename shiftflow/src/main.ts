@@ -277,8 +277,7 @@ function playMascotSlashSound() {
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const context = new AudioContextClass();
-    const playSlash = (start: number, pitch: number) => {
-      const duration = .16;
+    const playImpact = (start: number, pitch: number, volume = .2, duration = .12, frequency = 1900) => {
       const count = Math.ceil(context.sampleRate * duration);
       const buffer = context.createBuffer(1, count, context.sampleRate);
       const samples = buffer.getChannelData(0);
@@ -290,11 +289,11 @@ function playMascotSlashSound() {
       const filter = context.createBiquadFilter();
       const gain = context.createGain();
       filter.type = "bandpass";
-      filter.frequency.setValueAtTime(1900, start);
-      filter.frequency.exponentialRampToValueAtTime(480, start + duration);
+      filter.frequency.setValueAtTime(frequency, start);
+      filter.frequency.exponentialRampToValueAtTime(Math.max(160, frequency * .24), start + duration);
       filter.Q.value = .75;
       gain.gain.setValueAtTime(.0001, start);
-      gain.gain.exponentialRampToValueAtTime(.22, start + .012);
+      gain.gain.exponentialRampToValueAtTime(volume, start + .012);
       gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
       source.buffer = buffer;
       source.connect(filter).connect(gain).connect(context.destination);
@@ -302,9 +301,11 @@ function playMascotSlashSound() {
       source.stop(start + duration);
     };
     void context.resume().then(() => {
-      playSlash(context.currentTime + .03, 22);
-      playSlash(context.currentTime + .25, 30);
-      window.setTimeout(() => void context.close(), 900);
+      const now = context.currentTime;
+      [0, .08, .16, .25, .34, .43].forEach((delay, index) => playImpact(now + delay, 28 + index * 4, .11, .07, 2600));
+      playImpact(now + .58, 46, .3, .42, 4200);
+      playImpact(now + 1.36, 13, .28, .26, 360);
+      window.setTimeout(() => void context.close(), 2200);
     });
   } catch {
     // The visual effect still works when a browser blocks generated audio.
