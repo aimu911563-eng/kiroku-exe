@@ -264,6 +264,13 @@ function updateShiftSimulator() {
 let mascotWakeTimer: number | undefined;
 let mascotEventTimer: number | undefined;
 let mascotEventEndTimer: number | undefined;
+let mascotDebugEventIndex = 0;
+
+const mascotDebugParams = new URLSearchParams(window.location.search);
+const mascotDebugMode = mascotDebugParams.get("mascot_debug") === "1";
+const mascotForcedEvent = ["chase", "battle", "bosswin"].includes(mascotDebugParams.get("mascot_event") ?? "")
+  ? mascotDebugParams.get("mascot_event") as "chase" | "battle" | "bosswin"
+  : null;
 
 function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
   if (mascotEventTimer) window.clearTimeout(mascotEventTimer);
@@ -271,15 +278,17 @@ function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
   const bossCutin = document.getElementById("mascotBossCutin");
   bossCutin?.classList.remove("active");
   card.dataset.event = "none";
+  card.dataset.debug = mascotDebugMode ? "true" : "false";
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const delay = firstEvent ? 18000 + Math.random() * 12000 : 65000 + Math.random() * 70000;
+  const delay = mascotDebugMode ? (firstEvent ? 2000 : 3000) : firstEvent ? 18000 + Math.random() * 12000 : 65000 + Math.random() * 70000;
   mascotEventTimer = window.setTimeout(() => {
     if (!card.isConnected || card.dataset.motion === "sleeping") {
       scheduleMascotEvent(card, true);
       return;
     }
     const roll = Math.random();
-    const event = roll < .05 ? "bosswin" : roll < .48 ? "chase" : "battle";
+    const debugEvents = ["chase", "battle", "bosswin"] as const;
+    const event = mascotForcedEvent ?? (mascotDebugMode ? debugEvents[mascotDebugEventIndex++ % debugEvents.length] : roll < .05 ? "bosswin" : roll < .48 ? "chase" : "battle");
     card.dataset.event = event;
     if (event === "bosswin" && bossCutin) {
       void bossCutin.offsetWidth;
