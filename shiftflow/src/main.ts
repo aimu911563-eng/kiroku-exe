@@ -262,6 +262,29 @@ function updateShiftSimulator() {
 }
 
 let mascotWakeTimer: number | undefined;
+let mascotEventTimer: number | undefined;
+let mascotEventEndTimer: number | undefined;
+
+function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
+  if (mascotEventTimer) window.clearTimeout(mascotEventTimer);
+  if (mascotEventEndTimer) window.clearTimeout(mascotEventEndTimer);
+  card.dataset.event = "none";
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const delay = firstEvent ? 18000 + Math.random() * 12000 : 65000 + Math.random() * 70000;
+  mascotEventTimer = window.setTimeout(() => {
+    if (!card.isConnected || card.dataset.motion === "sleeping") {
+      scheduleMascotEvent(card, true);
+      return;
+    }
+    const event = Math.random() < .45 ? "chase" : "battle";
+    card.dataset.event = event;
+    const duration = event === "chase" ? 8000 : 13000;
+    mascotEventEndTimer = window.setTimeout(() => {
+      card.dataset.event = "none";
+      scheduleMascotEvent(card);
+    }, duration);
+  }, delay);
+}
 
 function renderMascotGrowth(playLoginWakeup = false) {
   const stages = [
@@ -307,6 +330,7 @@ function renderMascotGrowth(playLoginWakeup = false) {
         card.dataset.motion = "walking";
         mascot.dataset.motion = "walking";
       }, 3000);
+      if (playLoginWakeup) scheduleMascotEvent(card, true);
     }
   }
   if (stageEl) stageEl.textContent = stage.name;
