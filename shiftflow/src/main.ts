@@ -307,8 +307,12 @@ function renderMascotGrowth(playLoginWakeup = false) {
   const progress = document.getElementById("growthProgress");
   const now = new Date();
   const month = now.getMonth() + 1;
+  const day = now.getDate();
   const landscape = month >= 3 && month <= 5 ? "spring" : month >= 6 && month <= 8 ? "summer" : month >= 9 && month <= 11 ? "autumn" : "winter";
-  const season = month === 10 ? { key: "halloween", label: "🎃 ハロウィン衣装中" } : month === 12 ? { key: "christmas", label: "🎄 クリスマス衣装中" } : month === 1 ? { key: "newyear", label: "🎍 お正月衣装中" } : null;
+  let season: { key: string; label: string } | null = null;
+  if (month === 10 && day >= 17) season = { key: "halloween", label: "🎃 ハロウィン衣装中" };
+  else if (month === 12 && day >= 11 && day <= 25) season = { key: "christmas", label: "🎄 クリスマス衣装中" };
+  else if ((month === 12 && day >= 26) || (month === 1 && day <= 7)) season = { key: "newyear", label: "🎍 お正月衣装中" };
   if (mascot) {
     mascot.dataset.stage = stage.key;
     mascot.dataset.season = season?.key ?? "";
