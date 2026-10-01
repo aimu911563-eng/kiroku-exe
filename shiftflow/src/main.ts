@@ -268,6 +268,8 @@ let mascotEventEndTimer: number | undefined;
 function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
   if (mascotEventTimer) window.clearTimeout(mascotEventTimer);
   if (mascotEventEndTimer) window.clearTimeout(mascotEventEndTimer);
+  const bossCutin = document.getElementById("mascotBossCutin");
+  bossCutin?.classList.remove("active");
   card.dataset.event = "none";
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const delay = firstEvent ? 18000 + Math.random() * 12000 : 65000 + Math.random() * 70000;
@@ -276,11 +278,17 @@ function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
       scheduleMascotEvent(card, true);
       return;
     }
-    const event = Math.random() < .45 ? "chase" : "battle";
+    const roll = Math.random();
+    const event = roll < .05 ? "bosswin" : roll < .48 ? "chase" : "battle";
     card.dataset.event = event;
-    const duration = event === "chase" ? 8000 : 13000;
+    if (event === "bosswin" && bossCutin) {
+      void bossCutin.offsetWidth;
+      bossCutin.classList.add("active");
+    }
+    const duration = event === "chase" ? 8000 : event === "bosswin" ? 10000 : 13000;
     mascotEventEndTimer = window.setTimeout(() => {
       card.dataset.event = "none";
+      bossCutin?.classList.remove("active");
       scheduleMascotEvent(card);
     }, duration);
   }, delay);
