@@ -272,6 +272,45 @@ const mascotForcedEvent = ["chase", "battle", "bosswin"].includes(mascotDebugPar
   ? mascotDebugParams.get("mascot_event") as "chase" | "battle" | "bosswin"
   : null;
 
+function playMascotSlashSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const playSlash = (start: number, pitch: number) => {
+      const duration = .16;
+      const count = Math.ceil(context.sampleRate * duration);
+      const buffer = context.createBuffer(1, count, context.sampleRate);
+      const samples = buffer.getChannelData(0);
+      for (let index = 0; index < count; index += 1) {
+        const progress = index / count;
+        samples[index] = (Math.random() * 2 - 1) * (1 - progress) * Math.sin(progress * Math.PI * pitch);
+      }
+      const source = context.createBufferSource();
+      const filter = context.createBiquadFilter();
+      const gain = context.createGain();
+      filter.type = "bandpass";
+      filter.frequency.setValueAtTime(1900, start);
+      filter.frequency.exponentialRampToValueAtTime(480, start + duration);
+      filter.Q.value = .75;
+      gain.gain.setValueAtTime(.0001, start);
+      gain.gain.exponentialRampToValueAtTime(.22, start + .012);
+      gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+      source.buffer = buffer;
+      source.connect(filter).connect(gain).connect(context.destination);
+      source.start(start);
+      source.stop(start + duration);
+    };
+    void context.resume().then(() => {
+      playSlash(context.currentTime + .03, 22);
+      playSlash(context.currentTime + .25, 30);
+      window.setTimeout(() => void context.close(), 900);
+    });
+  } catch {
+    // The visual effect still works when a browser blocks generated audio.
+  }
+}
+
 function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
   if (mascotEventTimer) window.clearTimeout(mascotEventTimer);
   if (mascotEventEndTimer) window.clearTimeout(mascotEventEndTimer);
@@ -293,6 +332,7 @@ function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
     if (event === "bosswin" && bossCutin) {
       void bossCutin.offsetWidth;
       bossCutin.classList.add("active");
+      playMascotSlashSound();
     }
     const duration = event === "chase" ? 8000 : event === "bosswin" ? 10000 : 13000;
     mascotEventEndTimer = window.setTimeout(() => {
