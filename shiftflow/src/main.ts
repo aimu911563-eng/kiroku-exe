@@ -303,9 +303,8 @@ function playMascotSlashSound() {
     void context.resume().then(() => {
       const now = context.currentTime;
       [0, .08, .16, .25, .34, .43].forEach((delay, index) => playImpact(now + delay, 28 + index * 4, .11, .07, 2600));
-      playImpact(now + .58, 46, .3, .42, 4200);
-      playImpact(now + 1.36, 13, .28, .26, 360);
-      window.setTimeout(() => void context.close(), 2200);
+      playImpact(now + 5.7, 13, .28, .26, 360);
+      window.setTimeout(() => void context.close(), 6800);
     });
   } catch {
     // The visual effect still works when a browser blocks generated audio.
