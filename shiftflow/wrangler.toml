@@ -5,6 +5,3 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 SUPABASE_URL ="https://wrrdondtrybuuazprhtk.supabase.co"
-
-[triggers]
-crons = ["0 3 * * 3"]
