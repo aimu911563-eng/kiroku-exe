@@ -704,6 +704,54 @@ async function saveAnnouncement() {
 announcementMessageEl.addEventListener("input", updateAnnouncementCount);
 saveAnnouncementBtn.addEventListener("click", saveAnnouncement);
 
+const lineConnectionStatus = $("lineConnectionStatus");
+const lineLinkCodePanel = $("lineLinkCodePanel");
+const lineLinkCommand = $("lineLinkCommand");
+const lineLinkExpiry = $("lineLinkExpiry");
+const lineMessageStatus = $("lineMessageStatus");
+const issueLineLinkCodeBtn = $("issueLineLinkCode") as HTMLButtonElement;
+const sendLineTestBtn = $("sendLineTest") as HTMLButtonElement;
+const unlinkLineBtn = $("unlinkLine") as HTMLButtonElement;
+
+async function loadLineStatus() {
+  try {
+    const data = await api("/api/admin/line/status");
+    const channel = data.channel;
+    lineConnectionStatus.textContent = channel ? `連携済み：${channel.display_name || "LINE通知先"}` : data.configured ? "未連携" : "LINE APIの認証情報が未設定です";
+    sendLineTestBtn.disabled = !channel;
+    unlinkLineBtn.disabled = !channel;
+  } catch (error) {
+    lineConnectionStatus.textContent = error instanceof Error ? error.message : "LINEの状態を取得できませんでした";
+  }
+}
+
+issueLineLinkCodeBtn.addEventListener("click", async () => {
+  issueLineLinkCodeBtn.disabled = true;
+  lineMessageStatus.textContent = "発行中…";
+  try {
+    const data = await api("/api/admin/line/link-code", { method: "POST" });
+    lineLinkCommand.textContent = `連携 ${data.code}`;
+    lineLinkExpiry.textContent = `有効期限：${formatJPDateTime(data.expires_at)}`;
+    lineLinkCodePanel.hidden = false;
+    lineMessageStatus.textContent = "公式アカウントとのトークへ上のメッセージを送信してください";
+  } catch (error) { lineMessageStatus.textContent = error instanceof Error ? error.message : "連携コードを発行できませんでした"; }
+  finally { issueLineLinkCodeBtn.disabled = false; }
+});
+
+sendLineTestBtn.addEventListener("click", async () => {
+  sendLineTestBtn.disabled = true;
+  lineMessageStatus.textContent = "送信中…";
+  try { await api("/api/admin/line/test", { method: "POST" }); lineMessageStatus.textContent = "テスト通知を送信しました"; await loadLineStatus(); }
+  catch (error) { lineMessageStatus.textContent = error instanceof Error ? error.message : "テスト通知を送信できませんでした"; }
+  finally { sendLineTestBtn.disabled = false; }
+});
+
+unlinkLineBtn.addEventListener("click", async () => {
+  if (!window.confirm("LINE通知先との連携を解除しますか？")) return;
+  try { await api("/api/admin/line/link", { method: "DELETE" }); lineLinkCodePanel.hidden = true; lineMessageStatus.textContent = "連携を解除しました"; await loadLineStatus(); }
+  catch (error) { lineMessageStatus.textContent = error instanceof Error ? error.message : "連携を解除できませんでした"; }
+});
+
 const hoursFields = {
   weekdayOpen: $("weekdayOpen") as HTMLSelectElement,
   weekdayClose: $("weekdayClose") as HTMLSelectElement,
@@ -905,6 +953,7 @@ loginBtn.addEventListener("click", async () => {
     setLoggedInUI(true);
     await loadBusinessHours();
     await loadAnnouncement();
+    await loadLineStatus();
     const mondayISO = normalizeToMondayISO(new Date().toISOString().slice(0, 10));
     setWeekStartValue(mondayISO)
 
@@ -1254,4 +1303,4 @@ wireEmployeeDeleteModal();
 loadStoresToSelect();
 const hasAdminToken = !!getToken();
 setLoggedInUI(hasAdminToken);
-if (hasAdminToken) { loadBusinessHours(); loadAnnouncement(); }
+if (hasAdminToken) { loadBusinessHours(); loadAnnouncement(); loadLineStatus(); }

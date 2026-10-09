@@ -193,6 +193,25 @@
           <p id="announcementMessageStatus" class="statusMessage" aria-live="polite"></p>
         </section>
 
+        <section class="surface lineAdminCard">
+          <div class="sectionHeading">
+            <h2>LINE通知</h2>
+            <p>個人LINEまたは店舗グループを連携し、通知をテストできます。</p>
+          </div>
+          <div id="lineConnectionStatus" class="lineConnectionStatus">状態を確認中…</div>
+          <div id="lineLinkCodePanel" class="lineLinkCodePanel" hidden>
+            <span>LINEで次のメッセージを送信</span>
+            <strong id="lineLinkCommand"></strong>
+            <small id="lineLinkExpiry"></small>
+          </div>
+          <div class="lineAdminActions">
+            <button id="issueLineLinkCode" type="button" class="btn btnPrimary">連携コードを発行</button>
+            <button id="sendLineTest" type="button" class="btn" disabled>テスト通知</button>
+            <button id="unlinkLine" type="button" class="btn btnDanger" disabled>連携解除</button>
+          </div>
+          <p id="lineMessageStatus" class="statusMessage" aria-live="polite"></p>
+        </section>
+
         <section class="surface submissionCard">
         <div class="toolbar">
             <div class="toolbarLeft">

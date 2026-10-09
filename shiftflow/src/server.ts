@@ -29,6 +29,8 @@ type Env = {
   ADMIN_TOKEN_SECRET: string;
   WORKTIME_ADMIN_PASSWORD: string;
   DEMO_WORKTIME_ADMIN_PASSWORD: string;
+  LINE_CHANNEL_ACCESS_TOKEN?: string;
+  LINE_CHANNEL_SECRET?: string;
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -448,6 +450,116 @@ app.put("/api/admin/announcement", requireAdmin, async (c) => {
   const { error } = await supabase.from("store_announcements").upsert({ store_id: storeId, message, is_active: isActive, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
   if (error) return c.json({ ok: false, error: error.message }, 500);
   return c.json({ ok: true, announcement: { message, is_active: isActive } });
+});
+
+function lineConfig(c: any) {
+  return {
+    token: String(c.env?.LINE_CHANNEL_ACCESS_TOKEN ?? process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "").trim(),
+    secret: String(c.env?.LINE_CHANNEL_SECRET ?? process.env.LINE_CHANNEL_SECRET ?? "").trim(),
+  };
+}
+
+function lineCodeHash(code: string) {
+  return crypto.createHash("sha256").update(`shiftflow-line:${code}`).digest("hex");
+}
+
+async function lineRequest(token: string, path: string, init: RequestInit = {}) {
+  const response = await fetch(`https://api.line.me${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String((data as any)?.message ?? `LINE API ${response.status}`));
+  return data as any;
+}
+
+app.get("/api/admin/line/status", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const { token, secret } = lineConfig(c);
+  const { data, error } = await supabase.from("line_notification_channels")
+    .select("target_type,display_name,linked_at,last_sent_at,last_result,notify_submission_reminder,notify_unsubmitted,notify_schedule_published")
+    .eq("store_id", storeId).maybeSingle();
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, configured: Boolean(token && secret), channel: data ?? null });
+});
+
+app.post("/api/admin/line/link-code", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const { token, secret } = lineConfig(c);
+  if (!token || !secret) return c.json({ ok: false, error: "LINEのChannel access tokenまたはChannel secretが未設定です" }, 503);
+  const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+  const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
+  await supabase.from("line_link_codes").delete().eq("store_id", storeId).is("used_at", null);
+  const { error } = await supabase.from("line_link_codes").insert({ store_id: storeId, code_hash: lineCodeHash(code), expires_at: expiresAt });
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, code, expires_at: expiresAt });
+});
+
+app.post("/api/admin/line/test", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const { token } = lineConfig(c);
+  if (!token) return c.json({ ok: false, error: "LINEのChannel access tokenが未設定です" }, 503);
+  const { data, error } = await supabase.from("line_notification_channels").select("target_id").eq("store_id", storeId).maybeSingle();
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  if (!data?.target_id) return c.json({ ok: false, error: "LINE通知先が未連携です" }, 400);
+  try {
+    await lineRequest(token, "/v2/bot/message/push", { method: "POST", body: JSON.stringify({ to: data.target_id, messages: [{ type: "text", text: "ShiftFlowのLINE通知テストです。連携は正常です！" }] }) });
+    await supabase.from("line_notification_channels").update({ last_sent_at: new Date().toISOString(), last_result: "success", updated_at: new Date().toISOString() }).eq("store_id", storeId);
+    return c.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "LINE送信に失敗しました";
+    await supabase.from("line_notification_channels").update({ last_sent_at: new Date().toISOString(), last_result: message, updated_at: new Date().toISOString() }).eq("store_id", storeId);
+    return c.json({ ok: false, error: message }, 502);
+  }
+});
+
+app.delete("/api/admin/line/link", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  const { error } = await supabase.from("line_notification_channels").delete().eq("store_id", storeId);
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true });
+});
+
+app.post("/api/line/webhook", async (c) => {
+  const { token, secret } = lineConfig(c);
+  if (!token || !secret) return c.json({ ok: false, error: "LINE is not configured" }, 503);
+  const rawBody = await c.req.text();
+  const received = c.req.header("x-line-signature") ?? "";
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("base64");
+  if (!received || received.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected))) {
+    return c.json({ ok: false, error: "Invalid signature" }, 401);
+  }
+  const payload = JSON.parse(rawBody || "{}");
+  for (const event of Array.isArray(payload.events) ? payload.events : []) {
+    const text = event?.type === "message" && event?.message?.type === "text" ? String(event.message.text).trim() : "";
+    const match = text.match(/^連携[\s　]+(\d{6})$/);
+    if (!match || !event?.replyToken || !event?.source?.type) continue;
+    const now = new Date().toISOString();
+    const { data: link } = await supabase.from("line_link_codes").select("id,store_id,expires_at,used_at")
+      .eq("code_hash", lineCodeHash(match[1])).is("used_at", null).gt("expires_at", now).maybeSingle();
+    let reply = "連携コードが違うか、有効期限が切れています。管理画面で新しいコードを発行してください。";
+    if (link) {
+      const targetType = String(event.source.type);
+      const targetId = String(event.source.groupId ?? event.source.roomId ?? event.source.userId ?? "");
+      if (targetId && ["user", "group", "room"].includes(targetType)) {
+        let displayName = targetType === "user" ? "個人LINE" : targetType === "group" ? "LINEグループ" : "複数人トーク";
+        try {
+          const profilePath = targetType === "group" ? `/v2/bot/group/${targetId}/summary` : targetType === "user" ? `/v2/bot/profile/${targetId}` : "";
+          if (profilePath) {
+            const profile = await lineRequest(token, profilePath);
+            displayName = String(profile.groupName ?? profile.displayName ?? displayName);
+          }
+        } catch { /* Keep the safe fallback name. */ }
+        const { error } = await supabase.from("line_notification_channels").upsert({ store_id: link.store_id, target_type: targetType, target_id: targetId, display_name: displayName, linked_at: now, updated_at: now }, { onConflict: "store_id" });
+        if (!error) {
+          await supabase.from("line_link_codes").update({ used_at: now }).eq("id", link.id);
+          reply = `ShiftFlowと「${displayName}」を連携しました。`;
+        } else reply = "連携の保存に失敗しました。管理者へ連絡してください。";
+      }
+    }
+    await lineRequest(token, "/v2/bot/message/reply", { method: "POST", body: JSON.stringify({ replyToken: event.replyToken, messages: [{ type: "text", text: reply }] }) });
+  }
+  return c.json({ ok: true });
 });
 
 app.put("/api/admin/business-hours", requireAdmin, async (c) => {

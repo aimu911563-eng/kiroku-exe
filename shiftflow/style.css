@@ -2521,6 +2521,8 @@ body.modalOpen {
   overflow: hidden;
 }
 
+.lineAdminCard { display:grid; gap:14px; }.lineConnectionStatus { padding:13px 15px; border:1px solid #d9dde5; border-radius:14px; background:#f7f8fa; font-weight:750; }.lineLinkCodePanel { padding:16px; border-radius:16px; background:#eef8ef; text-align:center; }.lineLinkCodePanel span,.lineLinkCodePanel small { display:block; color:#5e665f; }.lineLinkCodePanel strong { display:block; margin:8px 0; color:#16712c; font:800 clamp(24px,5vw,34px)/1.1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.04em; }.lineAdminActions { display:flex; flex-wrap:wrap; gap:9px; }
+
 .adminPage .modalOverlay {
   overflow-y: auto;
   overscroll-behavior: contain;
