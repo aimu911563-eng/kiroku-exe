@@ -504,7 +504,7 @@ function formatLineWeek(weekStart: string) {
   return `${md(start)}（月）〜${md(end)}（日）`;
 }
 
-async function sendWednesdayUnsubmittedNotifications(env: Env, now = new Date()) {
+async function sendWednesdayUnsubmittedNotifications(env: Env, now = new Date(), onlyStoreId = "", force = false) {
   const token = String(env.LINE_CHANNEL_ACCESS_TOKEN ?? "").trim();
   if (!token) throw new Error("LINE_CHANNEL_ACCESS_TOKEN is missing");
   const weekStart = nextMondayYmd(now);
@@ -514,7 +514,8 @@ async function sendWednesdayUnsubmittedNotifications(env: Env, now = new Date())
   if (channelError) throw channelError;
 
   for (const channel of channels ?? []) {
-    if (channel.last_unsubmitted_week_start === weekStart) continue;
+    if (onlyStoreId && channel.store_id !== onlyStoreId) continue;
+    if (!force && channel.last_unsubmitted_week_start === weekStart) continue;
     const [employeeResult, submissionResult] = await Promise.all([
       supabase.from("employees").select("employee_id,employee_name").eq("store_id", channel.store_id).eq("is_active", true).order("employee_id"),
       supabase.from("shift_submissions").select("employee_id").eq("store_id", channel.store_id).eq("week_start", weekStart),
@@ -538,6 +539,9 @@ async function sendWednesdayUnsubmittedNotifications(env: Env, now = new Date())
       nameLines,
       "",
       names.length ? "本日23:59までに提出をお願いします。希望勤務がない場合も0時間で提出できます。" : "ご協力ありがとうございます！",
+      "",
+      "シフト提出はこちら",
+      "https://shiftflow-e14.pages.dev/",
     ].join("\n");
     try {
       await lineRequest(token, "/v2/bot/message/push", {
@@ -561,6 +565,17 @@ async function sendWednesdayUnsubmittedNotifications(env: Env, now = new Date())
     }
   }
 }
+
+app.post("/api/admin/line/unsubmitted-test", requireAdmin, async (c) => {
+  const storeId = c.get("admin_store_id");
+  try {
+    await sendWednesdayUnsubmittedNotifications(c.env, new Date(), storeId, true);
+    return c.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "LINE送信に失敗しました";
+    return c.json({ ok: false, error: message }, 502);
+  }
+});
 
 app.get("/api/admin/line/status", requireAdmin, async (c) => {
   const storeId = c.get("admin_store_id");
