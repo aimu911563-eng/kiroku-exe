@@ -524,12 +524,17 @@ app.post("/api/line/webhook", async (c) => {
   const { token, secret } = lineConfig(c);
   if (!token || !secret) return c.json({ ok: false, error: "LINE is not configured" }, 503);
   const rawBody = await c.req.text();
+  let payload: any;
+  try { payload = JSON.parse(rawBody || "{}"); }
+  catch { return c.json({ ok: false, error: "Invalid JSON" }, 400); }
+  // LINE Developers sends an empty event list when the console's Verify button is used.
+  // It cannot mutate state, so acknowledge it while keeping real webhook events signed.
+  if (Array.isArray(payload.events) && payload.events.length === 0) return c.json({ ok: true });
   const received = c.req.header("x-line-signature") ?? "";
   const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("base64");
   if (!received || received.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected))) {
     return c.json({ ok: false, error: "Invalid signature" }, 401);
   }
-  const payload = JSON.parse(rawBody || "{}");
   for (const event of Array.isArray(payload.events) ? payload.events : []) {
     const text = event?.type === "message" && event?.message?.type === "text" ? String(event.message.text).trim() : "";
     const match = text.match(/^連携[\s　]+(\d{6})$/);
