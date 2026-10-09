@@ -473,6 +473,95 @@ async function lineRequest(token: string, path: string, init: RequestInit = {}) 
   return data as any;
 }
 
+function jstDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return { year: value("year"), month: value("month"), day: value("day") };
+}
+
+function ymdUtc(date: Date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+function nextMondayYmd(date = new Date()) {
+  const { year, month, day } = jstDateParts(date);
+  const current = new Date(Date.UTC(year, month - 1, day));
+  const daysUntilMonday = ((8 - current.getUTCDay()) % 7) || 7;
+  current.setUTCDate(current.getUTCDate() + daysUntilMonday);
+  return ymdUtc(current);
+}
+
+function formatLineWeek(weekStart: string) {
+  const start = new Date(`${weekStart}T00:00:00Z`);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const md = (date: Date) => `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
+  return `${md(start)}（月）〜${md(end)}（日）`;
+}
+
+async function sendWednesdayUnsubmittedNotifications(env: Env, now = new Date()) {
+  const token = String(env.LINE_CHANNEL_ACCESS_TOKEN ?? "").trim();
+  if (!token) throw new Error("LINE_CHANNEL_ACCESS_TOKEN is missing");
+  const weekStart = nextMondayYmd(now);
+  const { data: channels, error: channelError } = await supabase.from("line_notification_channels")
+    .select("store_id,target_id,notify_unsubmitted,last_unsubmitted_week_start")
+    .eq("notify_unsubmitted", true);
+  if (channelError) throw channelError;
+
+  for (const channel of channels ?? []) {
+    if (channel.last_unsubmitted_week_start === weekStart) continue;
+    const [employeeResult, submissionResult] = await Promise.all([
+      supabase.from("employees").select("employee_id,employee_name").eq("store_id", channel.store_id).eq("is_active", true).order("employee_id"),
+      supabase.from("shift_submissions").select("employee_id").eq("store_id", channel.store_id).eq("week_start", weekStart),
+    ]);
+    const queryError = employeeResult.error || submissionResult.error;
+    if (queryError) {
+      console.error("[LINE scheduled] query failed", { storeId: channel.store_id, error: queryError.message });
+      continue;
+    }
+    const submittedIds = new Set((submissionResult.data ?? []).map((row) => String(row.employee_id)));
+    const names = (employeeResult.data ?? [])
+      .filter((employee) => !submittedIds.has(String(employee.employee_id)))
+      .map((employee) => String(employee.employee_name).trim())
+      .filter(Boolean);
+    const nameLines = names.length ? names.map((name) => `・${name}`).join("\n") : "全員提出済みです 🎉";
+    const text = [
+      "📣 シフト提出状況のお知らせ",
+      `対象期間：${formatLineWeek(weekStart)}`,
+      "",
+      names.length ? `未提出：${names.length}名` : "未提出：0名",
+      nameLines,
+      "",
+      names.length ? "本日23:59までに提出をお願いします。希望勤務がない場合も0時間で提出できます。" : "ご協力ありがとうございます！",
+    ].join("\n");
+    try {
+      await lineRequest(token, "/v2/bot/message/push", {
+        method: "POST",
+        body: JSON.stringify({ to: channel.target_id, messages: [{ type: "text", text }] }),
+      });
+      await supabase.from("line_notification_channels").update({
+        last_unsubmitted_week_start: weekStart,
+        last_sent_at: new Date().toISOString(),
+        last_result: "success",
+        updated_at: new Date().toISOString(),
+      }).eq("store_id", channel.store_id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "LINE送信に失敗しました";
+      console.error("[LINE scheduled] push failed", { storeId: channel.store_id, error: message });
+      await supabase.from("line_notification_channels").update({
+        last_sent_at: new Date().toISOString(),
+        last_result: message,
+        updated_at: new Date().toISOString(),
+      }).eq("store_id", channel.store_id);
+    }
+  }
+}
+
 app.get("/api/admin/line/status", requireAdmin, async (c) => {
   const storeId = c.get("admin_store_id");
   const { token, secret } = lineConfig(c);
@@ -1853,4 +1942,9 @@ app.onError((err, c) => {
   return c.json({ error: "Internal Server Error", detail: String(err) }, 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  scheduled(_controller: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }) {
+    ctx.waitUntil(sendWednesdayUnsubmittedNotifications(env));
+  },
+};
