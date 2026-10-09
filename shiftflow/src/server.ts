@@ -533,12 +533,24 @@ app.post("/api/line/webhook", async (c) => {
   const received = c.req.header("x-line-signature") ?? "";
   const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("base64");
   if (!received || received.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected))) {
+    console.warn("[LINE webhook] signature rejected", {
+      hasSignature: Boolean(received),
+      eventCount: Array.isArray(payload.events) ? payload.events.length : null,
+    });
     return c.json({ ok: false, error: "Invalid signature" }, 401);
   }
   for (const event of Array.isArray(payload.events) ? payload.events : []) {
     const text = event?.type === "message" && event?.message?.type === "text" ? String(event.message.text).trim() : "";
     const match = text.match(/^連携[\s　]+(\d{6})$/);
-    if (!match || !event?.replyToken || !event?.source?.type) continue;
+    if (!match || !event?.replyToken || !event?.source?.type) {
+      console.log("[LINE webhook] event ignored", {
+        eventType: String(event?.type ?? "unknown"),
+        messageType: String(event?.message?.type ?? "none"),
+        sourceType: String(event?.source?.type ?? "none"),
+        matchedLinkCommand: Boolean(match),
+      });
+      continue;
+    }
     const now = new Date().toISOString();
     const { data: link } = await supabase.from("line_link_codes").select("id,store_id,expires_at,used_at")
       .eq("code_hash", lineCodeHash(match[1])).is("used_at", null).gt("expires_at", now).maybeSingle();
@@ -562,6 +574,10 @@ app.post("/api/line/webhook", async (c) => {
         } else reply = "連携の保存に失敗しました。管理者へ連絡してください。";
       }
     }
+    console.log("[LINE webhook] link command handled", {
+      codeAccepted: Boolean(link),
+      sourceType: String(event.source.type),
+    });
     await lineRequest(token, "/v2/bot/message/reply", { method: "POST", body: JSON.stringify({ replyToken: event.replyToken, messages: [{ type: "text", text: reply }] }) });
   }
   return c.json({ ok: true });
