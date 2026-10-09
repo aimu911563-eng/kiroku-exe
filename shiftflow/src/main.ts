@@ -268,54 +268,13 @@ let mascotDebugEventIndex = 0;
 
 const mascotDebugParams = new URLSearchParams(window.location.search);
 const mascotDebugMode = mascotDebugParams.get("mascot_debug") === "1";
-const mascotForcedEvent = ["chase", "battle", "bosswin"].includes(mascotDebugParams.get("mascot_event") ?? "")
-  ? mascotDebugParams.get("mascot_event") as "chase" | "battle" | "bosswin"
+const mascotForcedEvent = ["chase", "battle"].includes(mascotDebugParams.get("mascot_event") ?? "")
+  ? mascotDebugParams.get("mascot_event") as "chase" | "battle"
   : null;
-
-function playMascotSlashSound() {
-  try {
-    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context = new AudioContextClass();
-    const playImpact = (start: number, pitch: number, volume = .2, duration = .12, frequency = 1900) => {
-      const count = Math.ceil(context.sampleRate * duration);
-      const buffer = context.createBuffer(1, count, context.sampleRate);
-      const samples = buffer.getChannelData(0);
-      for (let index = 0; index < count; index += 1) {
-        const progress = index / count;
-        samples[index] = (Math.random() * 2 - 1) * (1 - progress) * Math.sin(progress * Math.PI * pitch);
-      }
-      const source = context.createBufferSource();
-      const filter = context.createBiquadFilter();
-      const gain = context.createGain();
-      filter.type = "bandpass";
-      filter.frequency.setValueAtTime(frequency, start);
-      filter.frequency.exponentialRampToValueAtTime(Math.max(160, frequency * .24), start + duration);
-      filter.Q.value = .75;
-      gain.gain.setValueAtTime(.0001, start);
-      gain.gain.exponentialRampToValueAtTime(volume, start + .012);
-      gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
-      source.buffer = buffer;
-      source.connect(filter).connect(gain).connect(context.destination);
-      source.start(start);
-      source.stop(start + duration);
-    };
-    void context.resume().then(() => {
-      const now = context.currentTime;
-      [1.12, 1.2, 1.28, 1.37, 1.46, 1.55].forEach((delay, index) => playImpact(now + delay, 28 + index * 4, .11, .07, 2600));
-      playImpact(now + 7, 13, .28, .26, 360);
-      window.setTimeout(() => void context.close(), 8200);
-    });
-  } catch {
-    // The visual effect still works when a browser blocks generated audio.
-  }
-}
 
 function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
   if (mascotEventTimer) window.clearTimeout(mascotEventTimer);
   if (mascotEventEndTimer) window.clearTimeout(mascotEventEndTimer);
-  const bossCutin = document.getElementById("mascotBossCutin");
-  bossCutin?.classList.remove("active");
   card.dataset.event = "none";
   card.dataset.debug = mascotDebugMode ? "true" : "false";
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -326,18 +285,12 @@ function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
       return;
     }
     const roll = Math.random();
-    const debugEvents = ["chase", "battle", "bosswin"] as const;
-    const event = mascotForcedEvent ?? (mascotDebugMode ? debugEvents[mascotDebugEventIndex++ % debugEvents.length] : roll < .05 ? "bosswin" : roll < .48 ? "chase" : "battle");
+    const debugEvents = ["chase", "battle"] as const;
+    const event = mascotForcedEvent ?? (mascotDebugMode ? debugEvents[mascotDebugEventIndex++ % debugEvents.length] : roll < .5 ? "chase" : "battle");
     card.dataset.event = event;
-    if (event === "bosswin" && bossCutin) {
-      void bossCutin.offsetWidth;
-      bossCutin.classList.add("active");
-      playMascotSlashSound();
-    }
-    const duration = event === "chase" ? 8000 : event === "bosswin" ? 10000 : 13000;
+    const duration = event === "chase" ? 8000 : 13000;
     mascotEventEndTimer = window.setTimeout(() => {
       card.dataset.event = "none";
-      bossCutin?.classList.remove("active");
       scheduleMascotEvent(card);
     }, duration);
   }, delay);

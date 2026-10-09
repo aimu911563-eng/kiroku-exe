@@ -40,11 +40,19 @@ function orderAdminStore(c: any) {
 
 const DEFAULT_ORDER_DAYS: Record<string, number[]> = { "7249": [2, 5], "7539": [1, 4] };
 
+function orderDatabaseFailure(c: any, error: unknown) {
+    const message = error instanceof Error ? error.message : String((error as { message?: unknown })?.message ?? error ?? "");
+    if (/fetch failed|ENOTFOUND|ECONNREFUSED|network/i.test(message)) {
+        return c.json({ ok: false, error: "在庫データベースが停止中です。Supabaseプロジェクトを再開してください" }, 503);
+    }
+    return c.json({ ok: false, error: message || "データベース処理に失敗しました" }, 500);
+}
+
 orderRoutes.get("/settings", async (c) => {
     const storeId = String(c.req.query("store_id") ?? "").trim();
     if (!/^(7249|7539)$/.test(storeId)) return c.json({ ok: false, error: "store_id required" }, 400);
     const { data, error } = await supabase.from("order_settings").select("order_days,extra_order_dates,updated_at").eq("store_id", storeId).maybeSingle();
-    if (error) return c.json({ ok: false, error: error.message }, 500);
+    if (error) return orderDatabaseFailure(c, error);
     return c.json({ ok: true, store_id: storeId, order_days: data?.order_days ?? DEFAULT_ORDER_DAYS[storeId], extra_order_dates: data?.extra_order_dates ?? [], updated_at: data?.updated_at ?? null });
 });
 
@@ -79,7 +87,7 @@ orderRoutes.put("/admin/settings", async (c) => {
         return c.json({ ok: false, error: "一日限定の日付を確認してください" }, 400);
     }
     const { error } = await supabase.from("order_settings").upsert({ store_id: storeId, order_days: days, extra_order_dates: extraDates, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
-    if (error) return c.json({ ok: false, error: error.message }, 500);
+    if (error) return orderDatabaseFailure(c, error);
     return c.json({ ok: true, store_id: storeId, order_days: days, extra_order_dates: extraDates });
 });
 
@@ -96,7 +104,7 @@ orderRoutes.get("/admin/items", async (c) => {
             .eq("store_id", storeId),
     ]);
     const error = itemsResult.error || yieldsResult.error;
-    if (error) return c.json({ ok: false, error: error.message }, 500);
+    if (error) return orderDatabaseFailure(c, error);
     const yieldMap = new Map((yieldsResult.data ?? []).map((row) => [row.item_code, row]));
     const items = (itemsResult.data ?? []).map((item) => ({
         ...item,
@@ -125,7 +133,7 @@ orderRoutes.put("/admin/items", async (c) => {
         return c.json({ ok: false, error: "商品コード、食材名、区分またはイールド数を確認してください" }, 400);
     }
     const existingResult = await supabase.from("inventory_items").select("item_code").eq("store_id", storeId);
-    if (existingResult.error) return c.json({ ok: false, error: existingResult.error.message }, 500);
+    if (existingResult.error) return orderDatabaseFailure(c, existingResult.error);
     const existingCodes = new Set((existingResult.data ?? []).map((row) => String(row.item_code)));
     const usedCodes = new Set(existingCodes);
     const prefixes: Record<string, string> = { main: "MAIN", side: "SIDE", fresh_veg: "VEG", mushroom: "MUSHROOM" };
@@ -168,7 +176,7 @@ orderRoutes.put("/admin/items", async (c) => {
             }
         }
     }
-    if (error) return c.json({ ok: false, error: error.message }, 500);
+    if (error) return orderDatabaseFailure(c, error);
     return c.json({ ok: true, updated: existingItems.length, created: newItems.length });
 });
 
@@ -185,7 +193,7 @@ orderRoutes.get("/admin/budgets", async (c) => {
         .select("id,order_date,base_budget,onion_budget,mushroom_budget,note,updated_at")
         .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
         .order("order_date", { ascending: true });
-    if (error) return c.json({ ok: false, error: error.message }, 500);
+    if (error) return orderDatabaseFailure(c, error);
     return c.json({ ok: true, store_id: storeId, month, budgets: data ?? [] });
 });
 
@@ -206,7 +214,7 @@ orderRoutes.put("/admin/budgets", async (c) => {
     }
     const dates = normalized.map((row: any) => row.order_date);
     const existingResult = await supabase.from("order_budgets").select("id,order_date").eq("store_id", storeId).in("order_date", dates);
-    if (existingResult.error) return c.json({ ok: false, error: existingResult.error.message }, 500);
+    if (existingResult.error) return orderDatabaseFailure(c, existingResult.error);
     const existing = new Map((existingResult.data ?? []).map((row) => [row.order_date, row.id]));
     const results = await Promise.all(normalized.map((row: any) => {
         const payload = { ...row, store_id: storeId, updated_at: new Date().toISOString() };
@@ -216,7 +224,7 @@ orderRoutes.put("/admin/budgets", async (c) => {
             : supabase.from("order_budgets").insert(payload);
     }));
     const error = results.find((result) => result.error)?.error;
-    if (error) return c.json({ ok: false, error: error.message }, 500);
+    if (error) return orderDatabaseFailure(c, error);
     return c.json({ ok: true, updated: normalized.length });
 });
 
