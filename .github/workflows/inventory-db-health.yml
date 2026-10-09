@@ -1,0 +1,49 @@
+name: Inventory DB health check
+
+on:
+  schedule:
+    # 09:15 JST every day. Scheduled workflows use UTC.
+    - cron: "15 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inventory-db-health
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query inventory database through production API
+        shell: bash
+        run: |
+          set -euo pipefail
+          for store_id in 7249 7539; do
+            response_file="response-${store_id}.json"
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --retry 3 \
+              --retry-all-errors \
+              --connect-timeout 15 \
+              --max-time 45 \
+              "https://kiroku-exe.pages.dev/api/order/settings?store_id=${store_id}" \
+              --output "${response_file}"
+
+            node -e '
+              const fs = require("node:fs");
+              const file = process.argv[1];
+              const storeId = process.argv[2];
+              const data = JSON.parse(fs.readFileSync(file, "utf8"));
+              if (data.ok !== true || data.store_id !== storeId || !Array.isArray(data.order_days)) {
+                console.error(`Invalid health response for store ${storeId}`, data);
+                process.exit(1);
+              }
+              console.log(`Store ${storeId}: inventory database is healthy`);
+            ' "${response_file}" "${store_id}"
+          done
