@@ -247,6 +247,78 @@ orderRoutes.put("/admin/budgets", async (c) => {
     return c.json({ ok: true, updated: normalized.length });
 });
 
+orderRoutes.get("/admin/report", async (c) => {
+    const storeId = orderAdminStore(c);
+    if (!storeId) return c.json({ ok: false, error: "Unauthorized" }, 401);
+    const month = String(c.req.query("month") ?? "");
+    if (!/^\d{4}-\d{2}$/.test(month)) return c.json({ ok: false, error: "month must be YYYY-MM" }, 400);
+    const [year, monthNumber] = month.split("-").map(Number);
+    const start = `${month}-01`;
+    const next = new Date(year, monthNumber, 1);
+    const end = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
+    const [budgetResult, calcResult, countResult] = await Promise.all([
+        supabase.from("order_budgets")
+            .select("order_date,base_budget,onion_budget,mushroom_budget")
+            .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
+            .order("order_date", { ascending: true }),
+        supabase.from("order_calc_view")
+            .select("order_date,item_code,name,required_qty,stock_qty,order_qty")
+            .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
+            .order("order_date", { ascending: true }),
+        supabase.from("inventory_counts")
+            .select("date,item_code")
+            .eq("store_id", storeId).gte("date", start).lt("date", end),
+    ]);
+    const error = budgetResult.error || calcResult.error || countResult.error;
+    if (error) return orderDatabaseFailure(c, error);
+
+    const countKeys = new Set((countResult.data ?? []).map((row) => `${row.date}:${row.item_code}`));
+    const calcRows = calcResult.data ?? [];
+    const itemTotals = new Map<string, { item_code: string; name: string; required_qty: number; stock_qty: number; order_qty: number }>();
+    for (const row of calcRows) {
+        const itemCode = String(row.item_code);
+        const current = itemTotals.get(itemCode) ?? { item_code: itemCode, name: String(row.name ?? itemCode), required_qty: 0, stock_qty: 0, order_qty: 0 };
+        current.required_qty += Number(row.required_qty ?? 0);
+        current.stock_qty += Number(row.stock_qty ?? 0);
+        current.order_qty += Number(row.order_qty ?? 0);
+        itemTotals.set(itemCode, current);
+    }
+    const daily = (budgetResult.data ?? []).map((budget) => {
+        const rows = calcRows.filter((row) => row.order_date === budget.order_date);
+        const requiredQty = rows.reduce((sum, row) => sum + Number(row.required_qty ?? 0), 0);
+        const stockQty = rows.reduce((sum, row) => sum + Number(row.stock_qty ?? 0), 0);
+        const orderQty = rows.reduce((sum, row) => sum + Number(row.order_qty ?? 0), 0);
+        const inputCount = rows.filter((row) => countKeys.has(`${budget.order_date}:${row.item_code}`)).length;
+        return {
+            order_date: budget.order_date,
+            budget_total: Number(budget.base_budget ?? 0) + Number(budget.onion_budget ?? 0) + Number(budget.mushroom_budget ?? 0),
+            required_qty: requiredQty,
+            stock_qty: stockQty,
+            order_qty: orderQty,
+            input_count: inputCount,
+            item_count: rows.length,
+        };
+    });
+    const requiredTotal = daily.reduce((sum, row) => sum + row.required_qty, 0);
+    const stockTotal = daily.reduce((sum, row) => sum + row.stock_qty, 0);
+    const inputTotal = daily.reduce((sum, row) => sum + row.input_count, 0);
+    const itemTotal = daily.reduce((sum, row) => sum + row.item_count, 0);
+    return c.json({
+        ok: true,
+        store_id: storeId,
+        month,
+        summary: {
+            order_days: daily.length,
+            budget_total: daily.reduce((sum, row) => sum + row.budget_total, 0),
+            input_rate: itemTotal ? Math.round((inputTotal / itemTotal) * 100) : 0,
+            stock_coverage_rate: requiredTotal ? Math.round((Math.min(stockTotal, requiredTotal) / requiredTotal) * 100) : 0,
+            order_qty: daily.reduce((sum, row) => sum + row.order_qty, 0),
+        },
+        daily,
+        shortage_items: [...itemTotals.values()].filter((row) => row.order_qty > 0).sort((a, b) => b.order_qty - a.order_qty).slice(0, 10),
+    });
+});
+
 orderRoutes.get("/calc", async (c) => {
     try {
         const store_id = String(c.req.query("store_id") ?? "").trim();

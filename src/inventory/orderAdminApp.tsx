@@ -4,6 +4,11 @@ type BudgetType = "base" | "onion" | "mushroom";
 type ItemCategory = "main" | "side" | "fresh_veg" | "mushroom";
 type Item = { item_code: string; name: string; category: string; priority: number; display_order: number; per_100k: number | string; budget_type: BudgetType; is_new?: boolean };
 type Budget = { order_date: string; base_budget: number | string; onion_budget: number | string; mushroom_budget: number | string };
+type Report = {
+  summary: { order_days: number; budget_total: number; input_rate: number; stock_coverage_rate: number; order_qty: number };
+  daily: Array<{ order_date: string; budget_total: number; required_qty: number; stock_qty: number; order_qty: number; input_count: number; item_count: number }>;
+  shortage_items: Array<{ item_code: string; name: string; required_qty: number; stock_qty: number; order_qty: number }>;
+};
 
 const STORE_ID = new URLSearchParams(location.search).get("store_id") || "7539";
 const TOKEN_KEY = `order_admin_token_${STORE_ID}`;
@@ -33,7 +38,7 @@ export default function OrderAdminApp() {
   const [authenticated, setAuthenticated] = useState(Boolean(localStorage.getItem(TOKEN_KEY)));
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"budgets" | "items">("budgets");
+  const [tab, setTab] = useState<"budgets" | "items" | "report">("budgets");
   const [month, setMonth] = useState(monthKey());
   const [budgets, setBudgets] = useState<Record<string, Budget>>({});
   const [touchedDates, setTouchedDates] = useState<Set<string>>(new Set());
@@ -51,6 +56,7 @@ export default function OrderAdminApp() {
   const [savedExtraOrderDates, setSavedExtraOrderDates] = useState<string[]>([]);
   const [activeBudgetDate, setActiveBudgetDate] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
+  const [report, setReport] = useState<Report | null>(null);
 
   async function login(event: React.FormEvent) {
     event.preventDefault(); setLoginError("");
@@ -85,9 +91,17 @@ export default function OrderAdminApp() {
     catch (error) { setMessage((error as Error).message); }
   }
 
+  async function loadReport() {
+    setLoading(true); setMessage("");
+    try { const data = await request(`/admin/report?month=${month}`); setReport({ summary: data.summary, daily: data.daily ?? [], shortage_items: data.shortage_items ?? [] }); }
+    catch (error) { setMessage((error as Error).message); setReport(null); }
+    finally { setLoading(false); }
+  }
+
   useEffect(() => { if (authenticated) loadBudgets(); }, [authenticated, month]);
   useEffect(() => { if (authenticated) loadSettings(); }, [authenticated]);
   useEffect(() => { if (authenticated && tab === "items" && items.length === 0) loadItems(); }, [authenticated, tab]);
+  useEffect(() => { if (authenticated && tab === "report") loadReport(); }, [authenticated, tab, month]);
 
   const calendarDays = useMemo(() => {
     const [year, monthNumber] = month.split("-").map(Number);
@@ -227,9 +241,23 @@ export default function OrderAdminApp() {
 
   return <main className="orderAdminShell">
     <header className="orderHero"><div><span className="orderEyebrow">ORDER ADMIN</span><h1>発注管理</h1><p>{STORE_NAMES[STORE_ID] ?? STORE_ID}・予算と食材マスター</p></div><button className="orderButton ghost" onClick={() => { localStorage.removeItem(TOKEN_KEY); setAuthenticated(false); }}>ログアウト</button></header>
-    <nav className="orderTabs"><button className={tab === "budgets" ? "active" : ""} onClick={() => setTab("budgets")}>予算カレンダー</button><button className={tab === "items" ? "active" : ""} onClick={() => setTab("items")}>食材・イールド</button></nav>
+    <nav className="orderTabs"><button className={tab === "budgets" ? "active" : ""} onClick={() => setTab("budgets")}>予算カレンダー</button><button className={tab === "items" ? "active" : ""} onClick={() => setTab("items")}>食材・イールド</button><button className={tab === "report" ? "active" : ""} onClick={() => setTab("report")}>発注精度</button></nav>
     {message && <div className="orderAlert">{message}</div>}
-    {tab === "budgets" ? <section className="orderPanel">
+    {tab === "report" ? <section className="orderPanel reportPanel">
+      <div className="orderSectionHeader"><div><span className="orderEyebrow">ORDER REPORT</span><h2>発注精度レポート</h2><p>予算・在庫入力・必要数から、毎月の発注状況を確認します。</p></div><div className="monthControls"><button onClick={() => changeMonth(-1)}>‹</button><strong>{month.replace("-", "年")}月</strong><button onClick={() => changeMonth(1)}>›</button></div></div>
+      {loading && !report ? <div className="orderEmpty">集計中…</div> : report && <>
+        <div className="reportMetrics">
+          <article><span>設定予算</span><strong>¥{report.summary.budget_total.toLocaleString()}</strong><small>{report.summary.order_days}日分</small></article>
+          <article><span>在庫入力率</span><strong>{report.summary.input_rate}%</strong><small>入力済み食材の割合</small></article>
+          <article><span>在庫充足率</span><strong>{report.summary.stock_coverage_rate}%</strong><small>必要数に対する在庫</small></article>
+          <article><span>推奨発注数</span><strong>{report.summary.order_qty.toLocaleString()}</strong><small>合計ケース数</small></article>
+        </div>
+        {!report.daily.length ? <div className="orderEmpty">この月の予算・発注データはありません</div> : <div className="reportGrid">
+          <section className="reportCard"><header><h3>日別の発注状況</h3><p>棒が長いほど推奨発注数が多い日です。</p></header><div className="reportDailyList">{report.daily.map((day) => { const max = Math.max(...report.daily.map((row) => row.order_qty), 1); return <article key={day.order_date}><div><strong>{Number(day.order_date.slice(5,7))}/{Number(day.order_date.slice(8,10))}</strong><span>予算 ¥{day.budget_total.toLocaleString()}</span></div><div className="reportBar"><i style={{ width: `${Math.max((day.order_qty / max) * 100, day.order_qty ? 4 : 0)}%` }} /></div><b>{day.order_qty}</b><small>{day.input_count}/{day.item_count}入力</small></article>; })}</div></section>
+          <section className="reportCard"><header><h3>不足が多い食材</h3><p>期間内の推奨発注数が多い順です。</p></header>{report.shortage_items.length ? <ol className="shortageRanking">{report.shortage_items.map((item) => <li key={item.item_code}><span><strong>{item.name}</strong><small>必要 {item.required_qty}・在庫 {item.stock_qty}</small></span><b>{item.order_qty}</b></li>)}</ol> : <div className="orderEmpty">不足している食材はありません</div>}</section>
+        </div>}
+      </>}
+    </section> : tab === "budgets" ? <section className="orderPanel">
       <div className="orderSectionHeader"><div><span className="orderEyebrow">MONTHLY BUDGET</span><h2>予算カレンダー</h2><p>設定した発注日に3種類の予算を入力します。</p></div><div className="monthControls"><button onClick={() => changeMonth(-1)}>‹</button><strong>{month.replace("-", "年")}月</strong><button onClick={() => changeMonth(1)}>›</button></div></div>
       <div className="orderDaySettings"><div><strong>発注日の設定</strong><p>繰り返す曜日を選び、カレンダーから一日限定の日付も追加できます。</p></div><div className="weekdayPicker">{["日","月","火","水","木","金","土"].map((label, day) => <button type="button" key={label} className={orderDays.includes(day) ? "selected" : ""} onClick={() => toggleOrderDay(day)}>{label}</button>)}</div><button className="orderButton primary" disabled={loading || !orderDays.length || (JSON.stringify(orderDays) === JSON.stringify(savedOrderDays) && JSON.stringify(extraOrderDates) === JSON.stringify(savedExtraOrderDates))} onClick={saveOrderDays}>設定を保存</button></div>
       <div className="budgetLegend"><span className="base">食材</span><span className="onion">オニ＆ピーマン</span><span className="mushroom">マッシュ</span></div>
