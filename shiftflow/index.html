@@ -337,6 +337,14 @@
           <button type="button" data-mascot-stat="beauty"><span>✦ うつくしさ</span><strong id="mascotBeauty">0</strong><small>宝石・きらめき系</small><i>＋</i></button>
         </div>
         <div class="mascotUnlocks"><span>次の解放</span><p id="mascotNextUnlock">各ステータス3で最初のアイテムを解放</p></div>
+        <div class="mascotCollection">
+          <div class="mascotCollectionTabs" role="tablist" aria-label="恐竜コレクション">
+            <button type="button" class="active" data-mascot-tab="items" role="tab" aria-selected="true">アイテム</button>
+            <button type="button" data-mascot-tab="emotes" role="tab" aria-selected="false">エモート</button>
+          </div>
+          <div id="mascotItemsPanel" class="mascotCollectionGrid" role="tabpanel"></div>
+          <div id="mascotEmotesPanel" class="mascotCollectionGrid" role="tabpanel" hidden></div>
+        </div>
       </section>
     </div>
 

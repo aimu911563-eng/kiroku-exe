@@ -11,6 +11,7 @@ import {
 } from "./shift-time";
 import { submissionMessages } from "./submission-messages";
 import { isEmployeeIdFormat } from "./employee-id";
+import { MASCOT_EMOTES, MASCOT_ITEMS, mascotUnlockAvailable, type MascotStatKey } from "./mascot-unlocks";
 
 console.log("ShiftFlow main.ts 読み込み完了:)");
 
@@ -92,6 +93,7 @@ type MascotGameState = {
   coolness: number;
   cuteness: number;
   beauty: number;
+  equipped_item: string;
   unspent_points: number;
   slime_available: boolean;
   slime_available_at: string | null;
@@ -101,6 +103,7 @@ let mascotGame: MascotGameState | null = null;
 let mascotPendingTaps = 0;
 let mascotTapTimer: number | undefined;
 let mascotSlimeTimer: number | undefined;
+let mascotEmoteTimer: number | undefined;
 
 function setLoginUserLabell(name: string) {
   if (loginUserLabel) loginUserLabel.textContent = `👤 ${name}`;
@@ -388,17 +391,6 @@ const mascotStageForLevel = (level: number) => {
   return stages.find((stage) => level >= stage.min) ?? stages[stages.length - 1];
 };
 
-function mascotAccessory(state: MascotGameState) {
-  const stats = [
-    { key: "cool", value: state.coolness },
-    { key: "cute", value: state.cuteness },
-    { key: "beauty", value: state.beauty },
-  ].sort((a, b) => b.value - a.value);
-  const top = stats[0];
-  const tier = top.value >= 20 ? 4 : top.value >= 10 ? 3 : top.value >= 5 ? 2 : top.value >= 3 ? 1 : 0;
-  return tier ? `${top.key}${tier}` : "none";
-}
-
 function renderMascotGame(state: MascotGameState, previousLevel?: number) {
   mascotGame = state;
   const mascot = document.getElementById("growthMascot");
@@ -406,7 +398,7 @@ function renderMascotGame(state: MascotGameState, previousLevel?: number) {
   const stage = mascotStageForLevel(state.level);
   if (mascot) {
     mascot.dataset.stage = stage.key;
-    mascot.dataset.accessory = mascotAccessory(state);
+    mascot.dataset.accessory = state.equipped_item || "none";
   }
   const stageEl = document.getElementById("growthStage");
   const progress = document.getElementById("growthProgress");
@@ -441,12 +433,59 @@ function renderMascotGame(state: MascotGameState, previousLevel?: number) {
     nextUnlock.textContent = descriptions.join(" ／ ");
   }
   if (card) card.dataset.hasPoints = state.unspent_points ? "true" : "false";
+  renderMascotCollection(state);
   if (previousLevel !== undefined && state.level > previousLevel) {
     card?.classList.remove("mascotLevelUp");
     requestAnimationFrame(() => card?.classList.add("mascotLevelUp"));
     showMascotXp(`LEVEL UP! Lv.${state.level}`);
   }
   scheduleMascotSlime(state);
+}
+
+function mascotStats(state: MascotGameState): Record<MascotStatKey, number> {
+  return { coolness: state.coolness, cuteness: state.cuteness, beauty: state.beauty };
+}
+
+function renderMascotCollection(state: MascotGameState) {
+  const stats = mascotStats(state);
+  const itemsPanel = document.getElementById("mascotItemsPanel");
+  const emotesPanel = document.getElementById("mascotEmotesPanel");
+  if (itemsPanel) itemsPanel.innerHTML = MASCOT_ITEMS.map((item) => {
+    const unlocked = mascotUnlockAvailable(item, stats);
+    const equipped = state.equipped_item === item.id;
+    return `<button type="button" data-mascot-item="${item.id}" ${unlocked ? "" : "disabled"} class="${equipped ? "equipped" : ""}"><b>${unlocked ? item.icon : "🔒"}</b><span>${item.name}</span><small>${equipped ? "装備中" : unlocked ? "タップで装備" : `${statLabel(item.stat)} ${item.required}で解放`}</small></button>`;
+  }).join("");
+  if (emotesPanel) emotesPanel.innerHTML = MASCOT_EMOTES.map((emote) => {
+    const unlocked = mascotUnlockAvailable(emote, stats);
+    return `<button type="button" data-mascot-emote="${emote.id}" ${unlocked ? "" : "disabled"}><b>${unlocked ? emote.icon : "🔒"}</b><span>${emote.name}</span><small>${unlocked ? "タップで再生" : `${statLabel(emote.stat)} ${emote.required}で解放`}</small></button>`;
+  }).join("");
+}
+
+function statLabel(stat: MascotStatKey) {
+  return stat === "coolness" ? "かっこよさ" : stat === "cuteness" ? "かわいさ" : "うつくしさ";
+}
+
+async function equipMascotItem(itemId: string) {
+  const token = getToken();
+  if (!token || !mascotGame) return;
+  const nextItem = mascotGame.equipped_item === itemId ? "" : itemId;
+  const response = await fetch("/api/employee/mascot-game/equip", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ item_id: nextItem }) });
+  const json = await response.json().catch(() => null);
+  if (response.ok && json?.game) renderMascotGame(json.game);
+}
+
+function playMascotEmote(emoteId: string) {
+  if (!mascotGame) return;
+  const emote = MASCOT_EMOTES.find((candidate) => candidate.id === emoteId);
+  if (!emote || !mascotUnlockAvailable(emote, mascotStats(mascotGame))) return;
+  const card = document.querySelector<HTMLElement>(".mascotGrowthCard");
+  if (!card) return;
+  if (mascotEmoteTimer) window.clearTimeout(mascotEmoteTimer);
+  card.dataset.emote = "";
+  requestAnimationFrame(() => { card.dataset.emote = emoteId; });
+  mascotEmoteTimer = window.setTimeout(() => { card.dataset.emote = ""; }, 2400);
+  const overlay = document.getElementById("mascotStatusOverlay");
+  if (overlay) overlay.style.display = "none";
 }
 
 function showMascotXp(message: string) {
@@ -1168,6 +1207,28 @@ document.querySelectorAll<HTMLButtonElement>("[data-mascot-stat]").forEach((butt
     else button.disabled = false;
   });
 });
+document.querySelectorAll<HTMLButtonElement>("[data-mascot-tab]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const tab = button.dataset.mascotTab;
+    document.querySelectorAll<HTMLButtonElement>("[data-mascot-tab]").forEach((candidate) => {
+      const active = candidate === button;
+      candidate.classList.toggle("active", active);
+      candidate.setAttribute("aria-selected", String(active));
+    });
+    const items = document.getElementById("mascotItemsPanel");
+    const emotes = document.getElementById("mascotEmotesPanel");
+    if (items) items.hidden = tab !== "items";
+    if (emotes) emotes.hidden = tab !== "emotes";
+  });
+});
+document.getElementById("mascotItemsPanel")?.addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-mascot-item]");
+  if (button && !button.disabled) void equipMascotItem(String(button.dataset.mascotItem));
+});
+document.getElementById("mascotEmotesPanel")?.addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-mascot-emote]");
+  if (button && !button.disabled) playMascotEmote(String(button.dataset.mascotEmote));
+});
 
 document.getElementById("copyPreviousWeek")?.addEventListener("click", async () => {
   const status = document.getElementById("copyPreviousStatus");
@@ -1193,6 +1254,7 @@ function handleEmployeeLogout() {
   mascotPendingTaps = 0;
   if (mascotTapTimer) window.clearTimeout(mascotTapTimer);
   if (mascotSlimeTimer) window.clearTimeout(mascotSlimeTimer);
+  if (mascotEmoteTimer) window.clearTimeout(mascotEmoteTimer);
   if (employeeAnnouncement) employeeAnnouncement.style.display = "none";
 
   // 入力系（optional chaining で代入しない）
