@@ -262,7 +262,7 @@ orderRoutes.get("/admin/report", async (c) => {
             .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
             .order("order_date", { ascending: true }),
         supabase.from("order_calc_view")
-            .select("order_date,item_code,name,required_qty,stock_qty,order_qty")
+            .select("order_date,item_code,name,required_qty,stock_qty,order_qty,target_budget,per_100k,pack_qty")
             .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
             .order("order_date", { ascending: true }),
         supabase.from("inventory_counts")
@@ -303,6 +303,37 @@ orderRoutes.get("/admin/report", async (c) => {
     const stockTotal = daily.reduce((sum, row) => sum + row.stock_qty, 0);
     const inputTotal = daily.reduce((sum, row) => sum + row.input_count, 0);
     const itemTotal = daily.reduce((sum, row) => sum + row.item_count, 0);
+    const completedDaily = daily.filter((row) => row.item_count > 0 && row.input_count === row.item_count);
+    const completedDates = new Set(completedDaily.map((row) => row.order_date));
+    const completedCalcRows = calcRows.filter((row) => completedDates.has(String(row.order_date)));
+    const dateList = completedDaily.map((row) => row.order_date).sort();
+    const spanDays = dateList.length > 1 ? Math.round((Date.parse(`${dateList.at(-1)}T00:00:00Z`) - Date.parse(`${dateList[0]}T00:00:00Z`)) / 86400000) : 0;
+    const yieldSamples = new Map<string, { name: string; current: number; values: number[] }>();
+    for (let index = 1; index < dateList.length; index += 1) {
+        const previous = completedCalcRows.filter((row) => row.order_date === dateList[index - 1]);
+        const currentByCode = new Map(completedCalcRows.filter((row) => row.order_date === dateList[index]).map((row) => [String(row.item_code), row]));
+        for (const row of previous) {
+            const current = currentByCode.get(String(row.item_code));
+            const budget = Number(row.target_budget ?? 0);
+            const packQty = Number(row.pack_qty ?? 1) || 1;
+            const consumption = (Number(row.stock_qty ?? 0) + Math.ceil(Number(row.order_qty ?? 0)) - Number(current?.stock_qty ?? 0)) * packQty;
+            if (!current || budget <= 0 || consumption < 0) continue;
+            const sample = consumption * 100000 / budget;
+            if (!Number.isFinite(sample)) continue;
+            const key = String(row.item_code);
+            const entry = yieldSamples.get(key) ?? { name: String(row.name ?? key), current: Number(row.per_100k ?? 0), values: [] };
+            entry.values.push(sample);
+            yieldSamples.set(key, entry);
+        }
+    }
+    const yieldSuggestions = spanDays >= 12 && dateList.length >= 5 ? [...yieldSamples.entries()].flatMap(([item_code, entry]) => {
+        if (entry.values.length < 4 || entry.current <= 0) return [];
+        const sorted = [...entry.values].sort((a, b) => a - b);
+        const estimated = sorted[Math.floor(sorted.length / 2)];
+        const difference = (estimated - entry.current) / entry.current;
+        if (Math.abs(difference) < 0.2) return [];
+        return [{ item_code, name: entry.name, current_yield: entry.current, suggested_yield: Math.round(estimated * 10) / 10, direction: difference > 0 ? "increase" : "decrease", samples: entry.values.length }];
+    }).slice(0, 10) : [];
     return c.json({
         ok: true,
         store_id: storeId,
@@ -315,7 +346,9 @@ orderRoutes.get("/admin/report", async (c) => {
             order_qty: daily.reduce((sum, row) => sum + row.order_qty, 0),
         },
         daily,
-        shortage_items: [...itemTotals.values()].filter((row) => row.order_qty > 0).sort((a, b) => b.order_qty - a.order_qty).slice(0, 10),
+        shortage_items: (() => { const latest = dateList.at(-1); return calcRows.filter((row) => row.order_date === latest && Number(row.order_qty) > 0).map((row) => ({ item_code: row.item_code, name: row.name, required_qty: Math.ceil(Number(row.required_qty ?? 0)), stock_qty: Number(row.stock_qty ?? 0), order_qty: Math.ceil(Number(row.order_qty ?? 0)) })).sort((a, b) => b.order_qty - a.order_qty).slice(0, 10); })(),
+        completed_daily: completedDaily,
+        yield_analysis: { ready: spanDays >= 12 && dateList.length >= 5, completed_dates: dateList.length, required_dates: 5, span_days: spanDays, suggestions: yieldSuggestions },
     });
 });
 

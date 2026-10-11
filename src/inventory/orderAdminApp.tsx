@@ -8,6 +8,7 @@ type Report = {
   summary: { order_days: number; budget_total: number; input_rate: number; stock_coverage_rate: number; order_qty: number };
   daily: Array<{ order_date: string; budget_total: number; required_qty: number; stock_qty: number; order_qty: number; input_count: number; item_count: number }>;
   shortage_items: Array<{ item_code: string; name: string; required_qty: number; stock_qty: number; order_qty: number }>;
+  yield_analysis: { ready: boolean; completed_dates: number; required_dates: number; span_days: number; suggestions: Array<{ item_code: string; name: string; current_yield: number; suggested_yield: number; direction: string; samples: number }> };
 };
 
 const STORE_ID = new URLSearchParams(location.search).get("store_id") || "7539";
@@ -93,7 +94,7 @@ export default function OrderAdminApp() {
 
   async function loadReport() {
     setLoading(true); setMessage("");
-    try { const data = await request(`/admin/report?month=${month}`); setReport({ summary: data.summary, daily: data.daily ?? [], shortage_items: data.shortage_items ?? [] }); }
+    try { const data = await request(`/admin/report?month=${month}`); setReport({ summary: data.summary, daily: data.completed_daily ?? [], shortage_items: data.shortage_items ?? [], yield_analysis: data.yield_analysis }); }
     catch (error) { setMessage((error as Error).message); setReport(null); }
     finally { setLoading(false); }
   }
@@ -241,21 +242,21 @@ export default function OrderAdminApp() {
 
   return <main className="orderAdminShell">
     <header className="orderHero"><div><span className="orderEyebrow">ORDER ADMIN</span><h1>発注管理</h1><p>{STORE_NAMES[STORE_ID] ?? STORE_ID}・予算と食材マスター</p></div><button className="orderButton ghost" onClick={() => { localStorage.removeItem(TOKEN_KEY); setAuthenticated(false); }}>ログアウト</button></header>
-    <nav className="orderTabs"><button className={tab === "budgets" ? "active" : ""} onClick={() => setTab("budgets")}>予算カレンダー</button><button className={tab === "items" ? "active" : ""} onClick={() => setTab("items")}>食材・イールド</button><button className={tab === "report" ? "active" : ""} onClick={() => setTab("report")}>発注精度</button></nav>
+    <nav className="orderTabs"><button className={tab === "budgets" ? "active" : ""} onClick={() => setTab("budgets")}>予算カレンダー</button><button className={tab === "items" ? "active" : ""} onClick={() => setTab("items")}>食材・イールド</button><button className={tab === "report" ? "active" : ""} onClick={() => setTab("report")}>発注チェック</button></nav>
     {message && <div className="orderAlert">{message}</div>}
     {tab === "report" ? <section className="orderPanel reportPanel">
-      <div className="orderSectionHeader"><div><span className="orderEyebrow">ORDER REPORT</span><h2>発注精度レポート</h2><p>予算・在庫入力・必要数から、毎月の発注状況を確認します。</p></div><div className="monthControls"><button onClick={() => changeMonth(-1)}>‹</button><strong>{month.replace("-", "年")}月</strong><button onClick={() => changeMonth(1)}>›</button></div></div>
+      <div className="orderSectionHeader"><div><span className="orderEyebrow">ORDER CHECK</span><h2>発注チェック</h2><p>在庫をすべて入力した発注日だけを集計します。未入力日は数字に含めません。</p></div><div className="monthControls"><button onClick={() => changeMonth(-1)}>‹</button><strong>{month.replace("-", "年")}月</strong><button onClick={() => changeMonth(1)}>›</button></div></div>
       {loading && !report ? <div className="orderEmpty">集計中…</div> : report && <>
         <div className="reportMetrics">
-          <article><span>設定予算</span><strong>¥{report.summary.budget_total.toLocaleString()}</strong><small>{report.summary.order_days}日分</small></article>
-          <article><span>在庫入力率</span><strong>{report.summary.input_rate}%</strong><small>入力済み食材の割合</small></article>
-          <article><span>在庫充足率</span><strong>{report.summary.stock_coverage_rate}%</strong><small>必要数に対する在庫</small></article>
-          <article><span>推奨発注数</span><strong>{report.summary.order_qty.toLocaleString()}</strong><small>合計ケース数</small></article>
+          <article><span>入力完了した発注日</span><strong>{report.daily.length}日</strong><small>全食材の在庫を保存した日の数です</small></article>
+          <article><span>最新の入力日</span><strong>{report.daily.length ? `${Number(report.daily.at(-1)!.order_date.slice(5,7))}/${Number(report.daily.at(-1)!.order_date.slice(8,10))}` : "−"}</strong><small>この日を基準に不足食材を表示します</small></article>
+          <article><span>最新日の推奨発注数</span><strong>{(report.daily.at(-1)?.order_qty ?? 0).toLocaleString()}</strong><small>必要数から在庫を引き、食材ごとに切り上げた合計です</small></article>
         </div>
         {!report.daily.length ? <div className="orderEmpty">この月の予算・発注データはありません</div> : <div className="reportGrid">
           <section className="reportCard"><header><h3>日別の発注状況</h3><p>棒が長いほど推奨発注数が多い日です。</p></header><div className="reportDailyList">{report.daily.map((day) => { const max = Math.max(...report.daily.map((row) => row.order_qty), 1); return <article key={day.order_date}><div><strong>{Number(day.order_date.slice(5,7))}/{Number(day.order_date.slice(8,10))}</strong><span>予算 ¥{day.budget_total.toLocaleString()}</span></div><div className="reportBar"><i style={{ width: `${Math.max((day.order_qty / max) * 100, day.order_qty ? 4 : 0)}%` }} /></div><b>{day.order_qty}</b><small>{day.input_count}/{day.item_count}入力</small></article>; })}</div></section>
-          <section className="reportCard"><header><h3>不足が多い食材</h3><p>期間内の推奨発注数が多い順です。</p></header>{report.shortage_items.length ? <ol className="shortageRanking">{report.shortage_items.map((item) => <li key={item.item_code}><span><strong>{item.name}</strong><small>必要 {item.required_qty}・在庫 {item.stock_qty}</small></span><b>{item.order_qty}</b></li>)}</ol> : <div className="orderEmpty">不足している食材はありません</div>}</section>
+          <section className="reportCard"><header><h3>最新日の不足食材</h3><p>最新の入力日に、発注推奨数が多い順です。</p></header>{report.shortage_items.length ? <ol className="shortageRanking">{report.shortage_items.map((item) => <li key={item.item_code}><span><strong>{item.name}</strong><small>必要 {item.required_qty}・在庫 {item.stock_qty}</small></span><b>{item.order_qty}</b></li>)}</ol> : <div className="orderEmpty">不足している食材はありません</div>}</section>
         </div>}
+        <section className="reportCard yieldAnalysisCard"><header><h3>イールド見直し候補</h3><p>連続した約2週間の在庫推移から推定します。自動では変更しません。</p></header>{!report.yield_analysis.ready ? <div className="yieldCollecting"><strong>分析データを収集中</strong><span>入力完了 {report.yield_analysis.completed_dates}/{report.yield_analysis.required_dates}回・{report.yield_analysis.span_days}日分</span><small>全食材の在庫入力を約2週間続けると提案を開始します。</small></div> : report.yield_analysis.suggestions.length ? <ol className="shortageRanking">{report.yield_analysis.suggestions.map((item) => <li key={item.item_code}><span><strong>{item.name}</strong><small>現在 {item.current_yield} → 推定 {item.suggested_yield}（{item.samples}回から分析）</small></span><b>{item.direction === "increase" ? "増やす候補" : "減らす候補"}</b></li>)}</ol> : <div className="orderEmpty">大きな変更が必要な食材はありません</div>}</section>
       </>}
     </section> : tab === "budgets" ? <section className="orderPanel">
       <div className="orderSectionHeader"><div><span className="orderEyebrow">MONTHLY BUDGET</span><h2>予算カレンダー</h2><p>設定した発注日に3種類の予算を入力します。</p></div><div className="monthControls"><button onClick={() => changeMonth(-1)}>‹</button><strong>{month.replace("-", "年")}月</strong><button onClick={() => changeMonth(1)}>›</button></div></div>
