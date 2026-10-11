@@ -280,14 +280,14 @@ orderRoutes.get("/admin/report", async (c) => {
         const current = itemTotals.get(itemCode) ?? { item_code: itemCode, name: String(row.name ?? itemCode), required_qty: 0, stock_qty: 0, order_qty: 0 };
         current.required_qty += Number(row.required_qty ?? 0);
         current.stock_qty += Number(row.stock_qty ?? 0);
-        current.order_qty += Number(row.order_qty ?? 0);
+        current.order_qty += Math.ceil(Number(row.order_qty ?? 0));
         itemTotals.set(itemCode, current);
     }
     const daily = (budgetResult.data ?? []).map((budget) => {
         const rows = calcRows.filter((row) => row.order_date === budget.order_date);
         const requiredQty = rows.reduce((sum, row) => sum + Number(row.required_qty ?? 0), 0);
         const stockQty = rows.reduce((sum, row) => sum + Number(row.stock_qty ?? 0), 0);
-        const orderQty = rows.reduce((sum, row) => sum + Number(row.order_qty ?? 0), 0);
+        const orderQty = rows.reduce((sum, row) => sum + Math.ceil(Number(row.order_qty ?? 0)), 0);
         const inputCount = rows.filter((row) => countKeys.has(`${budget.order_date}:${row.item_code}`)).length;
         return {
             order_date: budget.order_date,
