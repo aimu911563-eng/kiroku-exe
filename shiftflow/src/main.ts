@@ -537,13 +537,6 @@ function buildConfirmHtml(payload: {
 
   const range = formatWeekRange(payload.week_start);
   const comment = (payload.comment ?? "").trim();
-  const enteredDays = Object.values(payload.data ?? {}).filter(Boolean).length;
-  const totalMinutes = totalShiftMinutes(payload.data as ShiftData);
-  const checks = [
-    enteredDays === 0 ? "勤務希望なし（0時間）で提出します。" : "",
-    enteredDays === 1 ? "希望日が1日だけです。入力漏れがないか確認してください。" : "",
-    totalMinutes > 0 && totalMinutes < 240 ? "希望時間が合計4時間未満です。時間を確認してください。" : "",
-  ].filter(Boolean);
 
   const note = payload.mode === "update"
     ?"* これは「修正（1回目）」として保存されます。以後は修正できません。必要なら店長に連絡してください。"
@@ -566,7 +559,6 @@ function buildConfirmHtml(payload: {
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    ${checks.length ? `<div class="submissionSmartCheck"><b>提出前チェック</b>${checks.map((check) => `<p>${check}</p>`).join("")}</div>` : `<div class="submissionSmartCheck isGood"><b>提出前チェック</b><p>入力内容に大きな気になる点はありません。</p></div>`}
     <div style="margin-top: 10px";>
       <b>コメント</b><br/>
       <div style="white-space-: pre-wrap; border: 1px solid #ddd padding: 8px; border-radius: 8px;">
