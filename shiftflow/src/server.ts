@@ -13,6 +13,7 @@ import {
   type StoreId,
 } from "./shift-time";
 import { holidaysForWeek, japaneseHolidays } from "./japanese-holidays";
+import { mascotLevelForXp } from "./mascot-levels";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -938,6 +939,77 @@ app.post("/api/employee/mascot-event", requireEmployee, async (c) => {
   const { error } = await supabase.from("mascot_events").upsert({ store_id: storeId, employee_hash: employeeHash, event_type: eventType, event_date: eventDate }, { onConflict: "store_id,employee_hash,event_type,event_date", ignoreDuplicates: true });
   if (error) return c.json({ ok: false, error: error.message }, 500);
   return c.json({ ok: true });
+});
+
+function mascotEmployeeHash(storeId: string, employeeId: string) {
+  const salt = String(process.env.EMPLOYEE_PIN_SALT ?? process.env.EMPLOYEE_TOKEN_SECRET ?? "shiftflow");
+  return crypto.createHmac("sha256", salt).update(`${storeId}:${employeeId}`).digest("hex");
+}
+
+function mascotGamePayload(row: any) {
+  const xp = Math.max(0, Number(row?.xp) || 0);
+  const levelRow = mascotLevelForXp(xp);
+  const coolness = Math.max(0, Number(row?.coolness) || 0);
+  const cuteness = Math.max(0, Number(row?.cuteness) || 0);
+  const beauty = Math.max(0, Number(row?.beauty) || 0);
+  const spent = coolness + cuteness + beauty;
+  const nextTotalXp = levelRow.xpToNext === null ? null : levelRow.totalXp + levelRow.xpToNext;
+  return {
+    xp,
+    level: levelRow.level,
+    level_start_xp: levelRow.totalXp,
+    next_level_xp: nextTotalXp,
+    coolness,
+    cuteness,
+    beauty,
+    unspent_points: Math.max(0, levelRow.level - 1 - spent),
+    slime_available: !row?.slime_available_at || new Date(row.slime_available_at).getTime() <= Date.now(),
+    slime_available_at: row?.slime_available_at ?? null,
+  };
+}
+
+async function mascotGameIdentity(c: any) {
+  const employeeId = c.get("employee_id") as string;
+  const storeId = c.get("employee_store_id") as string;
+  return { storeId, employeeHash: mascotEmployeeHash(storeId, employeeId) };
+}
+
+app.get("/api/employee/mascot-game", requireEmployee, async (c) => {
+  const { storeId, employeeHash } = await mascotGameIdentity(c);
+  const { error: insertError } = await supabase.from("mascot_game_states")
+    .upsert({ store_id: storeId, employee_hash: employeeHash }, { onConflict: "store_id,employee_hash", ignoreDuplicates: true });
+  if (insertError) return c.json({ ok: false, error: insertError.message }, 500);
+  const { data, error } = await supabase.from("mascot_game_states").select("xp,coolness,cuteness,beauty,slime_available_at")
+    .eq("store_id", storeId).eq("employee_hash", employeeHash).single();
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, game: mascotGamePayload(data) });
+});
+
+app.post("/api/employee/mascot-game/tap", requireEmployee, async (c) => {
+  const { storeId, employeeHash } = await mascotGameIdentity(c);
+  const body = await c.req.json().catch(() => null) as { count?: number } | null;
+  const count = Number(body?.count);
+  if (!Number.isInteger(count) || count < 1 || count > 20) return c.json({ ok: false, error: "invalid tap count" }, 400);
+  const { data, error } = await supabase.rpc("add_mascot_tap_xp", { p_store_id: storeId, p_employee_hash: employeeHash, p_amount: count });
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, game: mascotGamePayload(data) });
+});
+
+app.post("/api/employee/mascot-game/slime", requireEmployee, async (c) => {
+  const { storeId, employeeHash } = await mascotGameIdentity(c);
+  const { data, error } = await supabase.rpc("claim_mascot_slime", { p_store_id: storeId, p_employee_hash: employeeHash });
+  if (error) return c.json({ ok: false, error: error.message.includes("slime unavailable") ? "スライムは逃げてしまいました" : error.message }, error.message.includes("slime unavailable") ? 409 : 500);
+  return c.json({ ok: true, reward: 100, game: mascotGamePayload(data) });
+});
+
+app.post("/api/employee/mascot-game/stat", requireEmployee, async (c) => {
+  const { storeId, employeeHash } = await mascotGameIdentity(c);
+  const body = await c.req.json().catch(() => null) as { stat?: string } | null;
+  const stat = String(body?.stat ?? "");
+  if (!["coolness", "cuteness", "beauty"].includes(stat)) return c.json({ ok: false, error: "invalid stat" }, 400);
+  const { data, error } = await supabase.rpc("spend_mascot_stat", { p_store_id: storeId, p_employee_hash: employeeHash, p_stat: stat });
+  if (error) return c.json({ ok: false, error: error.message.includes("no stat points") ? "振り分けられるポイントがありません" : error.message }, error.message.includes("no stat points") ? 409 : 500);
+  return c.json({ ok: true, game: mascotGamePayload(data) });
 });
 
 app.get("/api/shifts", requireEmployee, async (c) => {

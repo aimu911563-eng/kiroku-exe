@@ -120,6 +120,8 @@
               <span class="mascotScenery sceneryOne"><i class="pixelTree"></i><i class="pixelFlower"></i></span>
               <span class="mascotScenery sceneryTwo"><i class="pixelTree"></i><i class="pixelFlower"></i></span>
               <span class="mascotGround"></span><span class="mascotSnackGrass"></span>
+              <button id="mascotSlime" class="mascotGameSlime" type="button" aria-label="スライムを倒す"></button>
+              <span id="mascotXpPop" class="mascotXpPop" aria-live="polite"></span>
               <span class="mascotEnemyDino"></span>
               <span class="mascotBattleMob"></span>
               <span class="mascotFightCloud"><b>ポカ<br>ポカ</b></span>
@@ -131,9 +133,10 @@
                   <span class="pixelMascotLeg legOne"></span><span class="pixelMascotLeg legTwo"></span>
                   <span class="growthCostume"></span>
                   <span class="seasonCostume"></span>
+                  <span class="gameAccessory"></span>
                 </div>
               </div>
-              <div><span>恐竜の成長</span><strong id="growthStage">ちび恐竜</strong><p id="growthProgress">提出すると衣装が増えます</p><small id="growthSeason" class="growthSeason"></small></div>
+              <div class="mascotGameSummary"><span>恐竜の成長</span><strong id="growthStage">Lv.1 ちび恐竜</strong><p id="growthProgress">タップして育てよう</p><div class="mascotXpTrack"><i id="mascotXpBar"></i></div><small id="growthSeason" class="growthSeason"></small><button id="mascotStatusButton" class="mascotStatusButton" type="button">ステータス</button></div>
             </section>
             <section class="shiftSimulatorCard">
               <span>勤務時間シミュレーター</span>
@@ -321,6 +324,20 @@
           <button id="confirmSubmitBtn" type="button" class="btn btnPrimary">この内容で提出</button>
         </div>
       </div>
+    </div>
+
+    <div id="mascotStatusOverlay" class="mascotStatusOverlay" style="display:none;">
+      <section class="mascotStatusCard" role="dialog" aria-modal="true" aria-labelledby="mascotStatusTitle">
+        <header><div><span>DINOSAUR STATUS</span><h2 id="mascotStatusTitle">ちび恐竜</h2></div><button id="mascotStatusClose" type="button" aria-label="閉じる">×</button></header>
+        <div class="mascotLevelPanel"><strong id="mascotStatusLevel">Lv.1</strong><div><span id="mascotStatusXp">0 XP</span><div class="mascotStatusXpTrack"><i id="mascotStatusXpBar"></i></div></div></div>
+        <p id="mascotPointGuide" class="mascotPointGuide">使えるポイント 0</p>
+        <div class="mascotStats">
+          <button type="button" data-mascot-stat="coolness"><span>⚡ かっこよさ</span><strong id="mascotCoolness">0</strong><small>マント・オーラ系</small><i>＋</i></button>
+          <button type="button" data-mascot-stat="cuteness"><span>♡ かわいさ</span><strong id="mascotCuteness">0</strong><small>リボン・ハート系</small><i>＋</i></button>
+          <button type="button" data-mascot-stat="beauty"><span>✦ うつくしさ</span><strong id="mascotBeauty">0</strong><small>宝石・きらめき系</small><i>＋</i></button>
+        </div>
+        <div class="mascotUnlocks"><span>次の解放</span><p id="mascotNextUnlock">各ステータス3で最初のアイテムを解放</p></div>
+      </section>
     </div>
 
     <div id="submissionSuccessOverlay" class="submissionSuccessOverlay" style="display:none;">

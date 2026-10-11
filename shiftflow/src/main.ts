@@ -84,6 +84,24 @@ const employeeAnnouncement = document.getElementById("employeeAnnouncement") as 
 const employeeAnnouncementText = document.getElementById("employeeAnnouncementText") as HTMLParagraphElement | null;
 let submissionCount = 0;
 
+type MascotGameState = {
+  xp: number;
+  level: number;
+  level_start_xp: number;
+  next_level_xp: number | null;
+  coolness: number;
+  cuteness: number;
+  beauty: number;
+  unspent_points: number;
+  slime_available: boolean;
+  slime_available_at: string | null;
+};
+
+let mascotGame: MascotGameState | null = null;
+let mascotPendingTaps = 0;
+let mascotTapTimer: number | undefined;
+let mascotSlimeTimer: number | undefined;
+
 function setLoginUserLabell(name: string) {
   if (loginUserLabel) loginUserLabel.textContent = `👤 ${name}`;
 }
@@ -351,6 +369,150 @@ function renderMascotGrowth(playLoginWakeup = false) {
   if (progress) progress.textContent = stage.next === null ? `累計${submissionCount}回提出・立派に育ちました！` : `累計${submissionCount}回提出・あと${stage.next - submissionCount}回で成長`;
   const seasonEl = document.getElementById("growthSeason");
   if (seasonEl) seasonEl.textContent = season?.label ?? "";
+}
+
+const mascotStageForLevel = (level: number) => {
+  const stages = [
+    { min: 100, key: "manager", name: "店長恐竜" },
+    { min: 75, key: "goldscarf", name: "金色スカーフ恐竜" },
+    { min: 50, key: "chef", name: "コック恐竜" },
+    { min: 40, key: "sunglasses", name: "サングラス恐竜" },
+    { min: 30, key: "star", name: "スター恐竜" },
+    { min: 20, key: "cape", name: "マント恐竜" },
+    { min: 15, key: "crown", name: "王冠恐竜" },
+    { min: 10, key: "hat", name: "帽子恐竜" },
+    { min: 5, key: "scarf", name: "スカーフ恐竜" },
+    { min: 3, key: "badge", name: "名札恐竜" },
+    { min: 1, key: "little", name: "ちび恐竜" },
+  ];
+  return stages.find((stage) => level >= stage.min) ?? stages[stages.length - 1];
+};
+
+function mascotAccessory(state: MascotGameState) {
+  const stats = [
+    { key: "cool", value: state.coolness },
+    { key: "cute", value: state.cuteness },
+    { key: "beauty", value: state.beauty },
+  ].sort((a, b) => b.value - a.value);
+  const top = stats[0];
+  const tier = top.value >= 20 ? 4 : top.value >= 10 ? 3 : top.value >= 5 ? 2 : top.value >= 3 ? 1 : 0;
+  return tier ? `${top.key}${tier}` : "none";
+}
+
+function renderMascotGame(state: MascotGameState, previousLevel?: number) {
+  mascotGame = state;
+  const mascot = document.getElementById("growthMascot");
+  const card = document.querySelector<HTMLElement>(".mascotGrowthCard");
+  const stage = mascotStageForLevel(state.level);
+  if (mascot) {
+    mascot.dataset.stage = stage.key;
+    mascot.dataset.accessory = mascotAccessory(state);
+  }
+  const stageEl = document.getElementById("growthStage");
+  const progress = document.getElementById("growthProgress");
+  if (stageEl) stageEl.textContent = `Lv.${state.level} ${stage.name}`;
+  const current = state.xp - state.level_start_xp;
+  const required = state.next_level_xp === null ? 0 : state.next_level_xp - state.level_start_xp;
+  if (progress) progress.textContent = state.next_level_xp === null ? `MAX LEVEL・${state.xp.toLocaleString()} XP` : `${current.toLocaleString()} / ${required.toLocaleString()} XP`;
+  const percent = state.next_level_xp === null ? 100 : Math.max(0, Math.min(100, current / required * 100));
+  const bar = document.getElementById("mascotXpBar") as HTMLElement | null;
+  const statusBar = document.getElementById("mascotStatusXpBar") as HTMLElement | null;
+  if (bar) bar.style.width = `${percent}%`;
+  if (statusBar) statusBar.style.width = `${percent}%`;
+  const levelEl = document.getElementById("mascotStatusLevel");
+  const xpEl = document.getElementById("mascotStatusXp");
+  if (levelEl) levelEl.textContent = `Lv.${state.level}`;
+  if (xpEl) xpEl.textContent = `${state.xp.toLocaleString()} XP`;
+  (["Coolness", "Cuteness", "Beauty"] as const).forEach((name) => {
+    const key = name.toLowerCase() as "coolness" | "cuteness" | "beauty";
+    const el = document.getElementById(`mascot${name}`);
+    if (el) el.textContent = String(state[key]);
+  });
+  const guide = document.getElementById("mascotPointGuide");
+  if (guide) guide.textContent = state.unspent_points ? `使えるポイント ${state.unspent_points}・好きな能力を上げよう` : "次のレベルでポイントを獲得";
+  document.querySelectorAll<HTMLButtonElement>("[data-mascot-stat]").forEach((button) => { button.disabled = state.unspent_points < 1; });
+  const nextUnlock = document.getElementById("mascotNextUnlock");
+  if (nextUnlock) {
+    const candidates = [["かっこよさ", state.coolness], ["かわいさ", state.cuteness], ["うつくしさ", state.beauty]] as const;
+    const descriptions = candidates.map(([name, value]) => {
+      const next = [3, 5, 10, 20].find((point) => point > value);
+      return next ? `${name} ${next}` : `${name} コンプリート`;
+    });
+    nextUnlock.textContent = descriptions.join(" ／ ");
+  }
+  if (card) card.dataset.hasPoints = state.unspent_points ? "true" : "false";
+  if (previousLevel !== undefined && state.level > previousLevel) {
+    card?.classList.remove("mascotLevelUp");
+    requestAnimationFrame(() => card?.classList.add("mascotLevelUp"));
+    showMascotXp(`LEVEL UP! Lv.${state.level}`);
+  }
+  scheduleMascotSlime(state);
+}
+
+function showMascotXp(message: string) {
+  const pop = document.getElementById("mascotXpPop");
+  if (!pop) return;
+  pop.textContent = message;
+  pop.classList.remove("show");
+  requestAnimationFrame(() => pop.classList.add("show"));
+}
+
+async function loadMascotGame() {
+  const token = getToken();
+  if (!token) return;
+  const response = await fetch("/api/employee/mascot-game", { headers: { Authorization: `Bearer ${token}` } });
+  const json = await response.json().catch(() => null);
+  if (response.ok && json?.game) renderMascotGame(json.game);
+}
+
+async function flushMascotTaps() {
+  if (!mascotPendingTaps) return;
+  const token = getToken();
+  const count = Math.min(20, mascotPendingTaps);
+  mascotPendingTaps -= count;
+  if (!token) return;
+  const previousLevel = mascotGame?.level;
+  const response = await fetch("/api/employee/mascot-game/tap", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ count }) });
+  const json = await response.json().catch(() => null);
+  if (response.ok && json?.game) renderMascotGame(json.game, previousLevel);
+  if (mascotPendingTaps) mascotTapTimer = window.setTimeout(flushMascotTaps, 120);
+}
+
+function tapMascot() {
+  if (!mascotGame) return;
+  mascotPendingTaps += 1;
+  showMascotXp("+1 XP");
+  const mascot = document.getElementById("growthMascot");
+  mascot?.classList.remove("mascotTapped");
+  requestAnimationFrame(() => mascot?.classList.add("mascotTapped"));
+  if (mascotTapTimer) window.clearTimeout(mascotTapTimer);
+  mascotTapTimer = window.setTimeout(flushMascotTaps, 350);
+}
+
+function scheduleMascotSlime(state: MascotGameState) {
+  if (mascotSlimeTimer) window.clearTimeout(mascotSlimeTimer);
+  const slime = document.getElementById("mascotSlime");
+  if (!slime) return;
+  slime.classList.remove("visible");
+  if (!state.slime_available) return;
+  mascotSlimeTimer = window.setTimeout(() => slime.classList.add("visible"), mascotDebugMode ? 1500 : 18000 + Math.random() * 24000);
+}
+
+async function defeatMascotSlime(event: Event) {
+  event.stopPropagation();
+  const slime = document.getElementById("mascotSlime") as HTMLButtonElement | null;
+  const token = getToken();
+  if (!slime || !token || slime.disabled) return;
+  slime.disabled = true;
+  slime.classList.add("defeated");
+  const previousLevel = mascotGame?.level;
+  const response = await fetch("/api/employee/mascot-game/slime", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  const json = await response.json().catch(() => null);
+  if (response.ok && json?.game) {
+    showMascotXp("スライム撃破 +100 XP");
+    renderMascotGame(json.game, previousLevel);
+  }
+  window.setTimeout(() => { slime.classList.remove("visible", "defeated"); slime.disabled = false; }, 700);
 }
 
 async function loadEmployeeAnnouncement() {
@@ -928,6 +1090,7 @@ async function handleEmployeeLogin() {
     await loadExistingSubmissionIfAny().catch((error) => console.error("loadExistingSubmission error:", error));
     await loadEmployeeCalendar().catch((error) => console.error("loadEmployeeCalendar error:", error));
     await loadSubmissionHistory().catch((error) => console.error("loadSubmissionHistory error:", error));
+    await loadMascotGame().catch((error) => console.error("loadMascotGame error:", error));
     setupMascotTelemetry();
     await loadEmployeeAnnouncement();
     const remaining = Math.max(0, 700 - (performance.now() - transitionStarted));
@@ -973,8 +1136,38 @@ function setupMascotTelemetry() {
     if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5)) { send("view"); observer.disconnect(); }
   }, { threshold: 0.5 });
   observer.observe(card);
-  card.addEventListener("click", () => send("tap"));
+  card.addEventListener("click", (event) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    send("tap");
+    tapMascot();
+  });
 }
+
+document.getElementById("mascotSlime")?.addEventListener("click", defeatMascotSlime);
+document.getElementById("mascotStatusButton")?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  const overlay = document.getElementById("mascotStatusOverlay");
+  if (overlay) overlay.style.display = "grid";
+});
+document.getElementById("mascotStatusClose")?.addEventListener("click", () => {
+  const overlay = document.getElementById("mascotStatusOverlay");
+  if (overlay) overlay.style.display = "none";
+});
+document.getElementById("mascotStatusOverlay")?.addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) (event.currentTarget as HTMLElement).style.display = "none";
+});
+document.querySelectorAll<HTMLButtonElement>("[data-mascot-stat]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const token = getToken();
+    const stat = button.dataset.mascotStat;
+    if (!token || !stat || !mascotGame?.unspent_points) return;
+    button.disabled = true;
+    const response = await fetch("/api/employee/mascot-game/stat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ stat }) });
+    const json = await response.json().catch(() => null);
+    if (response.ok && json?.game) renderMascotGame(json.game);
+    else button.disabled = false;
+  });
+});
 
 document.getElementById("copyPreviousWeek")?.addEventListener("click", async () => {
   const status = document.getElementById("copyPreviousStatus");
@@ -996,6 +1189,10 @@ function handleEmployeeLogout() {
   clearToken();
   currentEmployee = null;
   submissionCount = 0;
+  mascotGame = null;
+  mascotPendingTaps = 0;
+  if (mascotTapTimer) window.clearTimeout(mascotTapTimer);
+  if (mascotSlimeTimer) window.clearTimeout(mascotSlimeTimer);
   if (employeeAnnouncement) employeeAnnouncement.style.display = "none";
 
   // 入力系（optional chaining で代入しない）
@@ -1256,7 +1453,7 @@ shiftForm.addEventListener("submit", async (event) => {
     }
 
     const savedMode = json.mode === "updated" ? "updated" : "submitted";
-    if (savedMode === "submitted") { submissionCount += 1; renderMascotGrowth(); }
+    if (savedMode === "submitted") submissionCount += 1;
     showSubmissionSuccess(currentEmployee.employee_name, payload.data, payload.comment, savedMode);
 
     clearDraft();
