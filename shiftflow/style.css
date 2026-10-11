@@ -2563,3 +2563,14 @@ body.modalOpen {
     backdrop-filter: blur(14px);
   }
 }
+.shiftQuickActions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px; }
+.shiftQuickActions .btn { min-height:40px; }
+.submissionSmartCheck { margin-top:12px; padding:11px 13px; border-radius:12px; background:#fff5e6; color:#7a4b00; }
+.submissionSmartCheck.isGood { background:#eef9f1; color:#246b36; }
+.submissionSmartCheck p { margin:4px 0 0; font-size:12px; }
+.submissionHistory { margin-top:18px; }
+.submissionHistoryList { display:grid; gap:7px; margin-top:14px; }
+.submissionHistoryList article { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:11px 13px; border:1px solid #e5e5ea; border-radius:13px; background:#fafafa; }
+.submissionHistoryList article div { display:grid; gap:3px; }
+.submissionHistoryList span,.submissionHistoryList small { color:#6e6e73; font-size:11px; }
+@media(max-width:640px){.submissionHistoryList article{align-items:flex-start;flex-direction:column;gap:5px}.shiftQuickActions .btn{width:100%}}

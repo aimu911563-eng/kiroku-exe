@@ -537,6 +537,13 @@ function buildConfirmHtml(payload: {
 
   const range = formatWeekRange(payload.week_start);
   const comment = (payload.comment ?? "").trim();
+  const enteredDays = Object.values(payload.data ?? {}).filter(Boolean).length;
+  const totalMinutes = totalShiftMinutes(payload.data as ShiftData);
+  const checks = [
+    enteredDays === 0 ? "勤務希望なし（0時間）で提出します。" : "",
+    enteredDays === 1 ? "希望日が1日だけです。入力漏れがないか確認してください。" : "",
+    totalMinutes > 0 && totalMinutes < 240 ? "希望時間が合計4時間未満です。時間を確認してください。" : "",
+  ].filter(Boolean);
 
   const note = payload.mode === "update"
     ?"* これは「修正（1回目）」として保存されます。以後は修正できません。必要なら店長に連絡してください。"
@@ -559,6 +566,7 @@ function buildConfirmHtml(payload: {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${checks.length ? `<div class="submissionSmartCheck"><b>提出前チェック</b>${checks.map((check) => `<p>${check}</p>`).join("")}</div>` : `<div class="submissionSmartCheck isGood"><b>提出前チェック</b><p>入力内容に大きな気になる点はありません。</p></div>`}
     <div style="margin-top: 10px";>
       <b>コメント</b><br/>
       <div style="white-space-: pre-wrap; border: 1px solid #ddd padding: 8px; border-radius: 8px;">
@@ -927,6 +935,7 @@ async function handleEmployeeLogin() {
     setLoginUserLabell(`${result.employee_name} (${result.store_id})`);
     await loadExistingSubmissionIfAny().catch((error) => console.error("loadExistingSubmission error:", error));
     await loadEmployeeCalendar().catch((error) => console.error("loadEmployeeCalendar error:", error));
+    await loadSubmissionHistory().catch((error) => console.error("loadSubmissionHistory error:", error));
     await loadEmployeeAnnouncement();
     const remaining = Math.max(0, 700 - (performance.now() - transitionStarted));
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
@@ -936,6 +945,39 @@ async function handleEmployeeLogin() {
     if (employeeLoginButton) { employeeLoginButton.disabled = false; employeeLoginButton.textContent = "ログイン"; }
   }
 }
+
+async function loadSubmissionHistory() {
+  const section = document.getElementById("submissionHistory");
+  const list = document.getElementById("submissionHistoryList");
+  const token = getToken();
+  if (!section || !list || !token) return;
+  const response = await fetch("/api/employee/submissions", { headers: { Authorization: `Bearer ${token}` } });
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.ok) return;
+  const rows = Array.isArray(json.submissions) ? json.submissions : [];
+  section.style.display = "block";
+  list.innerHTML = rows.length ? rows.map((row: any) => {
+    const days = Object.values(row.data ?? {}).filter(Boolean).length;
+    const received = row.updated_at ? new Date(row.updated_at).toLocaleString("ja-JP") : "−";
+    return `<article><div><strong>${escapeHtml(String(row.week_start))}週</strong><span>${days}日希望・${row.status === "updated" ? "再提出済み" : "提出済み"}</span></div><small>受付 ${escapeHtml(received)}</small></article>`;
+  }).join("") : '<p class="muted">提出履歴はまだありません。</p>';
+}
+
+document.getElementById("copyPreviousWeek")?.addEventListener("click", async () => {
+  const status = document.getElementById("copyPreviousStatus");
+  const token = getToken();
+  if (!token || !weekStartInput.value || hasExistingSubmission) return;
+  const previous = new Date(`${weekStartInput.value}T00:00:00`); previous.setDate(previous.getDate() - 7);
+  const previousYmd = toISODate(previous);
+  if (status) status.textContent = "前回を確認中…";
+  const response = await fetch(`/api/shifts?week_start=${encodeURIComponent(previousYmd)}`, { headers: { Authorization: `Bearer ${token}` } });
+  const json = await response.json().catch(() => null);
+  if (!json?.submission?.data) { if (status) status.textContent = "前回の提出は見つかりませんでした"; return; }
+  applyBusinessHoursToInputs(json.submission.data);
+  if (commentEl) commentEl.value = String(json.submission.comment ?? "").slice(0, 300);
+  updateCommentCount(); updateShiftSimulator(); saveDraft();
+  if (status) status.textContent = `${previousYmd}週の希望をコピーしました`;
+});
 
 function handleEmployeeLogout() {
   clearToken();
@@ -1206,6 +1248,7 @@ shiftForm.addEventListener("submit", async (event) => {
 
     clearDraft();
     await loadExistingSubmissionIfAny();
+    await loadSubmissionHistory();
   } finally {
     isSubmitting = false;
     updateSubmissionStateUI();

@@ -948,6 +948,17 @@ app.get("/api/shifts", requireEmployee, async (c) => {
   return c.json({ ok: true, submission: data ?? null });
 })
 
+app.get("/api/employee/submissions", requireEmployee, async (c) => {
+  const employeeId = c.get("employee_id") as string;
+  const storeId = c.get("employee_store_id") as string;
+  const { data, error } = await supabase.from("shift_submissions")
+    .select("week_start,data,status,comment,submitted_at,updated_at")
+    .eq("store_id", storeId).eq("employee_id", employeeId)
+    .order("week_start", { ascending: false }).limit(8);
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true, submissions: data ?? [] });
+});
+
 app.get("/api/employee/calendar", requireEmployee, async (c) => {
   const employeeId = c.get("employee_id") as string;
   const storeId = c.get("employee_store_id") as string;

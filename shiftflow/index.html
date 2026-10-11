@@ -107,6 +107,10 @@
           </div>
 
           <p id="hoursPreview" class="hoursPreview"></p>
+          <div class="shiftQuickActions">
+            <button id="copyPreviousWeek" type="button" class="btn btnGhost">前回の希望をコピー</button>
+            <span id="copyPreviousStatus" class="muted"></span>
+          </div>
 
           <div class="shiftInsights">
             <section class="mascotGrowthCard">
@@ -257,6 +261,11 @@
           </div>
         </section>
       </form>
+
+      <section id="submissionHistory" class="surface submissionHistory" style="display:none;">
+        <div class="sectionHeading"><p class="eyebrow">Submission Receipt</p><h2>提出履歴・受付証</h2><p>提出した週と受付日時を確認できます。</p></div>
+        <div id="submissionHistoryList" class="submissionHistoryList"></div>
+      </section>
 
       <section id="employeeCalendar" class="surface employeeCalendar" style="display: none;">
         <div class="calendarHeader">
