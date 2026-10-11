@@ -312,6 +312,7 @@ function scheduleMascotEvent(card: HTMLElement, firstEvent = false) {
     const duration = event === "chase" ? 8000 : 13000;
     mascotEventEndTimer = window.setTimeout(() => {
       card.dataset.event = "none";
+      if (event === "battle") void claimMascotEventReward();
       scheduleMascotEvent(card);
     }, duration);
   }, delay);
@@ -406,6 +407,8 @@ function renderMascotGame(state: MascotGameState, previousLevel?: number) {
   const current = state.xp - state.level_start_xp;
   const required = state.next_level_xp === null ? 0 : state.next_level_xp - state.level_start_xp;
   if (progress) progress.textContent = state.next_level_xp === null ? `MAX LEVEL・${state.xp.toLocaleString()} XP` : `${current.toLocaleString()} / ${required.toLocaleString()} XP`;
+  const submissionsEl = document.getElementById("growthSubmissions");
+  if (submissionsEl) submissionsEl.textContent = `シフト提出 ${submissionCount}回`;
   const percent = state.next_level_xp === null ? 100 : Math.max(0, Math.min(100, current / required * 100));
   const bar = document.getElementById("mascotXpBar") as HTMLElement | null;
   const statusBar = document.getElementById("mascotStatusXpBar") as HTMLElement | null;
@@ -451,18 +454,22 @@ function renderMascotCollection(state: MascotGameState) {
   const itemsPanel = document.getElementById("mascotItemsPanel");
   const emotesPanel = document.getElementById("mascotEmotesPanel");
   if (itemsPanel) itemsPanel.innerHTML = MASCOT_ITEMS.map((item) => {
-    const unlocked = mascotUnlockAvailable(item, stats);
+    const unlocked = mascotUnlockAvailable(item, stats, submissionCount);
     const equipped = state.equipped_item === item.id;
-    return `<button type="button" data-mascot-item="${item.id}" ${unlocked ? "" : "disabled"} class="${equipped ? "equipped" : ""}"><b>${unlocked ? item.icon : "🔒"}</b><span>${item.name}</span><small>${equipped ? "装備中" : unlocked ? "タップで装備" : `${statLabel(item.stat)} ${item.required}で解放`}</small></button>`;
+    return `<button type="button" data-mascot-item="${item.id}" ${unlocked ? "" : "disabled"} class="${equipped ? "equipped" : ""}"><b>${unlocked ? item.icon : "🔒"}</b><span>${item.name}</span><small>${equipped ? "装備中" : unlocked ? "タップで装備" : unlockRequirement(item)}</small></button>`;
   }).join("");
   if (emotesPanel) emotesPanel.innerHTML = MASCOT_EMOTES.map((emote) => {
-    const unlocked = mascotUnlockAvailable(emote, stats);
-    return `<button type="button" data-mascot-emote="${emote.id}" ${unlocked ? "" : "disabled"}><b>${unlocked ? emote.icon : "🔒"}</b><span>${emote.name}</span><small>${unlocked ? "タップで再生" : `${statLabel(emote.stat)} ${emote.required}で解放`}</small></button>`;
+    const unlocked = mascotUnlockAvailable(emote, stats, submissionCount);
+    return `<button type="button" data-mascot-emote="${emote.id}" ${unlocked ? "" : "disabled"}><b>${unlocked ? emote.icon : "🔒"}</b><span>${emote.name}</span><small>${unlocked ? "タップで再生" : unlockRequirement(emote)}</small></button>`;
   }).join("");
 }
 
 function statLabel(stat: MascotStatKey) {
   return stat === "coolness" ? "かっこよさ" : stat === "cuteness" ? "かわいさ" : "うつくしさ";
+}
+
+function unlockRequirement(unlock: { stat?: MascotStatKey; required?: number; submissions?: number }) {
+  return unlock.submissions !== undefined ? `シフト提出 ${unlock.submissions}回で解放` : `${statLabel(unlock.stat!)} ${unlock.required}で解放`;
 }
 
 async function equipMascotItem(itemId: string) {
@@ -477,7 +484,7 @@ async function equipMascotItem(itemId: string) {
 function playMascotEmote(emoteId: string) {
   if (!mascotGame) return;
   const emote = MASCOT_EMOTES.find((candidate) => candidate.id === emoteId);
-  if (!emote || !mascotUnlockAvailable(emote, mascotStats(mascotGame))) return;
+  if (!emote || !mascotUnlockAvailable(emote, mascotStats(mascotGame), submissionCount)) return;
   const card = document.querySelector<HTMLElement>(".mascotGrowthCard");
   if (!card) return;
   if (mascotEmoteTimer) window.clearTimeout(mascotEmoteTimer);
@@ -486,6 +493,18 @@ function playMascotEmote(emoteId: string) {
   mascotEmoteTimer = window.setTimeout(() => { card.dataset.emote = ""; }, 2400);
   const overlay = document.getElementById("mascotStatusOverlay");
   if (overlay) overlay.style.display = "none";
+}
+
+async function claimMascotEventReward() {
+  const token = getToken();
+  if (!token) return;
+  const previousLevel = mascotGame?.level;
+  const response = await fetch("/api/employee/mascot-game/event-reward", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ event_type: "slime_battle" }) });
+  const json = await response.json().catch(() => null);
+  if (response.ok && json?.awarded && json?.game) {
+    showMascotXp("イベントクリア +50 XP");
+    renderMascotGame(json.game, previousLevel);
+  }
 }
 
 function showMascotXp(message: string) {
