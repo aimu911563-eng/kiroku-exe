@@ -19,6 +19,7 @@ button:disabled { cursor: default; opacity: .45; }
 .orderButton { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: 9px 18px; border: 0; border-radius: 999px; font-weight: 750; text-decoration: none; }
 .orderButton.primary { background: #0071e3; color: #fff; }
 .orderButton.ghost { background: #e9e9ed; color: #1d1d1f; }
+.orderButton.danger { background: #ff3b30; color: #fff; }
 .orderHint { margin: 0 0 18px; padding: 13px 15px; border-radius: 14px; background: #f5f5f7; color: #515154; font-size: 13px; line-height: 1.55; }
 .orderAlert { margin: 14px 0; padding: 13px 15px; border: 1px solid #b7d7ff; border-radius: 14px; background: #edf6ff; color: #075ca8; }
 .orderAlert.error { border-color: #ffc7c2; background: #fff2f1; color: #b42318; }
@@ -69,13 +70,16 @@ button:disabled { cursor: default; opacity: .45; }
 .itemCategorySection > header div { display: flex; align-items: center; gap: 9px; }.itemCategorySection > header span { font-size: 16px; font-weight: 800; }.itemCategorySection > header small { padding: 3px 7px; border-radius: 999px; background: rgba(0,0,0,.06); color: #6e6e73; font-weight: 750; }.itemCategorySection > header p { margin: 0; color: #86868b; font-size: 11px; font-weight: 700; }
 .category-main > header { background: #eef6ff; }.category-side > header { background: #f2f8ef; }.category-fresh_veg > header { background: #fff8e8; }.category-mushroom > header { background: #f6efff; }
 .itemEditorList { display: grid; gap: 6px; padding: 7px; }
-.itemEditorCard { display: grid; grid-template-columns: 28px minmax(0,1fr) 130px 78px; gap: 8px; align-items: center; padding: 8px; border: 1px solid #e5e5ea; border-radius: 13px; background: #fff; }
+.itemEditorCard { display: grid; grid-template-columns: 28px minmax(0,1fr) 130px 78px 54px; gap: 8px; align-items: center; padding: 8px; border: 1px solid #e5e5ea; border-radius: 13px; background: #fff; }
 .dragHandle { width: 28px; min-height: 42px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: #8e8e93; font-size: 24px; cursor: grab; text-align: center; touch-action: none; user-select: none; -webkit-user-select: none; }.dragHandle:active { cursor: grabbing; background: #e8f3ff; color: #0071e3; }.itemEditorCard.touchDragging { position: relative; z-index: 4; border-color: #66aef2; background: #f3f8ff; box-shadow: 0 10px 24px rgba(0,113,227,.2); transform: scale(1.015); }.itemEditorMain { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }.itemEditorMain small { color: #86868b; }.itemEditorMain input { font-weight: 650; }.itemEditorMain input, .itemEditorMain select { grid-column: 1 / -1; }.itemEditorMain select { min-height: 36px; padding-block: 5px; font-size: 12px; }
 .yieldField { display: grid; gap: 5px; color: #6e6e73; font-size: 11px; font-weight: 750; }.moveButtons { display: flex; gap: 6px; }
+.deleteItemButton { min-height: 36px; padding: 5px 8px; border: 0; border-radius: 9px; background: #fff0ef; color: #d70015; font-size: 11px; font-weight: 800; }
+.deleteItemButton:hover { background: #ffe1df; }
 .budgetEditorBackdrop { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(29,29,31,.34); backdrop-filter: blur(6px); }
 .budgetEditorSheet { width: min(430px, 100%); padding: 20px; border-radius: 22px; background: #fff; box-shadow: 0 24px 70px rgba(0,0,0,.24); }
 .budgetEditorSheet header { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 18px; }.budgetEditorSheet h3 { margin: 3px 0 1px; font-size: 24px; }.budgetEditorSheet small { color: #86868b; }
 .sheetClose { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #f0f0f2; color: #515154; font-size: 24px; line-height: 1; }.budgetInputsSheet { gap: 12px; }.budgetInputsSheet label span { font-size: 12px; }.budgetInputsSheet input { min-height: 48px; padding: 10px 12px; border-radius: 12px; font-size: 18px; }.sheetDone { width: 100%; margin-top: 18px; }
+.deleteItemSheet p { margin: 14px 0 20px; color: #6e6e73; font-size: 13px; line-height: 1.6; }.deleteItemSummary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 14px; background: #f5f5f7; }.deleteItemSummary small { color: #86868b; }.deleteItemActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 720px) {
   .orderShell, .orderAdminShell { width: min(100% - 12px, 1120px); padding: 12px 0 42px; }
   .orderPanel { padding: 10px; border-radius: 17px; }
@@ -84,7 +88,7 @@ button:disabled { cursor: default; opacity: .45; }
   .orderHint { margin-bottom: 10px; padding: 10px 11px; font-size: 11px; }
   .orderToolbar { grid-template-columns: 1fr auto; gap: 7px; margin-bottom: 10px; }.orderToolbar .orderField { grid-column: 1 / -1; }.orderToolbar .orderButton { min-height: 40px; padding-inline: 13px; font-size: 12px; }
   .orderSection { margin-top: 14px; }.orderSection h2 { margin: 0 0 6px 3px; font-size: 16px; }
-  .itemEditorCard { grid-template-columns: 34px minmax(72px,1fr) 64px 50px 58px; gap: 3px; padding: 5px; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }.itemEditorMain { display: contents; }.itemEditorMain .budgetBadge, .itemEditorMain small { display: none; }.itemEditorMain input { grid-column: 2; }.itemEditorMain select { grid-column: 3; }.yieldField { grid-column: 4; grid-row: 1; }.yieldField span { display: none; }.moveButtons { grid-column: 5; grid-row: 1; gap: 3px; justify-content: flex-end; }.moveButtons button { width: 27px; height: 34px; font-size: 11px; }
+  .itemEditorCard { grid-template-columns: 34px minmax(72px,1fr) 64px 50px 58px 38px; gap: 3px; padding: 5px; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }.itemEditorMain { display: contents; }.itemEditorMain .budgetBadge, .itemEditorMain small { display: none; }.itemEditorMain input { grid-column: 2; }.itemEditorMain select { grid-column: 3; }.yieldField { grid-column: 4; grid-row: 1; }.yieldField span { display: none; }.moveButtons { grid-column: 5; grid-row: 1; gap: 3px; justify-content: flex-end; }.moveButtons button { width: 27px; height: 34px; font-size: 11px; }.deleteItemButton { grid-column: 6; min-height: 34px; padding: 3px; font-size: 9px; }
   .itemHeaderActions { justify-content: stretch; }.itemHeaderActions .orderButton { flex: 1; }.newItemFields { grid-template-columns: 1fr; }.newItemActions .orderButton { flex: 1; }
   .orderTabs { display: flex; width: 100%; margin-bottom: 10px; }.orderTabs button { flex: 1; padding: 8px 10px; font-size: 12px; }
   .orderDaySettings { grid-template-columns: 1fr; gap: 10px; margin-bottom: 10px; padding: 11px; }.weekdayPicker { justify-content: space-between; }.weekdayPicker button { width: min(10vw, 38px); height: min(10vw, 38px); }.orderDaySettings > .orderButton { width: 100%; min-height: 40px; }

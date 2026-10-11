@@ -50,6 +50,7 @@ export default function OrderAdminApp() {
   const [extraOrderDates, setExtraOrderDates] = useState<string[]>([]);
   const [savedExtraOrderDates, setSavedExtraOrderDates] = useState<string[]>([]);
   const [activeBudgetDate, setActiveBudgetDate] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
 
   async function login(event: React.FormEvent) {
     event.preventDefault(); setLoginError("");
@@ -198,6 +199,26 @@ export default function OrderAdminApp() {
     catch (error) { setMessage((error as Error).message); setLoading(false); }
   }
 
+  async function deleteItem() {
+    if (!deleteTarget) return;
+    if (deleteTarget.is_new) {
+      setItems((current) => current.filter((item) => item !== deleteTarget));
+      setMessage(`${deleteTarget.name}を一覧から削除しました`);
+      setDeleteTarget(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      await request(`/admin/items/${encodeURIComponent(deleteTarget.item_code)}`, { method: "DELETE" });
+      setMessage(`${deleteTarget.name}を削除しました。過去の発注履歴は保持されています`);
+      setDeleteTarget(null);
+      await loadItems();
+    } catch (error) {
+      setMessage((error as Error).message);
+      setLoading(false);
+    }
+  }
+
   if (!authenticated) return <main className="orderAdminShell orderLoginShell"><form className="orderPanel orderLoginCard" onSubmit={login}>
     <span className="orderEyebrow">ORDER ADMIN</span><h1>発注管理</h1><p>{STORE_NAMES[STORE_ID] ?? STORE_ID}の予算と食材設定を管理します。</p>
     <label className="orderField">管理パスワード<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></label>
@@ -229,7 +250,9 @@ export default function OrderAdminApp() {
         <button type="button" className="dragHandle" aria-label={`${item.name}を並び替え`} onPointerDown={(event) => startTouchReorder(event, item.item_code)} onPointerMove={continueTouchReorder} onPointerUp={endTouchReorder} onPointerCancel={endTouchReorder}>⠿</button><div className="itemEditorMain"><span className={`budgetBadge ${item.budget_type}`}>{budgetLabels[item.budget_type]}</span><small>{item.item_code}</small><input aria-label="食材名" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} /><select aria-label="区分" value={item.category} onChange={(e) => { const category = e.target.value as ItemCategory; updateItem(index, { category, budget_type: category === "fresh_veg" ? "onion" : category === "mushroom" ? "mushroom" : "base" }); }}>{categoryOrder.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}</select></div>
         <label className="yieldField"><span>イールド数</span><input inputMode="decimal" value={item.per_100k} onChange={(e) => { const value = e.target.value; if (!value || /^\d*\.?\d*$/.test(value)) updateItem(index, { per_100k: value }); }} /></label>
         <div className="moveButtons"><button onClick={() => moveItem(index, sectionItems[sectionIndex - 1]?.index ?? -1)} disabled={sectionIndex === 0}>↑</button><button onClick={() => moveItem(index, sectionItems[sectionIndex + 1]?.index ?? items.length)} disabled={sectionIndex === sectionItems.length - 1}>↓</button></div>
+        <button type="button" className="deleteItemButton" onClick={() => setDeleteTarget(item)} aria-label={`${item.name}を削除`}>削除</button>
       </article>)}</div></section>)}</div>
+      {deleteTarget && <div className="budgetEditorBackdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !loading) setDeleteTarget(null); }}><section className="budgetEditorSheet deleteItemSheet" role="dialog" aria-modal="true" aria-labelledby="delete-item-title"><header><div><span className="orderEyebrow">DELETE ITEM</span><h3 id="delete-item-title">このアイテムを削除しますか？</h3></div><button type="button" className="sheetClose" disabled={loading} onClick={() => setDeleteTarget(null)} aria-label="閉じる">×</button></header><div className="deleteItemSummary"><strong>{deleteTarget.name}</strong><small>{deleteTarget.item_code}</small></div><p>発注画面と管理一覧から非表示になります。過去の発注履歴は削除されません。</p><div className="deleteItemActions"><button type="button" className="orderButton ghost" disabled={loading} onClick={() => setDeleteTarget(null)}>キャンセル</button><button type="button" className="orderButton danger" disabled={loading} onClick={deleteItem}>{loading ? "削除中…" : "削除する"}</button></div></section></div>}
     </section>}
   </main>;
 }

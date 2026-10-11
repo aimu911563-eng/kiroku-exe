@@ -180,6 +180,25 @@ orderRoutes.put("/admin/items", async (c) => {
     return c.json({ ok: true, updated: existingItems.length, created: newItems.length });
 });
 
+orderRoutes.delete("/admin/items/:itemCode", async (c) => {
+    const storeId = orderAdminStore(c);
+    if (!storeId) return c.json({ ok: false, error: "Unauthorized" }, 401);
+    const itemCode = decodeURIComponent(String(c.req.param("itemCode") ?? "")).trim();
+    if (!/^[A-Za-z0-9_-]{1,40}$/.test(itemCode)) {
+        return c.json({ ok: false, error: "商品コードが不正です" }, 400);
+    }
+    const { data, error } = await supabase.from("inventory_items")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("store_id", storeId)
+        .eq("item_code", itemCode)
+        .eq("is_active", true)
+        .select("item_code")
+        .maybeSingle();
+    if (error) return orderDatabaseFailure(c, error);
+    if (!data) return c.json({ ok: false, error: "削除対象のアイテムが見つかりません" }, 404);
+    return c.json({ ok: true, item_code: itemCode });
+});
+
 orderRoutes.get("/admin/budgets", async (c) => {
     const storeId = orderAdminStore(c);
     if (!storeId) return c.json({ ok: false, error: "Unauthorized" }, 401);
