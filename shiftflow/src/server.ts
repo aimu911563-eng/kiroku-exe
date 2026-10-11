@@ -926,6 +926,20 @@ app.get("/api/employee/announcement", requireEmployee, async (c) => {
   return c.json({ ok: true, announcement: data ?? null });
 });
 
+app.post("/api/employee/mascot-event", requireEmployee, async (c) => {
+  const employeeId = c.get("employee_id") as string;
+  const storeId = c.get("employee_store_id") as string;
+  const body = await c.req.json().catch(() => null) as { event_type?: string } | null;
+  const eventType = String(body?.event_type ?? "");
+  if (!["view", "tap"].includes(eventType)) return c.json({ ok: false, error: "invalid event" }, 400);
+  const salt = String(process.env.EMPLOYEE_PIN_SALT ?? process.env.EMPLOYEE_TOKEN_SECRET ?? "shiftflow");
+  const employeeHash = crypto.createHmac("sha256", salt).update(`${storeId}:${employeeId}`).digest("hex");
+  const eventDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(new Date());
+  const { error } = await supabase.from("mascot_events").upsert({ store_id: storeId, employee_hash: employeeHash, event_type: eventType, event_date: eventDate }, { onConflict: "store_id,employee_hash,event_type,event_date", ignoreDuplicates: true });
+  if (error) return c.json({ ok: false, error: error.message }, 500);
+  return c.json({ ok: true });
+});
+
 app.get("/api/shifts", requireEmployee, async (c) => {
   const employeeId = c.get("employee_id") as string;
   const storeId = c.get("employee_store_id") as string;

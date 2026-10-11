@@ -928,6 +928,7 @@ async function handleEmployeeLogin() {
     await loadExistingSubmissionIfAny().catch((error) => console.error("loadExistingSubmission error:", error));
     await loadEmployeeCalendar().catch((error) => console.error("loadEmployeeCalendar error:", error));
     await loadSubmissionHistory().catch((error) => console.error("loadSubmissionHistory error:", error));
+    setupMascotTelemetry();
     await loadEmployeeAnnouncement();
     const remaining = Math.max(0, 700 - (performance.now() - transitionStarted));
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
@@ -953,6 +954,26 @@ async function loadSubmissionHistory() {
     const received = row.updated_at ? new Date(row.updated_at).toLocaleString("ja-JP") : "−";
     return `<article><div><strong>${escapeHtml(String(row.week_start))}週</strong><span>${days}日希望・${row.status === "updated" ? "再提出済み" : "提出済み"}</span></div><small>受付 ${escapeHtml(received)}</small></article>`;
   }).join("") : '<p class="muted">提出履歴はまだありません。</p>';
+}
+
+let mascotTelemetryReady = false;
+function setupMascotTelemetry() {
+  if (mascotTelemetryReady) return;
+  const card = document.querySelector<HTMLElement>(".mascotGrowthCard");
+  if (!card) return;
+  mascotTelemetryReady = true;
+  const send = (eventType: "view" | "tap") => {
+    const token = getToken();
+    const key = `shiftflow_mascot_${eventType}:${new Date().toLocaleDateString("en-CA")}`;
+    if (!token || sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    void fetch("/api/employee/mascot-event", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ event_type: eventType }) }).catch(() => sessionStorage.removeItem(key));
+  };
+  const observer = new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5)) { send("view"); observer.disconnect(); }
+  }, { threshold: 0.5 });
+  observer.observe(card);
+  card.addEventListener("click", () => send("tap"));
 }
 
 document.getElementById("copyPreviousWeek")?.addEventListener("click", async () => {
