@@ -1,9 +1,6 @@
-name: Inventory DB health check
+name: Inventory DB health check (manual)
 
 on:
-  schedule:
-    # 09:15 JST every day. Scheduled workflows use UTC.
-    - cron: "15 0 * * *"
   workflow_dispatch:
 
 permissions:
