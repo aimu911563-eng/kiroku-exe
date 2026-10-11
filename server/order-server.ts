@@ -256,7 +256,7 @@ orderRoutes.get("/admin/report", async (c) => {
     const start = `${month}-01`;
     const next = new Date(year, monthNumber, 1);
     const end = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
-    const [budgetResult, calcResult, countResult] = await Promise.all([
+    const [budgetResult, calcResult, countResult, activityResult] = await Promise.all([
         supabase.from("order_budgets")
             .select("order_date,base_budget,onion_budget,mushroom_budget")
             .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
@@ -266,13 +266,18 @@ orderRoutes.get("/admin/report", async (c) => {
             .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
             .order("order_date", { ascending: true }),
         supabase.from("inventory_counts")
-            .select("date,item_code")
+            .select("date,item_code,updated_at")
             .eq("store_id", storeId).gte("date", start).lt("date", end),
+        supabase.from("inventory_counts")
+            .select("updated_at")
+            .eq("store_id", storeId).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    const error = budgetResult.error || calcResult.error || countResult.error;
+    const error = budgetResult.error || calcResult.error || countResult.error || activityResult.error;
     if (error) return orderDatabaseFailure(c, error);
 
     const countKeys = new Set((countResult.data ?? []).map((row) => `${row.date}:${row.item_code}`));
+    const latestActivityAt = activityResult.data?.updated_at ? String(activityResult.data.updated_at) : null;
+    const inactiveDays = latestActivityAt ? Math.max(0, Math.floor((Date.now() - Date.parse(latestActivityAt)) / 86400000)) : null;
     const calcRows = calcResult.data ?? [];
     const itemTotals = new Map<string, { item_code: string; name: string; required_qty: number; stock_qty: number; order_qty: number }>();
     for (const row of calcRows) {
@@ -348,6 +353,7 @@ orderRoutes.get("/admin/report", async (c) => {
         shortage_items: (() => { const latest = dateList.at(-1); return calcRows.filter((row) => row.order_date === latest && Number(row.order_qty) > 0).map((row) => ({ item_code: row.item_code, name: row.name, required_qty: Math.ceil(Number(row.required_qty ?? 0)), stock_qty: Number(row.stock_qty ?? 0), order_qty: Math.ceil(Number(row.order_qty ?? 0)) })).sort((a, b) => b.order_qty - a.order_qty).slice(0, 10); })(),
         completed_daily: completedDaily,
         yield_analysis: { ready: spanDays >= 12 && dateList.length >= 5, completed_dates: dateList.length, required_dates: 5, span_days: spanDays, suggestions: yieldSuggestions },
+        activity: { latest_at: latestActivityAt, inactive_days: inactiveDays, inactive: inactiveDays === null || inactiveDays >= 21 },
     });
 });
 

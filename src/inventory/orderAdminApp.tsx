@@ -9,6 +9,7 @@ type Report = {
   daily: Array<{ order_date: string; budget_total: number; required_qty: number; stock_qty: number; order_qty: number; input_count: number; item_count: number }>;
   shortage_items: Array<{ item_code: string; name: string; required_qty: number; stock_qty: number; order_qty: number }>;
   yield_analysis: { ready: boolean; completed_dates: number; required_dates: number; span_days: number; suggestions: Array<{ item_code: string; name: string; current_yield: number; suggested_yield: number; direction: string; samples: number }> };
+  activity: { latest_at: string | null; inactive_days: number | null; inactive: boolean };
 };
 
 const STORE_ID = new URLSearchParams(location.search).get("store_id") || "7539";
@@ -94,7 +95,7 @@ export default function OrderAdminApp() {
 
   async function loadReport() {
     setLoading(true); setMessage("");
-    try { const data = await request(`/admin/report?month=${month}`); setReport({ summary: data.summary, daily: data.completed_daily ?? [], shortage_items: data.shortage_items ?? [], yield_analysis: data.yield_analysis }); }
+    try { const data = await request(`/admin/report?month=${month}`); setReport({ summary: data.summary, daily: data.completed_daily ?? [], shortage_items: data.shortage_items ?? [], yield_analysis: data.yield_analysis, activity: data.activity }); }
     catch (error) { setMessage((error as Error).message); setReport(null); }
     finally { setLoading(false); }
   }
@@ -247,6 +248,7 @@ export default function OrderAdminApp() {
     {tab === "report" ? <section className="orderPanel reportPanel">
       <div className="orderSectionHeader"><div><span className="orderEyebrow">ORDER CHECK</span><h2>発注チェック</h2><p>在庫をすべて入力した発注日だけを集計します。未入力日は数字に含めません。</p></div><div className="monthControls"><button onClick={() => changeMonth(-1)}>‹</button><strong>{month.replace("-", "年")}月</strong><button onClick={() => changeMonth(1)}>›</button></div></div>
       {loading && !report ? <div className="orderEmpty">集計中…</div> : report && <>
+        {report.activity.inactive && <div className="orderUsageWarning"><strong>この発注フォームは最近使われていません</strong><span>{report.activity.latest_at ? `最終保存から${report.activity.inactive_days}日経過しています。現場で運用中か確認してください。` : "在庫の保存履歴がありません。"}</span></div>}
         <div className="reportMetrics">
           <article><span>入力完了した発注日</span><strong>{report.daily.length}日</strong><small>全食材の在庫を保存した日の数です</small></article>
           <article><span>最新の入力日</span><strong>{report.daily.length ? `${Number(report.daily.at(-1)!.order_date.slice(5,7))}/${Number(report.daily.at(-1)!.order_date.slice(8,10))}` : "−"}</strong><small>この日を基準に不足食材を表示します</small></article>
