@@ -56,6 +56,21 @@ orderRoutes.get("/settings", async (c) => {
     return c.json({ ok: true, store_id: storeId, order_days: data?.order_days ?? DEFAULT_ORDER_DAYS[storeId], extra_order_dates: data?.extra_order_dates ?? [], updated_at: data?.updated_at ?? null });
 });
 
+orderRoutes.get("/activity", async (c) => {
+    const storeId = String(c.req.query("store_id") ?? "").trim();
+    if (!/^(7249|7539)$/.test(storeId)) return c.json({ ok: false, error: "store_id required" }, 400);
+    const { data, error } = await supabase.from("inventory_counts")
+        .select("updated_at")
+        .eq("store_id", storeId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    if (error) return orderDatabaseFailure(c, error);
+    const latestAt = data?.updated_at ? String(data.updated_at) : null;
+    const inactiveDays = latestAt ? Math.max(0, Math.floor((Date.now() - Date.parse(latestAt)) / 86400000)) : null;
+    return c.json({ ok: true, store_id: storeId, latest_at: latestAt, inactive_days: inactiveDays, inactive_14_days: inactiveDays === null || inactiveDays >= 14 });
+});
+
 orderRoutes.post("/admin/login", async (c) => {
     const body = await c.req.json().catch(() => null);
     const storeId = String(body?.store_id ?? "").trim();
