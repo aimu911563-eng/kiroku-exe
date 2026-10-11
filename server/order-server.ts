@@ -262,7 +262,7 @@ orderRoutes.get("/admin/report", async (c) => {
             .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
             .order("order_date", { ascending: true }),
         supabase.from("order_calc_view")
-            .select("order_date,item_code,name,required_qty,stock_qty,order_qty,target_budget,per_100k,pack_qty")
+            .select("order_date,item_code,name,required_qty,stock_qty,order_qty,per_100k")
             .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
             .order("order_date", { ascending: true }),
         supabase.from("inventory_counts")
@@ -314,11 +314,10 @@ orderRoutes.get("/admin/report", async (c) => {
         const currentByCode = new Map(completedCalcRows.filter((row) => row.order_date === dateList[index]).map((row) => [String(row.item_code), row]));
         for (const row of previous) {
             const current = currentByCode.get(String(row.item_code));
-            const budget = Number(row.target_budget ?? 0);
-            const packQty = Number(row.pack_qty ?? 1) || 1;
-            const consumption = (Number(row.stock_qty ?? 0) + Math.ceil(Number(row.order_qty ?? 0)) - Number(current?.stock_qty ?? 0)) * packQty;
-            if (!current || budget <= 0 || consumption < 0) continue;
-            const sample = consumption * 100000 / budget;
+            const required = Number(row.required_qty ?? 0);
+            const consumption = Number(row.stock_qty ?? 0) + Math.ceil(Number(row.order_qty ?? 0)) - Number(current?.stock_qty ?? 0);
+            if (!current || required <= 0 || consumption < 0) continue;
+            const sample = Number(row.per_100k ?? 0) * consumption / required;
             if (!Number.isFinite(sample)) continue;
             const key = String(row.item_code);
             const entry = yieldSamples.get(key) ?? { name: String(row.name ?? key), current: Number(row.per_100k ?? 0), values: [] };
