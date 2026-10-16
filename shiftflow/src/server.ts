@@ -216,7 +216,6 @@ const plannerAssignmentSchema = z.object({
   start: z.string(),
   end: z.string(),
 });
-type PlannerAssignment = z.infer<typeof plannerAssignmentSchema>;
 const plannerSchema = z.object({
   week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   staffing_requirements: z.object({
@@ -1098,24 +1097,16 @@ app.get("/api/employee/calendar", requireEmployee, async (c) => {
   const queryStart = new Date(monthStart);
   queryStart.setDate(queryStart.getDate() - 6);
   const dateISO = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  const [scheduleResult, submissionResult] = await Promise.all([
-    supabase.from("shift_schedules")
-      .select("week_start, assignments, published_at")
-      .eq("store_id", storeId)
-      .not("published_at", "is", null)
-      .gte("week_start", dateISO(queryStart))
-      .lte("week_start", dateISO(monthEnd)),
-    supabase.from("shift_submissions")
-      .select("week_start, data")
-      .eq("store_id", storeId)
-      .eq("employee_id", employeeId)
-      .gte("week_start", dateISO(queryStart))
-      .lte("week_start", dateISO(monthEnd)),
-  ]);
-  const error = scheduleResult.error || submissionResult.error;
+  const submissionResult = await supabase.from("shift_submissions")
+    .select("week_start, data")
+    .eq("store_id", storeId)
+    .eq("employee_id", employeeId)
+    .gte("week_start", dateISO(queryStart))
+    .lte("week_start", dateISO(monthEnd));
+  const error = submissionResult.error;
   if (error) return c.json({ ok: false, error: error.message }, 500);
-  const entries = new Map<string, { confirmed?: string; requested?: string }>();
-  const addWeek = (weekStart: string, values: Record<string, string>, kind: "confirmed" | "requested") => {
+  const entries = new Map<string, { requested?: string }>();
+  const addWeek = (weekStart: string, values: Record<string, string>) => {
     const [y, m, d] = weekStart.split("-").map(Number);
     const monday = new Date(y, m - 1, d);
     calendarDayKeys.forEach((dayKey, index) => {
@@ -1124,19 +1115,10 @@ app.get("/api/employee/calendar", requireEmployee, async (c) => {
       const date = new Date(monday);
       date.setDate(date.getDate() + index);
       const key = dateISO(date);
-      entries.set(key, { ...(entries.get(key) ?? {}), [kind]: value });
+      entries.set(key, { requested: value });
     });
   };
-  (submissionResult.data ?? []).forEach((row) => addWeek(String(row.week_start), row.data ?? {}, "requested"));
-  (scheduleResult.data ?? []).forEach((row) => {
-    const assignments = row.assignments as Record<string, Record<string, PlannerAssignment>>;
-    const values: Record<string, string> = {};
-    calendarDayKeys.forEach((dayKey) => {
-      const assignment = assignments?.[dayKey]?.[employeeId];
-      values[dayKey] = assignment ? `${assignment.start}-${assignment.end}` : "";
-    });
-    addWeek(String(row.week_start), values, "confirmed");
-  });
+  (submissionResult.data ?? []).forEach((row) => addWeek(String(row.week_start), row.data ?? {}));
   const holidays = japaneseHolidays(year)
     .filter((holiday) => holiday.date.startsWith(`${month}-`));
   return c.json({ ok: true, month, entries: Object.fromEntries(entries), holidays });

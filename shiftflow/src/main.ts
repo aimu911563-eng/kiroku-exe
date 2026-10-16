@@ -84,7 +84,7 @@ const employeeLoginButton = document.getElementById("employeeLoginBtn") as HTMLB
 const employeeAnnouncement = document.getElementById("employeeAnnouncement") as HTMLElement | null;
 const employeeAnnouncementText = document.getElementById("employeeAnnouncementText") as HTMLParagraphElement | null;
 let submissionCount = 0;
-let calendarEntries: Record<string, { confirmed?: string; requested?: string }> = {};
+let calendarEntries: Record<string, { requested?: string }> = {};
 let calendarHolidays = new Map<string, string>();
 
 type MascotGameState = {
@@ -151,13 +151,13 @@ async function loadEmployeeCalendar() {
   calendarEntries = data.entries ?? {};
   calendarHolidays = new Map((data.holidays ?? []).map((holiday: { date: string; name: string }) => [holiday.date, holiday.name]));
   renderEmployeeCalendar(calendarMonth.value, data.entries ?? {}, data.holidays ?? []);
-  const confirmedCount = Object.values(data.entries ?? {}).filter((entry: any) => entry?.confirmed).length;
-  calendarStatus.textContent = confirmedCount ? `確定シフト ${confirmedCount}日` : "公開された確定シフトはまだありません";
+  const requestedCount = Object.values(data.entries ?? {}).filter((entry: any) => entry?.requested).length;
+  calendarStatus.textContent = requestedCount ? `提出済み ${requestedCount}日` : "この月に提出した希望はありません";
 }
 
 function renderEmployeeCalendar(
   month: string,
-  entries: Record<string, { confirmed?: string; requested?: string }>,
+  entries: Record<string, { requested?: string }>,
   holidays: Array<{ date: string; name: string }>,
 ) {
   if (!calendarGrid) return;
@@ -186,7 +186,6 @@ function renderEmployeeCalendar(
     ].filter(Boolean).join(" ");
     cells.push(`<article class="${classes}" data-calendar-date="${iso}" role="button" tabindex="0" aria-label="${date.getMonth() + 1}月${date.getDate()}日の詳細">
       <div class="calendarDate"><strong>${date.getDate()}</strong>${holiday ? `<small>${escapeHtml(holiday)}</small>` : ""}</div>
-      ${entry.confirmed ? `<div class="calendarShift confirmed"><span>確定</span>${calendarShiftTimeHtml(entry.confirmed)}</div>` : ""}
       ${entry.requested ? `<div class="calendarShift requested"><span>希望</span>${calendarShiftTimeHtml(entry.requested)}</div>` : ""}
     </article>`);
   }
@@ -240,7 +239,7 @@ function openCalendarDetail(iso: string) {
   const holidayName = calendarHolidays.get(iso);
   holiday.textContent = holidayName ?? "";
   holiday.style.display = holidayName ? "block" : "none";
-  entries.innerHTML = `${calendarDetailRow("提出した希望", item.requested, "requested")}${calendarDetailRow("確定シフト", item.confirmed, "confirmed")}`;
+  entries.innerHTML = calendarDetailRow("提出した希望", item.requested, "requested");
   overlay.style.display = "grid";
   document.body.style.setProperty("--employee-modal-scroll", `-${window.scrollY}px`);
   document.body.dataset.modalScrollY = String(window.scrollY);
