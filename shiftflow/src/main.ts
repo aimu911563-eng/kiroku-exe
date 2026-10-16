@@ -84,6 +84,8 @@ const employeeLoginButton = document.getElementById("employeeLoginBtn") as HTMLB
 const employeeAnnouncement = document.getElementById("employeeAnnouncement") as HTMLElement | null;
 const employeeAnnouncementText = document.getElementById("employeeAnnouncementText") as HTMLParagraphElement | null;
 let submissionCount = 0;
+let calendarEntries: Record<string, { confirmed?: string; requested?: string }> = {};
+let calendarHolidays = new Map<string, string>();
 
 type MascotGameState = {
   xp: number;
@@ -142,9 +144,12 @@ async function loadEmployeeCalendar() {
   });
   const data = await response.json().catch(() => null);
   if (!response.ok || !data?.ok) {
-    calendarStatus.textContent = data?.error ?? "カレンダーを取得できませんでした";
+    calendarStatus.innerHTML = `<span>${escapeHtml(data?.error ?? "カレンダーを取得できませんでした")}</span><button type="button" class="inlineRetry">再読み込み</button>`;
+    calendarStatus.querySelector("button")?.addEventListener("click", () => void loadEmployeeCalendar());
     return;
   }
+  calendarEntries = data.entries ?? {};
+  calendarHolidays = new Map((data.holidays ?? []).map((holiday: { date: string; name: string }) => [holiday.date, holiday.name]));
   renderEmployeeCalendar(calendarMonth.value, data.entries ?? {}, data.holidays ?? []);
   const confirmedCount = Object.values(data.entries ?? {}).filter((entry: any) => entry?.confirmed).length;
   calendarStatus.textContent = confirmedCount ? `確定シフト ${confirmedCount}日` : "公開された確定シフトはまだありません";
@@ -179,13 +184,19 @@ function renderEmployeeCalendar(
       holiday ? "holiday" : "",
       iso === today ? "today" : "",
     ].filter(Boolean).join(" ");
-    cells.push(`<article class="${classes}">
+    cells.push(`<article class="${classes}" data-calendar-date="${iso}" role="button" tabindex="0" aria-label="${date.getMonth() + 1}月${date.getDate()}日の詳細">
       <div class="calendarDate"><strong>${date.getDate()}</strong>${holiday ? `<small>${escapeHtml(holiday)}</small>` : ""}</div>
-      ${entry.confirmed ? `<div class="calendarShift confirmed"><span>確定</span>${escapeHtml(entry.confirmed)}</div>` : ""}
-      ${entry.requested ? `<div class="calendarShift requested"><span>希望</span>${escapeHtml(entry.requested)}</div>` : ""}
+      ${entry.confirmed ? `<div class="calendarShift confirmed"><span>確定</span>${calendarShiftTimeHtml(entry.confirmed)}</div>` : ""}
+      ${entry.requested ? `<div class="calendarShift requested"><span>希望</span>${calendarShiftTimeHtml(entry.requested)}</div>` : ""}
     </article>`);
   }
   calendarGrid.innerHTML = `${weekdayHeader}${cells.join("")}`;
+}
+
+function calendarShiftTimeHtml(value: string) {
+  const match = /^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/.exec(value.trim());
+  if (!match) return `<time>${escapeHtml(value)}</time>`;
+  return `<time><b>${escapeHtml(match[1])}</b><i>–</i><b>${escapeHtml(match[2])}</b></time>`;
 }
 
 if (calendarMonth) {
@@ -205,6 +216,52 @@ function moveCalendarMonth(offset: number) {
 }
 document.getElementById("calendarPrevious")?.addEventListener("click", () => moveCalendarMonth(-1));
 document.getElementById("calendarNext")?.addEventListener("click", () => moveCalendarMonth(1));
+calendarGrid?.addEventListener("click", (event) => {
+  const day = (event.target as HTMLElement).closest<HTMLElement>("[data-calendar-date]");
+  if (day?.dataset.calendarDate) openCalendarDetail(day.dataset.calendarDate);
+});
+calendarGrid?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const day = (event.target as HTMLElement).closest<HTMLElement>("[data-calendar-date]");
+  if (day?.dataset.calendarDate) { event.preventDefault(); openCalendarDetail(day.dataset.calendarDate); }
+});
+
+function openCalendarDetail(iso: string) {
+  const overlay = document.getElementById("calendarDetailOverlay");
+  const title = document.getElementById("calendarDetailTitle");
+  const weekday = document.getElementById("calendarDetailWeekday");
+  const holiday = document.getElementById("calendarDetailHoliday");
+  const entries = document.getElementById("calendarDetailEntries");
+  if (!overlay || !title || !weekday || !holiday || !entries) return;
+  const date = new Date(`${iso}T00:00:00`);
+  const item = calendarEntries[iso] ?? {};
+  title.textContent = `${date.getMonth() + 1}月${date.getDate()}日`;
+  weekday.textContent = `${["日", "月", "火", "水", "木", "金", "土"][date.getDay()]}曜日`;
+  const holidayName = calendarHolidays.get(iso);
+  holiday.textContent = holidayName ?? "";
+  holiday.style.display = holidayName ? "block" : "none";
+  entries.innerHTML = `${calendarDetailRow("提出した希望", item.requested, "requested")}${calendarDetailRow("確定シフト", item.confirmed, "confirmed")}`;
+  overlay.style.display = "grid";
+  document.body.style.setProperty("--employee-modal-scroll", `-${window.scrollY}px`);
+  document.body.dataset.modalScrollY = String(window.scrollY);
+  document.body.classList.add("employeeModalOpen");
+}
+
+function calendarDetailRow(label: string, value: string | undefined, kind: string) {
+  return `<div class="${kind}"><span>${label}</span><strong>${escapeHtml(value || "登録なし")}</strong></div>`;
+}
+
+function closeCalendarDetail() {
+  const overlay = document.getElementById("calendarDetailOverlay");
+  if (overlay) overlay.style.display = "none";
+  const scrollY = Number(document.body.dataset.modalScrollY ?? 0);
+  document.body.classList.remove("employeeModalOpen");
+  document.body.style.removeProperty("--employee-modal-scroll");
+  delete document.body.dataset.modalScrollY;
+  window.scrollTo(0, scrollY);
+}
+document.getElementById("calendarDetailClose")?.addEventListener("click", closeCalendarDetail);
+document.getElementById("calendarDetailOverlay")?.addEventListener("click", (event) => { if (event.target === event.currentTarget) closeCalendarDetail(); });
 
 const DAY_KEYS = ["mon","tue","wed","thu","fri","sat","sun"] as const;
 let currentBusinessHours: BusinessHoursDefinition | null = null;
@@ -779,12 +836,7 @@ function buildConfirmHtml(payload: {
 
   const rows = days.map(([k, label]) => {
     const v = (payload.data?.[k] ?? "").trim() || "-";
-    return `
-      <tr>
-        <td style="border: 1px solid #ddd; padding: 8px; width: 90px;">${label}</td>
-        <td style="border: 1px solid #ddd; padding: 8px;">${v}</td>
-      </tr>
-    `;
+    return `<div class="confirmDay ${v === "-" ? "isEmpty" : ""}"><span>${label}</span><strong>${escapeHtml(v)}</strong></div>`;
   }).join("");
 
   const range = formatWeekRange(payload.week_start);
@@ -794,36 +846,8 @@ function buildConfirmHtml(payload: {
     ?"* これは「修正（1回目）」として保存されます。以後は修正できません。必要なら店長に連絡してください。"
     :"* この内容で提出します。提出後は一回だけ修正できます。";
 
-  return `
-    <div style="display: flex; gap:12px; flex-wrap:wrap; margin-bottom: 10px;">
-      <div><b>従業員</b>: ${payload.employee_name} (${payload.employee_id}) </div>
-      <div><b>店舗</b>: ${payload.store_id}</div>
-      <div><b>週</b>: ${payload.week_start} (${range}) </div>
-      <div><b>祝日</b>: 自動判定</div>
-    </div>
-    
-    <table style="width: 100%; border-collapse:collapse;">
-      <thead>
-        <tr>
-          <th style="border: 1px solid #ddd; padding: 8px;">曜日</th>
-          <th style="border: 1px solid #ddd; padding: 8px;">時間</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div style="margin-top: 10px";>
-      <b>コメント</b><br/>
-      <div style="white-space-: pre-wrap; border: 1px solid #ddd padding: 8px; border-radius: 8px;">
-        ${escapeHtml(comment)}
-      </div>
-    </div>
-    <p style="margin-top: 10px; font-size: 12px; color: #666;">
-      *間違っていたら「戻る」で修正してから提出してください
-    </p>
-    <p style="margin-top: 10px; font-size: 12px; color: #666;">
-      ${note}
-    </p>
-  `;
+  const total = formatMinutes(totalShiftMinutes(payload.data as ShiftData));
+  return `<div class="confirmOverview"><div><span>対象</span><strong>${escapeHtml(range)}</strong></div><div><span>希望合計</span><strong>${escapeHtml(total)}</strong></div></div><div class="confirmDays">${rows}</div><div class="confirmComment"><span>連絡事項</span><p>${comment ? escapeHtml(comment) : "なし"}</p></div><p class="confirmNote">${note}<br>間違っていたら「戻る」で修正してください。</p>`;
 }
 
 //モーダルの開閉
@@ -1199,18 +1223,35 @@ async function handleEmployeeLogin() {
 async function loadSubmissionHistory() {
   const section = document.getElementById("submissionHistory");
   const list = document.getElementById("submissionHistoryList");
+  const toggle = document.getElementById("submissionHistoryToggle") as HTMLButtonElement | null;
   const token = getToken();
   if (!section || !list || !token) return;
   const response = await fetch("/api/employee/submissions", { headers: { Authorization: `Bearer ${token}` } });
   const json = await response.json().catch(() => null);
-  if (!response.ok || !json?.ok) return;
+  if (!response.ok || !json?.ok) {
+    section.style.display = "block";
+    list.innerHTML = `<div class="inlineError"><span>提出履歴を取得できませんでした</span><button type="button" class="inlineRetry">再読み込み</button></div>`;
+    list.querySelector("button")?.addEventListener("click", () => void loadSubmissionHistory());
+    return;
+  }
   const rows = Array.isArray(json.submissions) ? json.submissions : [];
   section.style.display = "block";
-  list.innerHTML = rows.length ? rows.map((row: any) => {
-    const days = Object.values(row.data ?? {}).filter(Boolean).length;
-    const received = row.updated_at ? new Date(row.updated_at).toLocaleString("ja-JP") : "−";
-    return `<article><div><strong>${escapeHtml(String(row.week_start))}週</strong><span>${days}日希望・${row.status === "updated" ? "再提出済み" : "提出済み"}</span></div><small>受付 ${escapeHtml(received)}</small></article>`;
-  }).join("") : '<p class="muted">提出履歴はまだありません。</p>';
+  let expanded = false;
+  const render = () => {
+    const visibleRows = expanded ? rows : rows.slice(0, 3);
+    list.innerHTML = visibleRows.length ? visibleRows.map((row: any) => {
+      const days = Object.values(row.data ?? {}).filter(Boolean).length;
+      const received = row.updated_at ? new Date(row.updated_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "−";
+      const updated = row.status === "updated";
+      return `<article><div class="submissionHistoryWeek"><strong>${escapeHtml(formatWeekRange(String(row.week_start)))}</strong><span>${days}日希望</span></div><span class="submissionHistoryBadge ${updated ? "isUpdated" : ""}">${updated ? "再提出" : "提出済"}</span><small><i>受付</i>${escapeHtml(received)}</small></article>`;
+    }).join("") : '<p class="muted">提出履歴はまだありません。</p>';
+    if (toggle) {
+      toggle.style.display = rows.length > 3 ? "inline-flex" : "none";
+      toggle.textContent = expanded ? "閉じる" : `すべて表示（${rows.length}件）`;
+    }
+  };
+  if (toggle) toggle.onclick = () => { expanded = !expanded; render(); };
+  render();
 }
 
 let mascotTelemetryReady = false;
