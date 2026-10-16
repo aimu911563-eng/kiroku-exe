@@ -980,6 +980,8 @@ function isAfterDeadline(weekStartYMD: string, now = new Date()) {
 
 function updateSubmissionStateUI() {
   const submitBtn = shiftForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+  const copyBtn = document.getElementById("copyPreviousWeek") as HTMLButtonElement | null;
+  const copyStatus = document.getElementById("copyPreviousStatus");
   const locked = submissionState === "updated";
   const deadlineBlocked = Boolean(weekStartInput.value && isAfterDeadline(weekStartInput.value));
 
@@ -995,6 +997,8 @@ function updateSubmissionStateUI() {
         ? "提出済み（修正上限）"
         : "入力内容を確認する";
   }
+  if (copyBtn) copyBtn.disabled = hasExistingSubmission;
+  if (copyStatus) copyStatus.textContent = hasExistingSubmission ? "提出済みの週にはコピーできません" : "";
 
   if (!submitStatusEl) return;
   submitStatusEl.className = "submissionStateMessage";
@@ -1278,15 +1282,17 @@ document.getElementById("mascotEmotesPanel")?.addEventListener("click", (event) 
 document.getElementById("copyPreviousWeek")?.addEventListener("click", async () => {
   const status = document.getElementById("copyPreviousStatus");
   const token = getToken();
-  if (!token || !weekStartInput.value || hasExistingSubmission) return;
+  if (!token || !weekStartInput.value) return;
+  if (hasExistingSubmission) { if (status) status.textContent = "提出済みの週にはコピーできません"; return; }
   const previous = new Date(`${weekStartInput.value}T00:00:00`); previous.setDate(previous.getDate() - 7);
   const previousYmd = toISODate(previous);
   if (status) status.textContent = "前回を確認中…";
   const response = await fetch(`/api/shifts?week_start=${encodeURIComponent(previousYmd)}`, { headers: { Authorization: `Bearer ${token}` } });
   const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.ok) { if (status) status.textContent = "前回の希望を取得できませんでした。もう一度お試しください"; return; }
   if (!json?.submission?.data) { if (status) status.textContent = "前回の提出は見つかりませんでした"; return; }
   applyBusinessHoursToInputs(json.submission.data);
-  if (commentEl) commentEl.value = String(json.submission.comment ?? "").slice(0, 300);
+  if (commentEl) commentEl.value = "";
   updateCommentCount(); updateShiftSimulator(); saveDraft();
   if (status) status.textContent = `${previousYmd}週の希望をコピーしました`;
 });
