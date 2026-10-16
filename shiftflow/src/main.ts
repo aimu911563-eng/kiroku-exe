@@ -443,6 +443,18 @@ function renderMascotGame(state: MascotGameState, previousLevel?: number) {
     showMascotXp(`LEVEL UP! Lv.${state.level}`);
   }
   scheduleMascotSlime(state);
+  showMascotTapHint();
+}
+
+function mascotTapHintKey() {
+  return currentEmployee ? `shiftflow_mascot_tapped:${currentEmployee.store_id}:${currentEmployee.employee_id}` : "";
+}
+
+function showMascotTapHint() {
+  const hint = document.getElementById("mascotTapHint");
+  const key = mascotTapHintKey();
+  if (!hint || !key || localStorage.getItem(key)) return;
+  window.setTimeout(() => { if (!localStorage.getItem(key)) hint.classList.add("show"); }, 2200);
 }
 
 function mascotStats(state: MascotGameState): Record<MascotStatKey, number> {
@@ -538,6 +550,10 @@ async function flushMascotTaps() {
 
 function tapMascot() {
   if (!mascotGame) return;
+  const hint = document.getElementById("mascotTapHint");
+  const hintKey = mascotTapHintKey();
+  if (hintKey) localStorage.setItem(hintKey, "1");
+  hint?.classList.remove("show");
   mascotPendingTaps += 1;
   showMascotXp("+1 XP");
   const mascot = document.getElementById("growthMascot");
