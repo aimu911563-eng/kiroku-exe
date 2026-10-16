@@ -933,7 +933,7 @@ app.post("/api/employee/mascot-event", requireEmployee, async (c) => {
   const storeId = c.get("employee_store_id") as string;
   const body = await c.req.json().catch(() => null) as { event_type?: string } | null;
   const eventType = String(body?.event_type ?? "");
-  if (!["view", "tap"].includes(eventType)) return c.json({ ok: false, error: "invalid event" }, 400);
+  if (!["view", "tap", "hint_view", "hint_tap", "status_open", "item_use", "emote_use"].includes(eventType)) return c.json({ ok: false, error: "invalid event" }, 400);
   const salt = String(process.env.EMPLOYEE_PIN_SALT ?? process.env.EMPLOYEE_TOKEN_SECRET ?? "shiftflow");
   const employeeHash = crypto.createHmac("sha256", salt).update(`${storeId}:${employeeId}`).digest("hex");
   const eventDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(new Date());

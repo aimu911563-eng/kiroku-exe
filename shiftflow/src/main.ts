@@ -105,6 +105,16 @@ let mascotTapTimer: number | undefined;
 let mascotSlimeTimer: number | undefined;
 let mascotEmoteTimer: number | undefined;
 
+type MascotTelemetryEvent = "view" | "tap" | "hint_view" | "hint_tap" | "status_open" | "item_use" | "emote_use";
+
+function recordMascotEvent(eventType: MascotTelemetryEvent) {
+  const token = getToken();
+  const key = `shiftflow_mascot_${eventType}:${new Date().toLocaleDateString("en-CA")}`;
+  if (!token || sessionStorage.getItem(key)) return;
+  sessionStorage.setItem(key, "1");
+  void fetch("/api/employee/mascot-event", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ event_type: eventType }) }).catch(() => sessionStorage.removeItem(key));
+}
+
 function setLoginUserLabell(name: string) {
   if (loginUserLabel) loginUserLabel.textContent = `👤 ${name}`;
 }
@@ -454,7 +464,11 @@ function showMascotTapHint() {
   const hint = document.getElementById("mascotTapHint");
   const key = mascotTapHintKey();
   if (!hint || !key || localStorage.getItem(key)) return;
-  window.setTimeout(() => { if (!localStorage.getItem(key)) hint.classList.add("show"); }, 2200);
+  window.setTimeout(() => {
+    if (localStorage.getItem(key)) return;
+    hint.classList.add("show");
+    recordMascotEvent("hint_view");
+  }, 2200);
 }
 
 function mascotStats(state: MascotGameState): Record<MascotStatKey, number> {
@@ -490,13 +504,14 @@ async function equipMascotItem(itemId: string) {
   const nextItem = mascotGame.equipped_item === itemId ? "" : itemId;
   const response = await fetch("/api/employee/mascot-game/equip", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ item_id: nextItem }) });
   const json = await response.json().catch(() => null);
-  if (response.ok && json?.game) renderMascotGame(json.game);
+  if (response.ok && json?.game) { recordMascotEvent("item_use"); renderMascotGame(json.game); }
 }
 
 function playMascotEmote(emoteId: string) {
   if (!mascotGame) return;
   const emote = MASCOT_EMOTES.find((candidate) => candidate.id === emoteId);
   if (!emote || !mascotUnlockAvailable(emote, mascotStats(mascotGame), submissionCount)) return;
+  recordMascotEvent("emote_use");
   const card = document.querySelector<HTMLElement>(".mascotGrowthCard");
   if (!card) return;
   if (mascotEmoteTimer) window.clearTimeout(mascotEmoteTimer);
@@ -553,6 +568,7 @@ function tapMascot() {
   const hint = document.getElementById("mascotTapHint");
   const hintKey = mascotTapHintKey();
   if (hintKey) localStorage.setItem(hintKey, "1");
+  if (hint?.classList.contains("show")) recordMascotEvent("hint_tap");
   hint?.classList.remove("show");
   mascotPendingTaps += 1;
   showMascotXp("+1 XP");
@@ -1199,20 +1215,13 @@ function setupMascotTelemetry() {
   const card = document.querySelector<HTMLElement>(".mascotGrowthCard");
   if (!card) return;
   mascotTelemetryReady = true;
-  const send = (eventType: "view" | "tap") => {
-    const token = getToken();
-    const key = `shiftflow_mascot_${eventType}:${new Date().toLocaleDateString("en-CA")}`;
-    if (!token || sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, "1");
-    void fetch("/api/employee/mascot-event", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ event_type: eventType }) }).catch(() => sessionStorage.removeItem(key));
-  };
   const observer = new IntersectionObserver((entries) => {
-    if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5)) { send("view"); observer.disconnect(); }
+    if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5)) { recordMascotEvent("view"); observer.disconnect(); }
   }, { threshold: 0.5 });
   observer.observe(card);
   card.addEventListener("click", (event) => {
     if ((event.target as HTMLElement).closest("button")) return;
-    send("tap");
+    recordMascotEvent("tap");
     tapMascot();
   });
 }
@@ -1222,6 +1231,7 @@ document.getElementById("mascotStatusButton")?.addEventListener("click", (event)
   event.stopPropagation();
   const overlay = document.getElementById("mascotStatusOverlay");
   if (overlay) overlay.style.display = "grid";
+  recordMascotEvent("status_open");
 });
 document.getElementById("mascotStatusClose")?.addEventListener("click", () => {
   const overlay = document.getElementById("mascotStatusOverlay");
