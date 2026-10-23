@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
   "dependencies": {
     "@hono/node-server": "^1.19.6",
     "@supabase/supabase-js": "^2.80.0",

@@ -36,6 +36,8 @@ type Env = {
 };
 
 const app = new Hono<{ Bindings: Env }>();
+const ADMIN_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const EMPLOYEE_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 app.get("/", (c) => c.text("shiftflow-api ok"));
 app.get("/api/health", (c) => c.json({ ok: true, service: "shiftflow-api" }));
@@ -53,7 +55,7 @@ function sign(payloadB64: string) {
 }
 
 function issueAdminToken(payload: { store_id: string }) {
-  const body = base64url(JSON.stringify(payload));
+  const body = base64url(JSON.stringify({ ...payload, exp: Date.now() + ADMIN_TOKEN_TTL_MS }));
   const sig = sign(body);
   return `${body}.${sig}`;
 }
@@ -67,6 +69,7 @@ function verifyAdminToken(token: string): { store_id: string } | null {
 
   try {
     const json = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (!json.store_id || !Number.isFinite(json.exp) || json.exp <= Date.now()) return null;
     return { store_id: String(json.store_id) };
   } catch {
     return null;
@@ -721,6 +724,12 @@ function hashEmployeePin(pin: string, salt: string) {
     .digest("hex");
 }
 
+function secureStringEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 app.post("/api/admin/employees", requireAdmin, async (c) => {
   const storeId = c.get("admin_store_id");
 
@@ -820,6 +829,7 @@ type EmployeePayload = {
   employee_id: string;
   store_id: string;
   iat: number;
+  exp: number;
 };
 
 app.post("/api/employee/login", async (c) => {
@@ -857,7 +867,7 @@ app.post("/api/employee/login", async (c) => {
 
   const inputHash = hashEmployeePin(pin, salt);
 
-  if (inputHash !== empRes.data.pin_hash) {
+  if (!secureStringEqual(inputHash, String(empRes.data.pin_hash))) {
     return c.json({ ok: false, error: "invalid credentials" }, 401);
   }
 
@@ -891,6 +901,7 @@ app.post("/api/employee/login", async (c) => {
     employee_id,
     store_id: empRes.data.store_id,
     iat: Date.now(),
+    exp: Date.now() + EMPLOYEE_TOKEN_TTL_MS,
   }
 
   const token = signToken(payload, secret);
@@ -913,7 +924,9 @@ const requireEmployee: MiddlewareHandler<{ Bindings: Env; Variables: Variables }
   if (!secret) return c.json({ ok: false, error: "EMPLOYEE_TOKEN_SECRET missing" }, 500);
 
   const payload = verifyToken<EmployeePayload>(token, secret);
-  if (!payload) return c.json({ ok: false, error: "Unauthorized" }, 401);
+  if (!payload || !Number.isFinite(payload.exp) || payload.exp <= Date.now()) {
+    return c.json({ ok: false, error: "Unauthorized" }, 401);
+  }
 
   c.set("employee_id", payload.employee_id);
   c.set("employee_store_id", payload.store_id);
