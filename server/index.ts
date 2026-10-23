@@ -25,15 +25,8 @@ app.use(
     })
 )
 
-// Leave is an optional subsystem. Its Supabase project may be paused without
-// preventing Inventory and Order from starting on Render.
-if (process.env.LEAVE_SUPABASE_URL && process.env.LEAVE_SUPABASE_SERVICE_ROLE_KEY) {
-    const { leaveRoutes } = await import("./leave-server");
-    app.route("/api/leaves", leaveRoutes);
-} else {
-    app.all("/api/leaves", (c) => c.json({ ok: false, error: "leave service unavailable" }, 503));
-    app.all("/api/leaves/*", (c) => c.json({ ok: false, error: "leave service unavailable" }, 503));
-}
+app.all("/api/leaves", (c) => c.json({ ok: false, error: "leave service retired" }, 410));
+app.all("/api/leaves/*", (c) => c.json({ ok: false, error: "leave service retired" }, 410));
 app.route("/api/inventory", inventoryRoutes);
 app.route("/api/public", publicRoutes);
 app.route("/api/cleaning", cleaningRoutes);

@@ -41,6 +41,13 @@ const EMPLOYEE_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 app.get("/", (c) => c.text("shiftflow-api ok"));
 app.get("/api/health", (c) => c.json({ ok: true, service: "shiftflow-api" }));
+const retiredFeature = (c: any) => c.json({ ok: false, error: "This feature has ended" }, 410);
+app.all("/api/worktime", retiredFeature);
+app.all("/api/worktime/*", retiredFeature);
+app.all("/api/admin/planner", retiredFeature);
+app.all("/api/admin/planner/*", retiredFeature);
+app.all("/api/admin/line/*", retiredFeature);
+app.all("/api/line/*", retiredFeature);
 
 
 //管理者トークン　HMACでstore_idを発行、検証
@@ -871,24 +878,7 @@ app.post("/api/employee/login", async (c) => {
     return c.json({ ok: false, error: "invalid credentials" }, 401);
   }
 
-  const group = String(empRes.data.worktime_group ?? "").trim();
   let monthly_target_minutes: number | null = null;
-
-  if (group) {
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-    const tgt = await supabase
-      .from("worktime_targets")
-      .select("target_minutes")
-      .eq("group_code", group)
-      .eq("days_in_month", daysInMonth)
-      .maybeSingle();
-
-    if (!tgt.error && tgt.data?.target_minutes != null) {
-      monthly_target_minutes = Number(tgt.data.target_minutes);
-    }
-  }
 
   const submissionCountResult = await supabase
     .from("shift_submissions")
@@ -2092,7 +2082,5 @@ app.onError((err, c) => {
 
 export default {
   fetch: app.fetch,
-  scheduled(_controller: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }) {
-    ctx.waitUntil(sendWednesdayUnsubmittedNotifications(env));
-  },
+  scheduled() {},
 };
