@@ -35,18 +35,14 @@ npm run dev:all
 
 | アプリ | ローカル URL | API |
 |---|---|---|
-| 有休申請 | http://localhost:5173/ | 8787 `/api/leaves` |
-| 有休管理 | http://localhost:5173/admin.html | 8787 `/api/leaves/admin` |
-| 在庫 | http://localhost:5173/inventory.html | 8787 `/api/inventory` |
-| 在庫管理 | http://localhost:5173/inventory-admin.html | 8787 `/api/inventory/admin` |
-| 期限管理（未完成） | http://localhost:5173/inventory-date.html | 8787 `/api/inventory-date` と `/api/inventory` |
-| 発注 | http://localhost:5173/order.html | 8787 `/api/order` と `/api/inventory` |
+| 有休申請・管理 | http://localhost:5173/ / `admin.html` | 運用終了（410） |
+| 在庫・在庫管理・期限管理 | `inventory*.html` | 運用終了（410） |
+| 発注 | http://localhost:5173/order.html | 8787 `/api/order` |
 | 発注管理 | http://localhost:5173/order-admin.html?store_id=7539 | 8787 `/api/order/admin` |
 | Insight | http://localhost:5173/insight.html | 現在は固定のサンプルデータ |
 | シフト提出 | http://localhost:5174/ | 8788 `/api/shifts` |
 | シフト管理 | http://localhost:5174/admin.html | 8788 `/api/admin` |
-| 勤務時間 | http://localhost:5174/worktime.html | 8788 `/api/worktime` |
-| 勤務時間管理 | http://localhost:5174/worktime-admin.html | 8788 `/api/worktime/admin` |
+| 勤務時間・管理 | `worktime*.html` | 運用終了（410） |
 
 ## 接続の流れ
 
@@ -67,7 +63,6 @@ flowchart LR
 上図の Supabase は論理的な表記です。ローカルと本番で同一 DB を使う必要はありません。
 ローカル起動だけでは DB はローカルになりません。書き込み先は `.env` の URL で決まります。
 画面はホスト名で本番 API を選ばず、同じオリジンの `/api` を使います。
-在庫の天気表示は例外で、ブラウザから Open-Meteo にアクセスします。
 
 ## 設定の置き場所
 
@@ -97,16 +92,11 @@ DOTENV_CONFIG_PATH=.env.development npm run dev:all
 
 | API／処理 | URL とキーの接頭辞 |
 |---|---|
-| 在庫・発注・清掃 | `INVENTORY_SUPABASE_`（未設定時のみ旧 `SUPABASE_`） |
-| Shift Flow・Worktime・公開従業員一覧 | `SUPABASE_` |
-| 有休申請・管理、Shift Flow から有休サマリー取得 | `LEAVE_SUPABASE_` |
-| 期限管理の品目読み込み | `INVENTORY_SUPABASE_` |
-| 期限管理の数量保存 | `/api/inventory/bulk-input` → `SUPABASE_` |
-| 有休の残数通知 `/api/leaves/admin/remind-balances` | `SUPABASE_` |
+| 発注 | `INVENTORY_SUPABASE_`（未設定時のみ旧 `SUPABASE_`） |
+| Shift Flow | `SUPABASE_` |
 
-各接頭辞で `URL` と `SERVICE_ROLE_KEY` が必要です。在庫と ShiftFlow は別のDB設定を使います。
-既存の Render 設定との互換性のため、在庫用変数が未設定の場合だけ在庫APIは旧 `SUPABASE_` を使います。
-新しい環境では3種類を明示してください。
+各接頭辞で `URL` と `SERVICE_ROLE_KEY` が必要です。発注とShiftFlowは別のDB設定を使います。
+既存のRender設定との互換性のため、発注用変数が未設定の場合だけ旧 `SUPABASE_` を使います。
 旧 `SHIFT_SUPABASE_*`、`VITE_SHIFT_API_BASE` は現在の主経路では使っていません。
 
 ## 本番の設定対応表

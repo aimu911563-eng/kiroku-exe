@@ -785,7 +785,13 @@ function updateWeekLabel(weekStartStr: string) {
 }
 
 function initWeekStart() {
-  const monday = getThisMonday();
+  const now = new Date();
+  const monday = getThisMonday(now);
+  // 今週分の締切は前週木曜なので、通常は次週分を表示する。
+  // 木曜0:00を過ぎていた場合は、さらに次の提出可能週へ進める。
+  do {
+    monday.setDate(monday.getDate() + 7);
+  } while (isAfterDeadline(toISODate(monday), now));
   const iso = toISODate(monday);
   weekStartInput.value = iso;
   updateWeekLabel(iso);
@@ -972,8 +978,7 @@ updateDeadline();
 document.getElementById("weekStart")?.addEventListener("change", updateDeadline);
 
 function parseYMDToJSTStart(ymd: string) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(y, m - 1, d, 0, 0, 0, 0); // ローカル0:00（運用がJSTならこれでOK）
+  return new Date(`${ymd}T00:00:00+09:00`);
 }
 
 function addDays(date: Date, days: number) {

@@ -47,11 +47,9 @@
 
 ---
 
-③ Inventory（在庫管理）
-売上予測から必要量を算出する在庫管理ツール
+③ Inventory（在庫管理・運用終了）
+在庫管理画面は利用実績がないため運用を終了しました。発注フォームは継続しています。
 
-- 常時画面： https://kiroku-exe.pages.dev/inventory
-- GitHub: https://github.com/aimu911563-eng/kiroku-exe/blob/main/inventory%20README.md
 - 浜北発注： https://kiroku-exe.pages.dev/order?store_id=7539
 - 浜北発注管理： https://kiroku-exe.pages.dev/order-admin?store_id=7539
 

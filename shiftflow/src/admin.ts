@@ -11,7 +11,6 @@ const pwEl = document.getElementById("pw") as HTMLInputElement;
 const loginBtn = document.getElementById("loginBtn") as HTMLButtonElement;
 const loginMsg = document.getElementById("loginMsg") as HTMLElement;
 
-const loadBtn = document.getElementById("loadBtn") as HTMLButtonElement;
 const logoutBtn = document.getElementById("logoutBtn") as HTMLButtonElement;
 const out = document.getElementById("out") as HTMLDivElement;
 const storeEl = document.getElementById("store") as HTMLSelectElement;
@@ -662,6 +661,13 @@ async function api(path: string, init: RequestInit = {}) {
     data = { error: text };
   }
 
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    setLoggedInUI(false);
+    loginMsg.textContent = "ログインの有効期限が切れました。もう一度ログインしてください。";
+    throw new Error("ログインの有効期限が切れました");
+  }
+
   if (!res.ok) {
     throw new Error(data?.error ?? `HTTP ${res.status}`);
   }
@@ -840,22 +846,6 @@ loadSubsBtn.addEventListener("click", async () => {
     out.textContent = e?.message ?? "取得失敗";
   } finally {
     loadSubsBtn.disabled = false;
-  }
-});
-
-//サマリ
-loadBtn.addEventListener("click", async () => {
-  try {
-    loadBtn.disabled = true;
-    loginMsg.textContent = "";
-    const data = await api("/api/admin/summary");
-    out.textContent = JSON.stringify(data, null, 2);
-    loginMsg.textContent = data?.message ?? "ok";
-  } catch (e: any) {
-    out.textContent = e?.message ?? "サマリ読み込み失敗";
-    loginMsg.textContent = e?.message ?? "サマリ読み込み失敗";
-  } finally {
-    loadBtn.disabled = false;
   }
 });
 

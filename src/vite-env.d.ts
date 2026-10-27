@@ -1,6 +1,8 @@
+/// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_API_BASE_URL?: string;
+  // Public browser value. Never put a service-role key here.
+  readonly VITE_PUBLIC_EMPLOYEES_KEY?: string;
 }
 
 interface ImportMeta {

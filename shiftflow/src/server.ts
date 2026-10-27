@@ -38,16 +38,49 @@ type Env = {
 const app = new Hono<{ Bindings: Env }>();
 const ADMIN_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 const EMPLOYEE_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function loginRateLimit(maxAttempts: number): MiddlewareHandler {
+  return async (c, next) => {
+    const now = Date.now();
+    const ip = c.req.header("CF-Connecting-IP") ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? "unknown";
+    const key = `${c.req.path}:${ip}`;
+    const previous = loginAttempts.get(key);
+    const entry = !previous || previous.resetAt <= now
+      ? { count: 0, resetAt: now + LOGIN_WINDOW_MS }
+      : previous;
+    if (entry.count >= maxAttempts) {
+      c.header("Retry-After", String(Math.ceil((entry.resetAt - now) / 1000)));
+      return c.json({ ok: false, error: "試行回数が多すぎます。しばらく待ってからお試しください" }, 429);
+    }
+    entry.count += 1;
+    loginAttempts.set(key, entry);
+    await next();
+    if (c.res.status < 400) loginAttempts.delete(key);
+    if (loginAttempts.size > 10_000) {
+      for (const [candidate, value] of loginAttempts) if (value.resetAt <= now) loginAttempts.delete(candidate);
+    }
+  };
+}
+
+app.use("/api/admin/login", loginRateLimit(10));
+app.use("/api/employee/login", loginRateLimit(20));
 
 app.get("/", (c) => c.text("shiftflow-api ok"));
 app.get("/api/health", (c) => c.json({ ok: true, service: "shiftflow-api" }));
 const retiredFeature = (c: any) => c.json({ ok: false, error: "This feature has ended" }, 410);
 app.all("/api/worktime", retiredFeature);
 app.all("/api/worktime/*", retiredFeature);
-app.all("/api/admin/planner", retiredFeature);
-app.all("/api/admin/planner/*", retiredFeature);
+// 勤務表の保存・公開は終了。希望人数の分析用GETだけは継続する。
+app.put("/api/admin/planner", retiredFeature);
+app.post("/api/admin/planner/*", retiredFeature);
 app.all("/api/admin/line/*", retiredFeature);
 app.all("/api/line/*", retiredFeature);
+app.all("/api/login", retiredFeature);
+app.all("/api/leave/*", retiredFeature);
+app.all("/api/public/employees", retiredFeature);
+app.all("/api/admin/stores", retiredFeature);
 
 
 //管理者トークン　HMACでstore_idを発行、検証
@@ -135,6 +168,7 @@ type Variables = {
   admin_store_id: string;
   employee_id?: string;
   employee_store_id?: string;
+  employee_name?: string;
 };
 
 
@@ -153,8 +187,8 @@ const requireAdmin: MiddlewareHandler<{ Bindings: Env; Variables: Variables }> =
 
 
 function parseYMDToLocalStart(ymd: string) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
+  // Cloudflare WorkersはUTCで動くため、提出期限は明示的に日本時間として扱う。
+  return new Date(`${ymd}T00:00:00+09:00`);
 }
 
 function addDays(date: Date, days: number) {
@@ -241,18 +275,17 @@ app.get("/api/admin/planner", requireAdmin, async (c) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
     return c.json({ ok: false, error: "week_start required" }, 400);
   }
-  const [employeeResult, submissionResult, scheduleResult] = await Promise.all([
+  const [employeeResult, submissionResult] = await Promise.all([
     supabase.from("employees").select("employee_id, employee_name").eq("store_id", storeId).eq("is_active", true).order("employee_id"),
     supabase.from("shift_submissions").select("employee_id, employee_name, data").eq("store_id", storeId).eq("week_start", weekStart),
-    supabase.from("shift_schedules").select("assignments, required_staff, required_staff_weekday, required_staff_weekend_holiday, updated_at, published_at").eq("store_id", storeId).eq("week_start", weekStart).maybeSingle(),
   ]);
-  const error = employeeResult.error || submissionResult.error || scheduleResult.error;
+  const error = employeeResult.error || submissionResult.error;
   if (error) return c.json({ ok: false, error: error.message }, 500);
   return c.json({
     ok: true,
     employees: employeeResult.data ?? [],
     submissions: submissionResult.data ?? [],
-    schedule: scheduleResult.data ?? null,
+    schedule: null,
     holidays: [...holidaysForWeek(weekStart)].map(([date, name]) => ({ date, name })),
   });
 });
@@ -918,8 +951,20 @@ const requireEmployee: MiddlewareHandler<{ Bindings: Env; Variables: Variables }
     return c.json({ ok: false, error: "Unauthorized" }, 401);
   }
 
+  // 削除・無効化された従業員の既発行トークンを即時に失効させる。
+  const employee = await supabase.from("employees")
+    .select("employee_name")
+    .eq("employee_id", payload.employee_id)
+    .eq("store_id", payload.store_id)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (employee.error || !employee.data) {
+    return c.json({ ok: false, error: "Unauthorized" }, 401);
+  }
+
   c.set("employee_id", payload.employee_id);
   c.set("employee_store_id", payload.store_id);
+  c.set("employee_name", String(employee.data.employee_name ?? ""));
   await next();
 }
 
@@ -1130,6 +1175,7 @@ app.get("/api/employee/calendar", requireEmployee, async (c) => {
 app.post("/api/shifts", requireEmployee, async (c) => {
   const employeeId = c.get("employee_id");
   const storeId = c.get("employee_store_id");
+  const employeeName = c.get("employee_name");
   if (!employeeId || !storeId) return c.json({ ok: false, error: "Unauthorized" }, 401);
   const json = await c.req.json().catch(() => null);
   const parsed = shiftSchema.safeParse(json);
@@ -1181,7 +1227,7 @@ app.post("/api/shifts", requireEmployee, async (c) => {
     const { error: updErr } = await supabase
       .from("shift_submissions")
       .update({
-        employee_name: body.employee_name,
+        employee_name: employeeName,
         data: body.data,
         comment: (body.comment ?? "").trim() || null,
         status: "updated",
@@ -1195,7 +1241,7 @@ app.post("/api/shifts", requireEmployee, async (c) => {
     const { error: insErr } = await supabase.from("shift_submissions").insert({
       store_id: storeId,
       employee_id: employeeId,
-      employee_name: body.employee_name,
+      employee_name: employeeName,
       week_start: body.week_start,
       data: body.data,
       comment: (body.comment ?? "").trim() || null,
@@ -1429,7 +1475,9 @@ app.post("/api/admin/login", async (c) => {
 
     if (!storeId) return c.json({ ok: false, error: "店舗を選択してください" }, 400);
     if (!password) return c.json({ ok: false, error: "パスワードが必要です" }, 400);
-    if (password !== expectedPw) return c.json({ ok: false, error: "パスワードが違います" }, 401);
+    if (!expectedPw || !secureStringEqual(password, expectedPw)) {
+      return c.json({ ok: false, error: "パスワードが違います" }, 401);
+    }
 
     //store_id　が実在するかチェック（不正store_idでトークン発酵させない）
     const { data: store, error } = await supabase
@@ -2077,7 +2125,7 @@ app.get("/api/public/employees", async (c) => {
 // エラー確認
 app.onError((err, c) => {
   console.error(err);
-  return c.json({ error: "Internal Server Error", detail: String(err) }, 500);
+  return c.json({ error: "Internal Server Error" }, 500);
 });
 
 export default {

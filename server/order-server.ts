@@ -6,18 +6,45 @@ export const orderRoutes = new Hono();
 export const inventoryRoutes = new Hono();
 
 const ORDER_ADMIN_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const ORDER_LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const orderLoginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function secureEqual(left: string, right: string) {
+    const leftBuffer = Buffer.from(left);
+    const rightBuffer = Buffer.from(right);
+    return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function orderLoginAllowed(c: any) {
+    const now = Date.now();
+    const ip = c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? c.req.header("CF-Connecting-IP") ?? "unknown";
+    const previous = orderLoginAttempts.get(ip);
+    const entry = !previous || previous.resetAt <= now
+        ? { count: 0, resetAt: now + ORDER_LOGIN_WINDOW_MS }
+        : previous;
+    if (entry.count >= 10) return { allowed: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+    entry.count += 1;
+    orderLoginAttempts.set(ip, entry);
+    return { allowed: true, retryAfter: 0 };
+}
 
 function orderAdminSecret() {
     return process.env.ORDER_ADMIN_TOKEN_SECRET ?? process.env.ADMIN_TOKEN_SECRET ?? "";
 }
 
 function signOrderAdminToken(storeId: string) {
-    const body = Buffer.from(JSON.stringify({ store_id: storeId, exp: Date.now() + ORDER_ADMIN_TOKEN_TTL_MS })).toString("base64url");
+    const body = Buffer.from(JSON.stringify({ kind: "order-admin", store_id: storeId, exp: Date.now() + ORDER_ADMIN_TOKEN_TTL_MS })).toString("base64url");
     const signature = crypto.createHmac("sha256", orderAdminSecret()).update(body).digest("base64url");
     return `${body}.${signature}`;
 }
 
-function verifyOrderAdminToken(token: string) {
+function signOrderInputToken(storeId: string, date: string) {
+    const body = Buffer.from(JSON.stringify({ kind: "order-input", store_id: storeId, date, exp: Date.now() + 2 * 60 * 60 * 1000 })).toString("base64url");
+    const signature = crypto.createHmac("sha256", orderAdminSecret()).update(body).digest("base64url");
+    return `${body}.${signature}`;
+}
+
+function verifyOrderToken(token: string) {
     const [body, signature] = token.split(".");
     if (!body || !signature || !orderAdminSecret()) return null;
     const expected = crypto.createHmac("sha256", orderAdminSecret()).update(body).digest("base64url");
@@ -26,8 +53,8 @@ function verifyOrderAdminToken(token: string) {
     if (left.length !== right.length || !crypto.timingSafeEqual(left, right)) return null;
     try {
         const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
-        if (!payload?.store_id || Number(payload.exp) < Date.now()) return null;
-        return String(payload.store_id);
+        if (!payload?.kind || !payload?.store_id || Number(payload.exp) < Date.now()) return null;
+        return payload as { kind: string; store_id: string; date?: string; exp: number };
     } catch {
         return null;
     }
@@ -35,7 +62,8 @@ function verifyOrderAdminToken(token: string) {
 
 function orderAdminStore(c: any) {
     const auth = c.req.header("Authorization") ?? "";
-    return verifyOrderAdminToken(auth.startsWith("Bearer ") ? auth.slice(7).trim() : "");
+    const payload = verifyOrderToken(auth.startsWith("Bearer ") ? auth.slice(7).trim() : "");
+    return payload?.kind === "order-admin" ? payload.store_id : null;
 }
 
 const DEFAULT_ORDER_DAYS: Record<string, number[]> = { "7249": [2, 5], "7539": [1, 4] };
@@ -72,6 +100,11 @@ orderRoutes.get("/activity", async (c) => {
 });
 
 orderRoutes.post("/admin/login", async (c) => {
+    const rateLimit = orderLoginAllowed(c);
+    if (!rateLimit.allowed) {
+        c.header("Retry-After", String(rateLimit.retryAfter));
+        return c.json({ ok: false, error: "試行回数が多すぎます。しばらく待ってからお試しください" }, 429);
+    }
     const body = await c.req.json().catch(() => null);
     const storeId = String(body?.store_id ?? "").trim();
     const password = String(body?.password ?? "");
@@ -79,9 +112,10 @@ orderRoutes.post("/admin/login", async (c) => {
     if (!expectedPassword || !orderAdminSecret()) {
         return c.json({ ok: false, error: "発注管理の認証設定がありません" }, 503);
     }
-    if (!/^(7249|7539)$/.test(storeId) || password !== expectedPassword) {
+    if (!/^(7249|7539)$/.test(storeId) || !secureEqual(password, expectedPassword)) {
         return c.json({ ok: false, error: "店舗またはパスワードが違います" }, 401);
     }
+    orderLoginAttempts.delete(c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? c.req.header("CF-Connecting-IP") ?? "unknown");
     return c.json({ ok: true, token: signOrderAdminToken(storeId), store_id: storeId });
 });
 
@@ -374,10 +408,11 @@ orderRoutes.get("/admin/report", async (c) => {
 
 orderRoutes.get("/calc", async (c) => {
     try {
+        if (!orderAdminSecret()) return c.json({ ok: false, error: "発注認証の設定がありません" }, 503);
         const store_id = String(c.req.query("store_id") ?? "").trim();
         const date = String(c.req.query("date") ?? "").trim();
 
-        if (!store_id || !date) {
+        if (!/^(7249|7539)$/.test(store_id) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
             return c.json({ ok: false, error: "store_id and date required" }, 400);
         }
 
@@ -392,8 +427,49 @@ orderRoutes.get("/calc", async (c) => {
             return c.json({ ok: false, error: error.message }, 500);
         }
 
-        return c.json({ ok: true, data: data });
+        return c.json({ ok: true, data, input_token: signOrderInputToken(store_id, date) });
     } catch (e: any) {
         return c.json({ ok: false, error: e.message }, 500);
     }
+});
+
+orderRoutes.post("/input", async (c) => {
+    const auth = c.req.header("Authorization") ?? "";
+    const token = verifyOrderToken(auth.startsWith("Bearer ") ? auth.slice(7).trim() : "");
+    if (!token || token.kind !== "order-input") return c.json({ ok: false, error: "Unauthorized" }, 401);
+    const body = await c.req.json().catch(() => null);
+    const storeId = String(body?.store_id ?? "").trim();
+    const date = String(body?.date ?? "").trim();
+    const items = Array.isArray(body?.items) ? body.items : [];
+    if (storeId !== token.store_id || date !== token.date || items.length < 1 || items.length > 200) {
+        return c.json({ ok: false, error: "入力内容を確認してください" }, 400);
+    }
+    const normalized: Array<{ item_code: string; fridge_qty: number; freezer_qty: number }> = items.map((item: any) => ({
+        item_code: String(item?.item_code ?? "").trim(),
+        fridge_qty: Number(item?.fridge_qty ?? 0),
+        freezer_qty: Number(item?.freezer_qty ?? 0),
+    }));
+    if (normalized.some((item) => !/^[A-Za-z0-9_-]{1,40}$/.test(item.item_code)
+        || !Number.isFinite(item.fridge_qty) || item.fridge_qty < 0 || item.fridge_qty > 100_000
+        || !Number.isFinite(item.freezer_qty) || item.freezer_qty < 0 || item.freezer_qty > 100_000)
+        || new Set(normalized.map((item) => item.item_code)).size !== normalized.length) {
+        return c.json({ ok: false, error: "在庫数を確認してください" }, 400);
+    }
+    const allowedItems = await supabase.from("inventory_items").select("item_code")
+        .eq("store_id", storeId).eq("is_active", true).in("item_code", normalized.map((item) => item.item_code));
+    if (allowedItems.error) return orderDatabaseFailure(c, allowedItems.error);
+    if ((allowedItems.data ?? []).length !== normalized.length) {
+        return c.json({ ok: false, error: "無効な食材が含まれています" }, 400);
+    }
+    const payload = normalized.map((item) => ({
+        store_id: storeId,
+        date,
+        item_code: item.item_code,
+        fridge_qty: item.fridge_qty,
+        freezer_qty: item.freezer_qty,
+        stock_qty: item.fridge_qty + item.freezer_qty,
+    }));
+    const result = await supabase.from("inventory_counts").upsert(payload, { onConflict: "store_id,date,item_code" });
+    if (result.error) return orderDatabaseFailure(c, result.error);
+    return c.json({ ok: true, count: payload.length });
 });

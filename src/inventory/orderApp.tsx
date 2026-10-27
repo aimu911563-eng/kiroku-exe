@@ -29,6 +29,7 @@ export default function OrderInputPage() {
   const [fridgeDrafts, setFridgeDrafts] = useState<Record<string, string>>({});
   const [freezerDrafts, setFreezerDrafts] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<string | null>(null);
+  const [inputToken, setInputToken] = useState("");
 
   async function loadDate(targetDate = date) {
     setLoading(true); setMessage("");
@@ -37,6 +38,7 @@ export default function OrderInputPage() {
       const json = await response.json().catch(() => null);
       if (!response.ok || !json?.ok) throw new Error(json?.error || "読み込みに失敗しました");
       const data: OrderRow[] = Array.isArray(json.data) ? json.data : [];
+      setInputToken(String(json.input_token ?? ""));
       setRows(data);
       setFridgeDrafts(Object.fromEntries(data.map((row) => [row.item_code, Number(row.fridge_qty) ? String(row.fridge_qty) : ""])));
       setFreezerDrafts(Object.fromEntries(data.map((row) => [row.item_code, Number(row.freezer_qty) ? String(row.freezer_qty) : ""])));
@@ -59,7 +61,7 @@ export default function OrderInputPage() {
   async function saveAll() {
     setLoading(true);
     try {
-      const response = await fetch("/api/inventory/bulk-input", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      const response = await fetch("/api/order/input", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${inputToken}` }, body: JSON.stringify({
         store_id: STORE_ID, date, items: rows.map((row) => ({ item_code: row.item_code, fridge_qty: Number(fridgeDrafts[row.item_code] || 0), freezer_qty: Number(freezerDrafts[row.item_code] || 0) })),
       }) });
       const json = await response.json().catch(() => null);

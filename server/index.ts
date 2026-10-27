@@ -1,12 +1,8 @@
 import "dotenv/config";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { inventoryRoutes } from "./inventory-server";
 import { cors } from "hono/cors";
-import { publicRoutes } from "./public-server.ts";
-import { cleaningRoutes } from "./cleaning-server";
 import { orderRoutes } from "./order-server.ts";
-import { inventoryDateRoutes } from "./inventory-date-server.ts";
 
 
 
@@ -27,11 +23,13 @@ app.use(
 
 app.all("/api/leaves", (c) => c.json({ ok: false, error: "leave service retired" }, 410));
 app.all("/api/leaves/*", (c) => c.json({ ok: false, error: "leave service retired" }, 410));
-app.route("/api/inventory", inventoryRoutes);
-app.route("/api/public", publicRoutes);
-app.route("/api/cleaning", cleaningRoutes);
+const inventoryRetired = (c: any) => c.json({ ok: false, error: "inventory service retired" }, 410);
+app.all("/api/inventory", inventoryRetired);
+app.all("/api/inventory/*", inventoryRetired);
+app.all("/api/public/*", inventoryRetired);
+app.all("/api/cleaning/*", inventoryRetired);
+app.all("/api/inventory-date/*", inventoryRetired);
 app.route("/api/order", orderRoutes);
-app.route("/api/inventory-date", inventoryDateRoutes);
 app.get("/api/health", (c) => c.json({ ok: true, service: "kiroku-api" }));
 
 const host = process.env.HOST ?? "0.0.0.0";
