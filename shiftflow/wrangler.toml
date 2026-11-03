@@ -5,3 +5,11 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 SUPABASE_URL ="https://wrrdondtrybuuazprhtk.supabase.co"
+
+[[durable_objects.bindings]]
+name = "LOGIN_RATE_LIMITER"
+class_name = "LoginRateLimiter"
+
+[exports.LoginRateLimiter]
+type = "durable-object"
+storage = "sqlite"

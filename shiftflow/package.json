@@ -24,7 +24,7 @@
     "vite": "npm:rolldown-vite@7.2.5"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.7",
+    "@hono/node-server": "^2.1.6",
     "@supabase/supabase-js": "^2.88.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",

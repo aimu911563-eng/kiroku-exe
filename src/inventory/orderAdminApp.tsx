@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { orderApiFetch } from "./order-api-fetch";
 
 type BudgetType = "base" | "onion" | "mushroom";
 type ItemCategory = "main" | "side" | "fresh_veg" | "mushroom";
@@ -27,7 +28,7 @@ function dateKey(date: Date) { return `${date.getFullYear()}-${String(date.getMo
 
 async function request(path: string, init: RequestInit = {}) {
   const token = localStorage.getItem(TOKEN_KEY);
-  const response = await fetch(`/api/order${path}`, {
+  const response = await orderApiFetch(`/api/order${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers },
   });

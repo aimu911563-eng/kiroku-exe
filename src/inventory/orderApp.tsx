@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { orderApiFetch } from "./order-api-fetch";
 
 type OrderRow = {
   store_id: string; order_date: string; display_order: number; item_code: string; name: string; category: string;
@@ -34,7 +35,7 @@ export default function OrderInputPage() {
   async function loadDate(targetDate = date) {
     setLoading(true); setMessage("");
     try {
-      const response = await fetch(`/api/order/calc?store_id=${encodeURIComponent(STORE_ID)}&date=${encodeURIComponent(targetDate)}`);
+      const response = await orderApiFetch(`/api/order/calc?store_id=${encodeURIComponent(STORE_ID)}&date=${encodeURIComponent(targetDate)}`);
       const json = await response.json().catch(() => null);
       if (!response.ok || !json?.ok) throw new Error(json?.error || "読み込みに失敗しました");
       const data: OrderRow[] = Array.isArray(json.data) ? json.data : [];
@@ -48,7 +49,7 @@ export default function OrderInputPage() {
   }
 
   useEffect(() => {
-    fetch(`/api/order/settings?store_id=${encodeURIComponent(STORE_ID)}`).then((response) => response.json()).then((data) => {
+    orderApiFetch(`/api/order/settings?store_id=${encodeURIComponent(STORE_ID)}`).then((response) => response.json()).then((data) => {
       if (!data?.ok || !Array.isArray(data.order_days) || !data.order_days.length) return;
       setOrderDays(data.order_days);
       const extraDates = Array.isArray(data.extra_order_dates) ? data.extra_order_dates : [];
@@ -61,7 +62,7 @@ export default function OrderInputPage() {
   async function saveAll() {
     setLoading(true);
     try {
-      const response = await fetch("/api/order/input", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${inputToken}` }, body: JSON.stringify({
+      const response = await orderApiFetch("/api/order/input", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${inputToken}` }, body: JSON.stringify({
         store_id: STORE_ID, date, items: rows.map((row) => ({ item_code: row.item_code, fridge_qty: Number(fridgeDrafts[row.item_code] || 0), freezer_qty: Number(freezerDrafts[row.item_code] || 0) })),
       }) });
       const json = await response.json().catch(() => null);

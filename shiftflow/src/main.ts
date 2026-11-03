@@ -13,8 +13,6 @@ import { submissionMessages } from "./submission-messages";
 import { isEmployeeIdFormat } from "./employee-id";
 import { MASCOT_EMOTES, MASCOT_ITEMS, mascotUnlockAvailable, type MascotStatKey } from "./mascot-unlocks";
 
-console.log("ShiftFlow main.ts 読み込み完了:)");
-
 type ShiftData = Record<ShiftDayKey, string>;
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 

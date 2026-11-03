@@ -2,7 +2,6 @@
 import { employeeIdLengthForNewRegistration, isEmployeeIdValidForNewRegistration } from "./employee-id";
 
 const TOKEN_KEY = "shiftflow_admin_token";
-console.log("admin.tsを読み込みできた：）", TOKEN_KEY);
 
 const loginBox = document.getElementById("loginBox") as HTMLElement;
 const adminBox = document.getElementById("adminBox") as HTMLElement;
@@ -469,7 +468,6 @@ function wireEmployeeModal() {
     });
 
     $("submitEmployeeModal").addEventListener("click", async () => {
-        console.log("submit clicked")
         await submitEmployee();
     });
 

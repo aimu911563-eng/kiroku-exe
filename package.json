@@ -7,7 +7,7 @@
     "node": ">=24.22.1 <25"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.6",
+    "@hono/node-server": "^2.1.6",
     "@supabase/supabase-js": "^2.80.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
@@ -41,7 +41,7 @@
     "dev:shiftflow": "node scripts/dev.mjs shiftflow",
     "dev:all": "node scripts/dev.mjs all",
     "dev:api": "tsx watch server/index.ts",
-    "test:routing": "tsx --test scripts/routing.test.ts",
+    "test:routing": "tsx --test scripts/*.test.ts",
     "typecheck": "tsc -b",
     "typecheck:server": "tsc -p tsconfig.server.json",
     "lint": "eslint .",

@@ -8,6 +8,15 @@ import { orderRoutes } from "./order-server.ts";
 
 const app = new Hono();
 
+app.use("/api/*", async (c, next) => {
+    c.header("Cache-Control", "no-store");
+    c.header("Referrer-Policy", "no-referrer");
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("X-Frame-Options", "DENY");
+    c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    await next();
+});
+
 app.use(
     "*",
     cors({

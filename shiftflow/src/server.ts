@@ -15,6 +15,7 @@ import {
 import { holidaysForWeek, japaneseHolidays } from "./japanese-holidays";
 import { mascotLevelForXp } from "./mascot-levels";
 import { MASCOT_ITEMS, mascotUnlockAvailable, type MascotStatKey } from "./mascot-unlocks";
+export { LoginRateLimiter } from "./login-rate-limiter";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -33,6 +34,10 @@ type Env = {
   DEMO_WORKTIME_ADMIN_PASSWORD: string;
   LINE_CHANNEL_ACCESS_TOKEN?: string;
   LINE_CHANNEL_SECRET?: string;
+  LOGIN_RATE_LIMITER?: {
+    idFromName(name: string): unknown;
+    get(id: unknown): { fetch(input: string | Request, init?: RequestInit): Promise<Response> };
+  };
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -41,31 +46,80 @@ const EMPLOYEE_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
-function loginRateLimit(maxAttempts: number): MiddlewareHandler {
+function clientIp(c: any) {
+  return c.req.header("CF-Connecting-IP") ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? "unknown";
+}
+
+function durableRateLimitKey(c: any, scope: string) {
+  const secret = String(c.env?.ADMIN_TOKEN_SECRET ?? process.env.ADMIN_TOKEN_SECRET ?? c.env?.EMPLOYEE_TOKEN_SECRET ?? process.env.EMPLOYEE_TOKEN_SECRET ?? "");
+  if (!secret) throw new Error("A token secret is required for rate-limit hashing");
+  return crypto.createHmac("sha256", secret).update(`${scope}:${clientIp(c)}`).digest("hex");
+}
+
+function memoryRateLimit(c: any, scope: string, maxAttempts: number) {
+  const now = Date.now();
+  const key = `${scope}:${clientIp(c)}`;
+  const previous = loginAttempts.get(key);
+  const entry = !previous || previous.resetAt <= now
+    ? { count: 0, resetAt: now + LOGIN_WINDOW_MS }
+    : previous;
+  if (entry.count >= maxAttempts) {
+    return { allowed: false, retryAfter: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)), key };
+  }
+  entry.count += 1;
+  loginAttempts.set(key, entry);
+  return { allowed: true, retryAfter: 0, key };
+}
+
+function loginRateLimit(scope: "admin" | "employee", maxAttempts: number): MiddlewareHandler<{ Bindings: Env }> {
   return async (c, next) => {
-    const now = Date.now();
-    const ip = c.req.header("CF-Connecting-IP") ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? "unknown";
-    const key = `${c.req.path}:${ip}`;
-    const previous = loginAttempts.get(key);
-    const entry = !previous || previous.resetAt <= now
-      ? { count: 0, resetAt: now + LOGIN_WINDOW_MS }
-      : previous;
-    if (entry.count >= maxAttempts) {
-      c.header("Retry-After", String(Math.ceil((entry.resetAt - now) / 1000)));
+    const namespace = c.env?.LOGIN_RATE_LIMITER;
+    let allowed = false;
+    let retryAfter = 0;
+    let memoryKey = "";
+    let stub: { fetch(input: string | Request, init?: RequestInit): Promise<Response> } | null = null;
+
+    if (namespace) {
+      const id = namespace.idFromName(durableRateLimitKey(c, scope));
+      stub = namespace.get(id);
+      const response = await stub.fetch(`https://rate-limit.internal/consume?limit=${maxAttempts}&window_ms=${LOGIN_WINDOW_MS}`, { method: "POST" });
+      const result = await response.json() as { allowed: boolean; retryAfter: number };
+      allowed = result.allowed;
+      retryAfter = result.retryAfter;
+    } else {
+      const result = memoryRateLimit(c, scope, maxAttempts);
+      allowed = result.allowed;
+      retryAfter = result.retryAfter;
+      memoryKey = result.key;
+    }
+
+    if (!allowed) {
+      c.header("Retry-After", String(retryAfter));
       return c.json({ ok: false, error: "試行回数が多すぎます。しばらく待ってからお試しください" }, 429);
     }
-    entry.count += 1;
-    loginAttempts.set(key, entry);
+
     await next();
-    if (c.res.status < 400) loginAttempts.delete(key);
+
+    if (stub) {
+      const action = c.res.status < 400 ? "reset" : c.res.status >= 500 ? "release" : "";
+      if (action) await stub.fetch(`https://rate-limit.internal/${action}`, { method: "POST" });
+    } else if (c.res.status < 400) {
+      loginAttempts.delete(memoryKey);
+    } else if (c.res.status >= 500) {
+      const entry = loginAttempts.get(memoryKey);
+      if (!entry || entry.count <= 1) loginAttempts.delete(memoryKey);
+      else loginAttempts.set(memoryKey, { ...entry, count: entry.count - 1 });
+    }
+
     if (loginAttempts.size > 10_000) {
+      const now = Date.now();
       for (const [candidate, value] of loginAttempts) if (value.resetAt <= now) loginAttempts.delete(candidate);
     }
   };
 }
 
-app.use("/api/admin/login", loginRateLimit(10));
-app.use("/api/employee/login", loginRateLimit(20));
+app.use("/api/admin/login", loginRateLimit("admin", 5));
+app.use("/api/employee/login", loginRateLimit("employee", 20));
 
 app.get("/", (c) => c.text("shiftflow-api ok"));
 app.get("/api/health", (c) => c.json({ ok: true, service: "shiftflow-api" }));
@@ -156,7 +210,11 @@ const shiftSchema = z.object({
 
 //＝＝＝＝＝＝＝＝＝　管理者 (admin) ＝＝＝＝＝＝＝＝＝
 app.use("/api/*", async (c, next) => {
-  console.log("[API HIT]", c.req.method, c.req.path);
+  c.header("Cache-Control", "no-store");
+  c.header("Referrer-Policy", "no-referrer");
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   await next();
 });
 
@@ -1107,9 +1165,6 @@ app.get("/api/shifts", requireEmployee, async (c) => {
   const weekStart = c.req.query("week_start")?.trim();
   if (!weekStart) return c.json({ ok: false, error: "week_start required" }, 400);
 
-  console.log("SHIFTS DEBUG", { employeeId, storeId, weekStart });
-
-
   const { data, error } = await supabase
     .from("shift_submissions")
     .select("employee_id, store_id, week_start, data, status, comment, submitted_at, updated_at")
@@ -1568,13 +1623,6 @@ app.get("/api/worktime/admin/dashboard", requireAdmin, async (c) => {
     else if (s.status === "updated") updated++;
     else submitted++;
   }
-
-  //console.log("[dbg] employees:", employees.length);
-  //console.log("[dbg] subs:", subRes.data?.length ?? 0);
-  //console.log("[dbg] firstSub:", subRes.data?.[0]);
-  console.log("[dbg] nameById keys sample:", [...nameById.keys()].slice(0, 3));
-  console.log("[dbg] joined name:", String(subRes.data?.[0]?.employee_id), nameById.get(String(subRes.data?.[0]?.employee_id)));
-
 
   return c.json({
     week_start,
