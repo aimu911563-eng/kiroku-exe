@@ -28,7 +28,10 @@ function shouldRetry(response: Response) {
 export async function orderApiFetch(input: RequestInfo | URL, init: RequestInit = {}, options: RetryOptions = {}) {
   const method = String(init.method ?? "GET").toUpperCase();
   const fetchImpl = options.fetchImpl ?? fetch;
-  if (method !== "GET" && method !== "HEAD") return fetchImpl(input, init);
+  // Order-admin PUT routes replace the requested state and are safe to replay.
+  // This matters when Render sleeps while a manager is editing: the first PUT
+  // wakes the service, then the same payload can be sent once more.
+  if (!["GET", "HEAD", "PUT"].includes(method)) return fetchImpl(input, init);
 
   let firstResponse: Response | null = null;
   try {

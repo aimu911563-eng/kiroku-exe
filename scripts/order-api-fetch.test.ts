@@ -29,6 +29,23 @@ describe("order API cold-start retry", () => {
     assert.equal(calls, 1);
   });
 
+  it("retries an idempotent admin PUT after an upstream cold-start response", async () => {
+    let calls = 0;
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      return calls === 1
+        ? Response.json({ error: "starting" }, { status: 503 })
+        : Response.json({ ok: true });
+    };
+    const response = await orderApiFetch("https://example.test/api/order/admin/items", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: [] }),
+    }, { ...options, fetchImpl });
+    assert.equal(response.status, 200);
+    assert.equal(calls, 2);
+  });
+
   it("returns authentication failures without retrying", async () => {
     let calls = 0;
     const fetchImpl: typeof fetch = async () => {
