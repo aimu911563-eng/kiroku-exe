@@ -398,6 +398,132 @@ button:disabled { cursor: default; opacity: .45; }
   .orderAdminPage .orderPanel { animation: none; }
 }
 
+/* Order input — status-first mobile experience */
+.orderInputPage {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background-color: #fff7ed;
+  background-image:
+    radial-gradient(ellipse 32% 27% at 18% 16%, rgba(175,225,249,.58), transparent 72%),
+    radial-gradient(ellipse 30% 26% at 82% 36%, rgba(255,211,216,.48), transparent 72%),
+    radial-gradient(ellipse 31% 26% at 22% 70%, rgba(204,239,207,.5), transparent 72%),
+    radial-gradient(ellipse 32% 27% at 78% 86%, rgba(226,207,250,.52), transparent 72%);
+  background-size: 112% 112%;
+  background-attachment: fixed;
+  animation: orderInputBackgroundDrift 20s ease-in-out infinite alternate;
+  color: #202124;
+}
+.orderInputPage::before {
+  content: none;
+}
+@keyframes orderInputBackgroundDrift {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 2.5vw 1.5vh, -2vw 2vh, 2vw -2vh, -2.5vw -1.5vh; }
+}
+.orderInputPage .orderShell { width: min(900px,calc(100% - 32px)); padding: 52px 0 86px; }
+.orderInputPage .orderHero {
+  align-items: flex-end;
+  margin-bottom: 25px;
+  padding: 0 4px 23px;
+  border-bottom: 1px solid rgba(87,111,137,.18);
+  animation: orderAdminReveal .85s cubic-bezier(.2,.75,.25,1) both;
+}
+.orderInputPage .orderHero h1 { font-size: clamp(34px,5vw,46px); letter-spacing: -.055em; }
+.orderInputPage .orderHero .ghost { border-left: 1px solid rgba(87,111,137,.18); border-radius: 0; background: transparent; color: #386685; }
+.orderInputPage .orderPanel {
+  padding-inline: 8px;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  animation: orderAdminReveal .9s .1s cubic-bezier(.2,.75,.25,1) both;
+}
+.orderInputPage .orderHint { border: 0; border-left: 2px solid rgba(109,137,154,.28); border-radius: 0; background: transparent; }
+.orderInputPage .orderField input,
+.orderInputPage .orderTable input { border-color: rgba(90,111,133,.25); background: rgba(255,255,255,.7); }
+.orderInputPage .orderButton.primary {
+  border: 1px solid rgba(113,109,170,.3);
+  background: linear-gradient(135deg,rgba(220,239,228,.86),rgba(230,218,246,.86));
+  color: #4e4a77;
+  box-shadow: 0 9px 24px rgba(69,119,160,.1);
+}
+.orderInputPage .orderButton.ghost { background: rgba(255,255,255,.5); color: #456074; }
+.orderInputProgress {
+  margin: 8px 0 22px;
+  padding: 15px 16px;
+  border: 0;
+  border-top: 1px solid rgba(90,111,133,.16);
+  border-bottom: 1px solid rgba(90,111,133,.16);
+  border-radius: 0;
+  background: transparent;
+}
+.orderInputProgressTop { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 10px; }
+.orderInputProgressTop span { color: #66717b; font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+.orderInputProgressTop strong { font-size: 18px; }
+.orderInputProgressTop b { color: #6d6091; font-size: 13px; }
+.orderProgressTrack { height: 8px; margin: 10px 0; overflow: hidden; border-radius: 999px; background: rgba(93,110,127,.15); }
+.orderProgressTrack i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#87cf9e,#a58bd4); transition: width .3s ease; }
+.orderProgressLegend { display: flex; flex-wrap: wrap; gap: 7px; }
+.orderProgressLegend span { padding: 4px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.orderProgressLegend .entered { background: rgba(204,239,207,.7); color: #287043; }
+.orderProgressLegend .missing { background: rgba(93,102,113,.12); color: #60666d; }
+.orderProgressLegend .required { background: rgba(226,213,244,.72); color: #655184; }
+.orderInputPage .orderSection h2 { margin-left: 3px; font-size: 19px; }
+.orderInputPage .orderTableWrap { border: 0; border-radius: 0; background: transparent; }
+.orderInputPage .orderTable th { border-bottom: 1px solid rgba(90,111,133,.16); background: transparent; }
+.orderInputPage .orderTable tr td { transition: background .18s ease, opacity .18s ease; }
+.orderInputPage .orderTable tr.isMissing td { background: rgba(72,81,92,.075); color: #626970; }
+.orderInputPage .orderTable tr.isMissing .orderQty { background: rgba(90,98,108,.1); color: #666c73; }
+.orderInputPage .orderTable tr.isEntered td { background: rgba(255,255,255,.2); }
+.orderInputPage .orderTable tr.isEntered.hasOrder td { background: rgba(218,236,220,.35); }
+.orderInputPage .orderTable tr.isEntered.hasOrder .orderQty { background: rgba(220,205,241,.68); color: #604982; }
+
+.orderSaveConfirmBackdrop {
+  z-index: 110;
+  align-items: start;
+  justify-items: center;
+  padding: max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.orderSaveConfirmSheet { width: min(560px,100%); max-height: calc(100dvh - 32px); }
+.orderConfirmMetrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.orderConfirmMetrics article { display: grid; gap: 3px; padding: 12px; border-radius: 14px; }
+.orderConfirmMetrics article.entered { background: rgba(204,239,207,.62); color: #287043; }
+.orderConfirmMetrics article.missing { background: rgba(93,102,113,.11); color: #60666d; }
+.orderConfirmMetrics article.required { background: rgba(226,213,244,.68); color: #655184; }
+.orderConfirmMetrics span,.orderConfirmMetrics small { font-size: 9px; font-weight: 750; }
+.orderConfirmMetrics strong { font-size: 24px; }
+.orderConfirmNotice { margin: 12px 0; padding: 10px 12px; border-radius: 12px; background: #fff3df; color: #805400; font-size: 12px; line-height: 1.5; }
+.orderConfirmGroups { display: grid; margin-top: 12px; border-top: 1px solid rgba(90,111,133,.13); }
+.orderConfirmGroups div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 3px; border-bottom: 1px solid rgba(90,111,133,.1); font-size: 13px; }
+.orderConfirmGroups strong { color: #315f7d; }
+
+@media (max-width: 720px) {
+  .orderInputPage .orderShell { width: min(100% - 20px,900px); padding: 28px 0 60px; }
+  .orderInputPage .orderHero { margin-bottom: 18px; padding-bottom: 18px; }
+  .orderInputPage .orderHero h1 { font-size: 30px; }
+  .orderInputPage .orderPanel { padding: 8px 0; border-radius: 0; }
+  .orderInputProgress { margin-bottom: 16px; padding: 12px; }
+  .orderInputPage .orderTable tr { border-color: rgba(90,111,133,.13); background: transparent; box-shadow: none; }
+  .orderInputPage .orderTable tr.isMissing { background: rgba(72,81,92,.08); }
+  .orderInputPage .orderTable tr.isEntered { background: rgba(255,255,255,.2); }
+  .orderInputPage .orderTable tr.isEntered.hasOrder { background: rgba(218,236,220,.4); }
+  .orderInputPage .orderTable tr.isMissing td,
+  .orderInputPage .orderTable tr.isEntered td,
+  .orderInputPage .orderTable tr.isEntered.hasOrder td { background: transparent; }
+  .orderSaveConfirmBackdrop { align-items: start; padding: max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom)); }
+  .orderSaveConfirmSheet { max-height: calc(100dvh - 16px); }
+  .orderConfirmMetrics article { padding: 10px 7px; }
+  .orderConfirmMetrics strong { font-size: 21px; }
+  .orderSaveConfirmSheet .itemSaveConfirmActions { grid-template-columns: .9fr 1.4fr; }
+  .orderSaveConfirmSheet .orderButton { padding-inline: 8px; font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orderInputPage { animation: none; }
+}
+
 /* Prevent iOS Safari from zooming when a form control receives focus. */
 @supports (-webkit-touch-callout: none) {
   @media (max-width: 720px) {

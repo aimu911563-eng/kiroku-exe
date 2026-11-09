@@ -434,7 +434,7 @@ orderRoutes.get("/calc", async (c) => {
             return c.json({ ok: false, error: "store_id and date required" }, 400);
         }
 
-        const [calculationResult, activeItemsResult] = await Promise.all([
+        const [calculationResult, activeItemsResult, inputResult] = await Promise.all([
             supabase.from("order_calc_view")
                 .select("*")
                 .eq("store_id", store_id)
@@ -443,11 +443,18 @@ orderRoutes.get("/calc", async (c) => {
             supabase.from("inventory_items")
                 .select("item_code")
                 .eq("store_id", store_id).eq("is_active", true),
+            supabase.from("inventory_counts")
+                .select("item_code")
+                .eq("store_id", store_id)
+                .eq("date", date),
         ]);
-        const error = calculationResult.error || activeItemsResult.error;
+        const error = calculationResult.error || activeItemsResult.error || inputResult.error;
         if (error) return orderDatabaseFailure(c, error);
         const activeItemCodes = new Set((activeItemsResult.data ?? []).map((row) => String(row.item_code)));
-        const data = (calculationResult.data ?? []).filter((row) => activeItemCodes.has(String(row.item_code)));
+        const inputItemCodes = new Set((inputResult.data ?? []).map((row) => String(row.item_code)));
+        const data = (calculationResult.data ?? [])
+            .filter((row) => activeItemCodes.has(String(row.item_code)))
+            .map((row) => ({ ...row, has_input: inputItemCodes.has(String(row.item_code)) }));
         return c.json({ ok: true, data, input_token: signOrderInputToken(store_id, date) });
     } catch (e: any) {
         return c.json({ ok: false, error: e.message }, 500);
