@@ -1,4 +1,4 @@
- import { InsightDashboardResponse } from "./types";
+ import type { InsightDashboardResponse } from "./types";
 
 
 // ダミー　とりあえず表示させたい

@@ -1418,91 +1418,6 @@ label.dayLabel[data-day="6"] {
 }
 
 
-/* worktimeだけに当てたいなら親に class="worktimeForm" を付けてこれ */
-.worktimeForm .row{
-  display: grid;
-  grid-template-columns: 92px 1fr 1fr 64px;
-  gap: 8px;
-  align-items: center;
-}
-
-/* 合算表示 */
-.worktimeForm .daySum{
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-/* inputが勝手に改行させない */
-.worktimeForm .timeInput{
-  width: 100%;
-  min-width: 0;
-}
-
-.worktimeForm .row{
-  display: grid;
-  grid-template-columns: 28px 1fr 1fr 64px; /* 月 / 通常 / 深夜 / 合算 */
-  gap: 8px;
-  align-items: center;
-  margin: 8px 0;
-}
-
-.worktimeForm .daySum{
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.worktimeForm {
-  display: grid;
-  grid-template-columns: 32px 1fr 1fr 64px;
-  align-items: center;
-  gap: 8px;
-  margin: 6px 0;
-}
-
-.dayLabel {
-  text-align: center;
-  font-weight: bold;
-}
-
-.timeInput {
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: 6px;
-}
-
-.daySum {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: #333;
-}
-
-/* 1行をグリッド化 */
-.section .worktimeForm{
-  display: grid;
-  grid-template-columns: 88px 1fr 1fr 70px; /* 日付/通常/深夜/合算 */
-  align-items: center;
-  gap: 8px;
-  margin: 8px 0;
-}
-
-/* 子要素が変な幅を持ってても潰れないように */
-.section .worktimeForm > *{
-  min-width: 0;
-}
-
-/* 合算が「全幅」扱いで落ちるのを止める */
-.section .worktimeForm .daySum{
-  grid-column: 4;      /* 4列目固定 */
-  grid-row: 1;         /* 1行目固定 */
-  width: auto !important;
-  margin: 0 !important;
-  justify-self: end;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 /* ShiftFlow: 土日色分け */
 #shiftTable tbody tr.sat td:first-child {
   color: #2563eb; /* 青 */
@@ -2347,6 +2262,7 @@ label.dayLabel[data-day="6"] {
   .employeeAnnouncement { grid-template-columns: 52px minmax(0,1fr); padding: 12px; }
 }
 
+
 .successKeywordMessage {
   margin-top: 12px;
   padding: 13px;
@@ -2585,3 +2501,1776 @@ body.employeeModalOpen { position:fixed; top:var(--employee-modal-scroll,0); wid
 .confirmOverview { display:grid; grid-template-columns:1fr 1fr; gap:8px; }.confirmOverview > div { padding:12px; border-radius:13px; background:#f5f5f7; }.confirmOverview span,.confirmComment > span { display:block; color:#777780; font-size:10px; font-weight:750; }.confirmOverview strong { display:block; margin-top:3px; font-size:15px; }.confirmDays { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; margin-top:12px; }.confirmDay { min-width:0; padding:8px 2px; border-radius:10px; background:#edf6ff; text-align:center; }.confirmDay span { display:block; color:#55718e; font-size:10px; font-weight:800; }.confirmDay strong { display:block; margin-top:4px; overflow:hidden; color:#174f82; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }.confirmDay.isEmpty { background:#f6f6f8; }.confirmDay.isEmpty strong { color:#aaa; }.confirmComment { margin-top:12px; padding:12px; border:1px solid #e5e5ea; border-radius:13px; }.confirmComment p { margin:5px 0 0; color:#34343a; font-size:13px; line-height:1.5; overflow-wrap:anywhere; white-space:pre-wrap; }.confirmNote { margin:12px 0 0; color:#6e6e73; font-size:11px; line-height:1.55; }
 .calendarStatus:has(.inlineRetry) { display:flex; align-items:center; justify-content:space-between; gap:8px; color:#b42318; }.inlineError { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; color:#b42318; font-size:12px; }.inlineRetry { flex:0 0 auto; min-height:32px; padding:5px 10px; border:0; border-radius:999px; background:#edf3ff; color:#075ca8; font:750 11px/1 inherit; cursor:pointer; }
 @media(max-width:600px){.calendarDetailOverlay { align-items:end; padding:10px; }.calendarDetailCard { padding:18px; border-radius:23px 23px 16px 16px; }.confirmDays { grid-template-columns:repeat(4,minmax(0,1fr)); }.confirmDay { padding:8px 4px; }.confirmDay strong { font-size:10px; }}
+
+/* Employee submission experience */
+.employeePage {
+  background:
+    radial-gradient(circle at 14% 0%, rgba(206, 232, 255, .52), transparent 31rem),
+    radial-gradient(circle at 90% 16%, rgba(233, 220, 255, .34), transparent 27rem),
+    #f5f5f7;
+}
+
+.shiftEntryCard {
+  box-shadow: 0 18px 55px rgba(42, 59, 84, .08);
+}
+
+.shiftQuickActions { min-height: 42px; }
+.draftStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: #6e6e73;
+  font-size: 10px;
+  font-weight: 700;
+  transition: color .2s ease, background .2s ease, transform .2s ease;
+}
+.draftStatus i { display: grid; width: 15px; height: 15px; place-items: center; border-radius: 50%; background: #e6f6eb; color: #248a3d; font-size: 9px; font-style: normal; }
+.draftStatus.saved { transform: translateY(-1px); background: #eaf8ef; color: #18733c; }
+
+.shiftSimulatorCard {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #eaf5ff 0%, #f7f2ff 100%);
+}
+.shiftSimulatorCard::after { content: ""; position: absolute; top: -42px; right: -34px; width: 112px; height: 112px; border: 24px solid rgba(255,255,255,.32); border-radius: 50%; pointer-events: none; }
+.shiftSimulatorCard > * { position: relative; z-index: 1; }
+.shiftSimulatorCard .simulatorHeading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.shiftSimulatorCard .simulatorHeading span { color: #6e6e73; font-size: 11px; font-weight: 750; }
+.shiftSimulatorCard .simulatorHeading span:last-child { color: #0071e3; }
+.shiftSimulatorCard .inputProgressTrack { display: block; width: 100%; height: 6px; margin-top: 12px; overflow: hidden; border-radius: 999px; background: rgba(0, 113, 227, .11); }
+.shiftSimulatorCard .inputProgressTrack i { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #007aff, #7d5cff); transition: width .28s ease; }
+.shiftSimulatorCard .simulatorInsight { margin: 9px 0 0; color: #57575f; font-size: 10px; font-weight: 600; line-height: 1.45; }
+
+#shiftTable tbody tr { position: relative; transition: background .18s ease, box-shadow .18s ease; }
+#shiftTable tbody tr.isFilled td { background-color: #f4fbf6; }
+#shiftTable tbody tr.isFilled td:first-child::after { content: "✓"; display: inline-grid; width: 18px; height: 18px; margin-left: 7px; place-items: center; border-radius: 50%; background: #34c759; color: #fff; font-size: 10px; vertical-align: 1px; }
+#shiftTable tbody tr.isPartial td { background-color: #fff8eb; }
+#shiftTable tbody tr.isPartial td:first-child::after { content: "時間を確認"; margin-left: 7px; padding: 3px 6px; border-radius: 999px; background: #fff0cf; color: #9a6200; font-size: 9px; vertical-align: 2px; }
+#shiftTable tbody tr.isFilled.sat td { background-color: #edf7ff; }
+#shiftTable tbody tr.isFilled.sun td,
+#shiftTable tbody tr.isFilled.holiday td { background-color: #fff0f3; }
+
+.commentSuggestions { display: flex; gap: 7px; margin: -1px 0 9px; overflow-x: auto; padding: 2px 1px 4px; scrollbar-width: none; }
+.commentSuggestions::-webkit-scrollbar { display: none; }
+.commentSuggestions button { flex: 0 0 auto; min-height: 32px; padding: 5px 10px; border: 1px solid #e0e0e5; border-radius: 999px; background: #fff; color: #5b5b62; font: 700 10px/1 inherit; cursor: pointer; }
+.commentSuggestions button:hover { border-color: #a8cff7; background: #f3f8ff; color: #075ca8; }
+.commentSuggestions button:last-child { color: #8a8a91; }
+
+.submitWrap > div { width: 100%; }
+.submitButton { position: relative; overflow: hidden; box-shadow: 0 9px 24px rgba(0, 113, 227, .2); transition: transform .16s ease, box-shadow .16s ease; }
+.submitButton::after { content: "→"; position: absolute; right: 18px; font-size: 18px; font-weight: 500; }
+.submitButton:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(0, 113, 227, .25); }
+.submitButton:active { transform: scale(.99); }
+
+.submissionConfirmCard { border: 1px solid rgba(255,255,255,.8); }
+.submissionConfirmCard > div:first-child { padding-bottom: 14px; border-bottom: 1px solid #ededf0; }
+.submissionConfirmCard > div:first-child h3::before { content: "2"; display: inline-grid; width: 28px; height: 28px; margin-right: 8px; place-items: center; border-radius: 50%; background: #0071e3; color: #fff; font-size: 12px; vertical-align: 2px; }
+
+@media (max-width: 680px) {
+  .draftStatus { width: 100%; margin-left: 0; justify-content: center; }
+  #shiftTable tbody tr.isFilled td:first-child::after,
+  #shiftTable tbody tr.isPartial td:first-child::after { float: right; margin-top: 1px; }
+  .commentSuggestions { margin-right: -14px; padding-right: 14px; }
+}
+
+/* Employee login welcome */
+.employeePage .loginWrap { margin-top: 12px; }
+.employeePage .employeeLoginCard {
+  display: grid;
+  grid-template-columns: minmax(0, .82fr) minmax(320px, 1.18fr);
+  width: min(780px, 100%);
+  max-width: 780px;
+  padding: 0;
+  overflow: hidden;
+  border-color: rgba(0, 113, 227, .08);
+  box-shadow: 0 24px 70px rgba(42, 59, 84, .11);
+}
+
+.loginWelcome {
+  position: relative;
+  display: flex;
+  min-height: 500px;
+  padding: 30px 27px;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  background: linear-gradient(155deg, #dff2ff 0%, #eaf4ff 48%, #f2ecff 100%);
+}
+.loginWelcome::before { content: ""; position: absolute; top: -80px; left: -90px; width: 220px; height: 220px; border: 42px solid rgba(255,255,255,.3); border-radius: 50%; }
+.loginWelcome::after { content: ""; position: absolute; right: -48px; bottom: 126px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.22); }
+.loginWelcome > * { position: relative; z-index: 2; }
+.loginWelcomeSky { position: absolute; z-index: 1; inset: 0 0 auto; height: 245px; overflow: hidden; }
+.loginWelcomeGround { position: absolute; right: 0; bottom: 0; left: 0; height: 35px; border-top: 7px solid #83c765; background: repeating-linear-gradient(90deg,#6eae52 0 13px,#5c9c45 13px 24px); box-shadow: inset 0 8px #4f8a3c; }
+.loginWelcomeSun { position: absolute; top: 25px; right: 27px; width: 45px; height: 45px; border-radius: 50%; background: #ffdb66; box-shadow: 0 0 0 9px rgba(255,219,102,.22); }
+.loginWelcomeCloud { position: absolute; top: 57px; left: 33px; width: 38px; height: 11px; border-radius: 10px; background: rgba(255,255,255,.85); box-shadow: 13px -9px 0 4px rgba(255,255,255,.85), 29px 0 0 2px rgba(255,255,255,.85); animation: loginWelcomeCloud 9s ease-in-out infinite alternate; }
+.loginWelcomeMascot { position: absolute; right: 67px; bottom: 31px; margin: 0; transform: scale(.98); transform-origin: center bottom; animation: loginWelcomeWalk 4.5s steps(1,end) infinite; }
+.loginWelcomeLabel { width: fit-content; margin-bottom: 8px; padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.65); color: #397941; font-size: 9px; font-weight: 850; letter-spacing: .08em; }
+.loginWelcome h2 { margin: 0; color: #1d1d1f; font-size: 28px; letter-spacing: -.035em; }
+.loginWelcome > p { margin: 8px 0 18px; color: #52525a; font-size: 13px; line-height: 1.65; }
+.loginWelcomePoints { display: grid; gap: 8px; }
+.loginWelcomePoints span { display: flex; align-items: center; gap: 7px; color: #4f4f57; font-size: 11px; font-weight: 700; }
+.loginWelcomePoints i { display: grid; width: 17px; height: 17px; place-items: center; border-radius: 50%; background: rgba(52,199,89,.16); color: #248a3d; font-size: 9px; font-style: normal; }
+
+.loginFormPane { min-width: 0; padding: 32px; background: rgba(255,255,255,.96); }
+.loginFormHeading { margin-bottom: 22px; }
+.loginFormHeading .eyebrow { margin-bottom: 5px; color: #0071e3; font-size: 9px; }
+.loginFormHeading h2 { font-size: 26px; }
+.loginFieldLabel { gap: 8px; margin-top: 15px; }
+.loginInputWrap { position: relative; display: block; }
+.loginInputWrap > i { position: absolute; z-index: 2; top: 50%; left: 13px; display: grid; width: 24px; height: 24px; place-items: center; border-radius: 7px; background: #f0f5fb; color: #44709d; font: 800 9px/1 inherit; transform: translateY(-50%); pointer-events: none; }
+.employeePage .loginInputWrap .fieldControl { min-height: 50px; padding-left: 47px; border-color: #dedee3; background: #fbfbfd; }
+.employeePage .loginInputWrap .fieldControl:focus { background: #fff; }
+.employeePage #storePreview { min-height: 15px; margin: 5px 2px -6px; color: #86868b; font-size: 10px; }
+.employeePage #storePreview.isReady { color: #248a3d; font-weight: 700; }
+.employeePage .loginActions { margin-top: 18px; }
+.employeePage .loginButton { position: relative; min-height: 50px; margin-top: 0; overflow: hidden; box-shadow: 0 10px 24px rgba(0,113,227,.21); transition: transform .16s ease, box-shadow .16s ease; }
+.employeePage .loginButton::after { content: "→"; position: absolute; right: 18px; font-size: 18px; font-weight: 500; }
+.employeePage .loginButton:hover { transform: translateY(-1px); box-shadow: 0 13px 29px rgba(0,113,227,.27); }
+.employeePage .loginButton:disabled::after { display: none; }
+.employeePage .rulesCard { margin-top: 20px !important; padding: 13px !important; border: 1px solid #ededf0 !important; background: #fafafd !important; }
+.employeePage .rulesCard > strong { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; }
+.employeePage .rulesCard > strong i { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 50%; background: #eaf3ff; color: #1769ba; font: 800 10px/1 Georgia,serif; }
+.employeePage .rulesCard .ruleLine { display: grid; grid-template-columns: 18px minmax(0,1fr); gap: 7px; align-items: start; margin: 7px 0; }
+.employeePage .rulesCard .ruleLine > i { display: grid; width: 17px; height: 17px; margin-top: 1px; place-items: center; border-radius: 5px; background: #f0f0f4; color: #777780; font: 800 8px/1 inherit; }
+.employeePage .rulesCard .ruleLine > span { min-width: 0; }
+#employeeAuthMsg:not(:empty) { padding: 9px 11px; border-radius: 10px; background: #fff2f1; font-size: 12px; line-height: 1.45; }
+.loginMeta { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 8px 15px 8px 18px; border-top: 1px solid #ededf0; background: rgba(250,250,252,.97); color: #8a8a91; font-size: 10px; }
+.loginMeta span { letter-spacing: .02em; }.loginMeta b { color: #5d5d64; font-weight: 750; }.loginMeta button { display: inline-flex; min-height: 32px; padding: 6px 10px; align-items: center; gap: 5px; border: 0; border-radius: 999px; background: #eef5ff; color: #1769ba; font: 750 10px/1 inherit; cursor: pointer; }.loginMeta button:hover { background: #e2efff; }.loginMeta button i { font-style: normal; }
+
+.feedbackOverlay { position: fixed; z-index: 1300; inset: 0; place-items: center; padding: 18px; overflow-y: auto; background: rgba(18,18,20,.38); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.feedbackCard { width: min(100%, 520px); padding: 23px; border: 1px solid rgba(255,255,255,.8); border-radius: 25px; background: rgba(255,255,255,.98); box-shadow: 0 25px 80px rgba(0,0,0,.24); animation: successCardIn .28s cubic-bezier(.2,.8,.2,1); }
+.feedbackCard header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.feedbackCard header > div > span { color: #0071e3; font-size: 9px; font-weight: 850; letter-spacing: .1em; }
+.feedbackCard h2 { margin: 3px 0 5px; font-size: 24px; letter-spacing: -.03em; }
+.feedbackCard header p { margin: 0; color: #6e6e73; font-size: 12px; line-height: 1.55; }
+.feedbackCard header > button { display: grid; flex: 0 0 40px; width: 40px; height: 40px; padding: 0; place-items: center; border: 0; border-radius: 50%; background: #f0f0f3; color: #55555c; font-size: 22px; cursor: pointer; }
+.feedbackField { display: grid; gap: 7px; margin-top: 17px; color: #3a3a3c; font-size: 12px; font-weight: 750; }
+.feedbackField select, .feedbackField textarea { width: 100%; border: 1px solid #d8d8de; border-radius: 13px; background: #fbfbfd; color: #1d1d1f; font: inherit; font-size: 15px; outline: none; }
+.feedbackField select { min-height: 44px; padding: 0 12px; }.feedbackField textarea { min-height: 128px; padding: 12px; line-height: 1.6; resize: vertical; }
+.feedbackField select:focus, .feedbackField textarea:focus { border-color: #0071e3; background: #fff; box-shadow: 0 0 0 4px rgba(0,113,227,.12); }
+.feedbackMeta { display: flex; justify-content: space-between; gap: 12px; margin-top: 7px; color: #8a8a91; font-size: 9px; }.feedbackMeta b { flex: 0 0 auto; color: #6e6e73; font-weight: 700; }
+.feedbackStatus { min-height: 18px; margin: 10px 0 0; color: #1769ba; font-size: 11px; font-weight: 650; line-height: 1.45; }
+.feedbackHoneypot { position: fixed !important; left: -10000px !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important; }
+.feedbackActions { display: grid; grid-template-columns: auto minmax(150px,1fr); gap: 9px; justify-content: end; margin-top: 10px; }.feedbackActions .btn { min-height: 44px; }
+
+@keyframes loginWelcomeCloud { from { transform: translateX(-5px); } to { transform: translateX(17px); } }
+@keyframes loginWelcomeWalk { 0%,42%,100% { transform: scale(.98) translateY(0) rotate(0); } 46% { transform: scale(.98) translateY(-5px) rotate(-2deg); } 50% { transform: scale(.98) translateY(0) rotate(2deg); } 54% { transform: scale(.98) translateY(-3px) rotate(-1deg); } }
+
+@media (max-width: 680px) {
+  .employeePage .employeeLoginCard { grid-template-columns: 1fr; }
+  .loginWelcome { min-height: 184px; padding: 22px; justify-content: flex-end; }
+  .loginWelcomeSky { right: 0; left: 45%; height: 100%; }
+  .loginWelcomeMascot { right: 45px; bottom: 28px; transform: scale(.74); }
+  .loginWelcomeSun { top: 22px; right: 23px; width: 34px; height: 34px; }
+  .loginWelcomeCloud { top: 40px; left: 15px; transform: scale(.75); }
+  .loginWelcomeLabel { margin-bottom: 5px; }
+  .loginWelcome h2 { max-width: 55%; font-size: 24px; }
+  .loginWelcome > p { max-width: 58%; margin: 5px 0 0; font-size: 11px; line-height: 1.5; }
+  .loginWelcomePoints { display: none; }
+  .loginFormPane { padding: 22px 18px; }
+  .loginFormHeading { margin-bottom: 17px; }
+  .loginFormHeading h2 { font-size: 23px; }
+  .loginMeta { padding: 8px 10px 8px 13px; }
+  .feedbackOverlay { align-items: end; padding: 10px; }
+  .feedbackCard { padding: 20px 17px calc(17px + env(safe-area-inset-bottom)); border-radius: 24px 24px 16px 16px; }
+  .feedbackActions { grid-template-columns: 1fr 1.35fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loginWelcomeCloud, .loginWelcomeMascot { animation: none; }
+}
+
+/* Pastel motion and clearer employee flow */
+.employeePage { position: relative; overflow-x: clip; isolation: isolate; background: #fff4e8; }
+.employeePage::before,
+.employeePage::after { content: ""; position: fixed; z-index: -2; width: 62vw; height: 31vw; min-width: 430px; min-height: 215px; border-radius: 38% 62% 58% 42% / 55% 42% 58% 45%; filter: blur(.2px); pointer-events: none; will-change: transform; }
+.employeePage::before { top: -10vw; left: -18vw; background: rgba(202, 236, 255, .82); animation: pastelDriftOne 24s ease-in-out infinite alternate; }
+.employeePage::after { right: -22vw; bottom: 8vh; background: rgba(231, 216, 255, .7); animation: pastelDriftTwo 29s ease-in-out infinite alternate; }
+.employeeShell { position: relative; z-index: 1; }
+.employeeShell::before,
+.employeeShell::after { content: ""; position: fixed; z-index: -1; border-radius: 999px; pointer-events: none; will-change: transform; }
+.employeeShell::before { top: 42vh; left: -12vw; width: 46vw; min-width: 310px; height: 150px; background: rgba(211, 244, 222, .62); transform: rotate(-8deg); animation: pastelSlide 32s ease-in-out infinite alternate; }
+.employeeShell::after { top: 19vh; right: -18vw; width: 42vw; min-width: 290px; height: 120px; background: rgba(255, 221, 225, .62); transform: rotate(7deg); animation: pastelSlideReverse 26s ease-in-out infinite alternate; }
+
+@keyframes pastelDriftOne { from { transform: translate3d(-3vw,-2vh,0) rotate(-5deg); } to { transform: translate3d(16vw,9vh,0) rotate(7deg); } }
+@keyframes pastelDriftTwo { from { transform: translate3d(5vw,7vh,0) rotate(8deg); } to { transform: translate3d(-17vw,-8vh,0) rotate(-7deg); } }
+@keyframes pastelSlide { from { transform: translate3d(-12vw,0,0) rotate(-8deg); } to { transform: translate3d(63vw,-5vh,0) rotate(4deg); } }
+@keyframes pastelSlideReverse { from { transform: translate3d(15vw,0,0) rotate(7deg); } to { transform: translate3d(-66vw,7vh,0) rotate(-4deg); } }
+
+body.loginMode .employeeShell { display: flex; min-height: 100dvh; padding: 12px 0; flex-direction: column; justify-content: center; }
+body.loginMode .employeeHeader { padding-bottom: 10px; }
+body.loginMode .employeeHeader .title { font-size: clamp(27px, 5vw, 36px); }
+body.loginMode .employeeLead { font-size: 13px; }
+body.loginMode .loginWrap { margin: 0; }
+body.loginMode .loginWrap { width: 100%; overflow: hidden; }
+body.loginMode .employeeLoginCard { width: 100% !important; min-width: 0; min-height: 0; }
+body.loginMode .loginWelcome { min-height: 410px; padding: 25px; }
+body.loginMode .loginFormPane { padding: 24px 28px 20px; }
+body.loginMode .loginFormHeading { margin-bottom: 14px; }
+body.loginMode .loginFormHeading h2 { font-size: 23px; }
+body.loginMode .loginFieldLabel { margin-top: 10px; }
+body.loginMode .loginInputWrap .fieldControl { min-height: 46px; }
+body.loginMode .loginActions { margin-top: 13px; }
+body.loginMode .loginButton { min-height: 46px; }
+body.loginMode .rulesCard { margin-top: 12px !important; padding: 0 !important; overflow: hidden; }
+.rulesCard summary { display: flex; min-height: 40px; padding: 9px 11px; align-items: center; gap: 7px; color: #3a3a3c; font-size: 11px; font-weight: 750; cursor: pointer; list-style: none; }
+.rulesCard summary::-webkit-details-marker { display: none; }
+.rulesCard summary > i { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 50%; background: #eaf3ff; color: #1769ba; font: 800 10px/1 Georgia,serif; }
+.rulesCard summary > b { margin-left: auto; color: #1769ba; font-size: 9px; }
+.rulesCard summary > b::after { content: "＋"; margin-left: 5px; }
+.rulesCard[open] summary > b::after { content: "−"; }
+.rulesCardBody { padding: 0 11px 8px; border-top: 1px solid #ededf0; }
+
+.employeePage:not(.loginMode) .employeeShell { width: min(900px, calc(100% - 32px)); }
+.employeePage:not(.loginMode) .employeeHeader { align-items: center; margin-top: 4px; padding: 13px 18px; border: 1px solid rgba(255,255,255,.7); border-radius: 24px; background: rgba(255,255,255,.7); box-shadow: 0 12px 34px rgba(55,67,86,.07); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.employeePage:not(.loginMode) .employeeHeader .title { font-size: 34px; }
+.employeePage:not(.loginMode) .shiftEntryCard,
+.employeePage:not(.loginMode) .employeeAnnouncement,
+.employeePage:not(.loginMode) .submissionHistory,
+.employeePage:not(.loginMode) .employeeCalendar { border-color: rgba(255,255,255,.75); background: rgba(255,255,255,.88); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+.shiftEntryCard { padding: 30px; }
+.shiftStepLabel { margin: 0 0 3px !important; color: #0071e3 !important; font-size: 9px !important; font-weight: 850; letter-spacing: .09em; }
+.shiftGuideGrid { display: grid; grid-template-columns: minmax(0,.9fr) minmax(0,1.35fr); gap: 10px; margin: 12px 0; }
+.deadlineBox,
+.hoursPreview { min-height: 66px; margin: 0; padding: 11px 13px; border: 1px solid #e7e7eb; border-radius: 14px; background: rgba(248,248,251,.92); color: #56565e; font-size: 11px; line-height: 1.5; }
+.deadlineBox > span,
+.hoursPreview::before { display: block; margin-bottom: 4px; color: #86868b; font-size: 9px; font-weight: 800; letter-spacing: .04em; }
+.hoursPreview::before { content: "入力できる時間"; }
+#deadlineLine { color: #34343a; font-weight: 700; }
+#deadlineWarn { margin-top: 5px; color: #b42318; font-size: 10px; font-weight: 750; }
+.subsectionTitle { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 18px; }
+.subsectionTitle > span { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 9px; background: #eaf3ff; color: #1769ba; font-size: 10px; }
+.sectionHelp { margin: 0 0 12px; color: #777780; font-size: 11px; line-height: 1.5; }
+.employeePage .section { margin-top: 12px; padding: 0; background: transparent; }
+
+@media (max-width: 680px) {
+  .employeePage::before, .employeePage::after { min-width: 340px; min-height: 180px; }
+  body.loginMode .employeeShell { width: calc(100% - 14px); max-width: 820px; padding: 7px 0; justify-content: flex-start; }
+  body.loginMode .employeeHeader { display: flex; align-items: center; padding: 0 5px 7px; }
+  body.loginMode .employeeHeader .eyebrow { font-size: 8px; }
+  body.loginMode .employeeHeader .title { margin: 0; font-size: 24px; }
+  body.loginMode .employeeLead { margin-left: 10px; font-size: 10px; }
+  body.loginMode .employeeLoginCard { max-height: calc(100dvh - 62px); }
+  body.loginMode .loginWelcome { min-height: 105px; padding: 13px 17px; }
+  body.loginMode .loginWelcomeSky { left: 48%; }
+  body.loginMode .loginWelcomeMascot { right: 38px; bottom: 20px; transform: scale(.58); }
+  body.loginMode .loginWelcomeSun { top: 14px; right: 17px; width: 27px; height: 27px; }
+  body.loginMode .loginWelcomeCloud { top: 27px; left: 8px; transform: scale(.58); }
+  body.loginMode .loginWelcomeLabel { margin: 0 0 2px; padding: 3px 6px; font-size: 7px; }
+  body.loginMode .loginWelcome h2 { font-size: 19px; }
+  body.loginMode .loginWelcome > p { max-width: 54%; margin-top: 2px; font-size: 9px; line-height: 1.35; }
+  body.loginMode .loginFormPane { padding: 13px 14px 10px; }
+  body.loginMode .loginFormHeading { margin-bottom: 6px; }
+  body.loginMode .loginFormHeading .eyebrow { display: none; }
+  body.loginMode .loginFormHeading h2 { display: inline; margin-right: 5px; font-size: 18px; }
+  body.loginMode .loginFormHeading > p:last-child { display: inline; font-size: 10px; }
+  body.loginMode .loginFieldLabel { gap: 4px; margin-top: 7px; font-size: 10px; }
+  body.loginMode .loginInputWrap .fieldControl { min-height: 42px; font-size: 15px; }
+  body.loginMode .loginInputWrap > i { left: 10px; }
+  body.loginMode .loginActions { margin-top: 9px; }
+  body.loginMode .loginButton { min-height: 42px; }
+  body.loginMode .rulesCard { margin-top: 8px !important; }
+  body.loginMode .rulesCard summary { min-height: 36px; padding: 7px 10px; }
+  body.loginMode .loginMeta { min-height: 39px; }
+  body.loginMode .loginMeta { width: 100%; min-width: 0; }
+  body.loginMode .loginMeta > span { flex: 0 0 auto; }
+  body.loginMode .loginMeta > button { min-width: 0; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .employeePage:not(.loginMode) .employeeShell { width: calc(100% - 14px); max-width: 900px; padding-top: 12px; }
+  .employeePage:not(.loginMode) .employeeHeader { display: flex; padding: 11px 12px; border-radius: 18px; }
+  .employeePage:not(.loginMode) .employeeHeader .title { font-size: 25px; }
+  .employeePage:not(.loginMode) .employeeLead { display: none; }
+  .employeePage:not(.loginMode) .userbar { margin: 0 !important; }
+  .shiftEntryCard { padding: 16px 13px; }
+  .shiftEntryHeader { gap: 9px; margin-bottom: 10px; }
+  .shiftEntryHeader .sectionHeading > p:last-child { font-size: 11px; }
+  .shiftGuideGrid { grid-template-columns: 1fr; gap: 7px; margin: 9px 0; }
+  .deadlineBox, .hoursPreview { min-height: 0; padding: 9px 10px; }
+  .shiftQuickActions { margin-bottom: 10px; }
+  .subsectionTitle { font-size: 16px; }
+  .sectionHelp { font-size: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .employeePage::before, .employeePage::after, .employeeShell::before, .employeeShell::after { animation: none; }
+}
+
+/* Compact employee flow: keep headings and time controls readable on phones. */
+.timeColumnGuide { display: none; }
+.hoursPreview { white-space: pre-line; }
+
+@media (max-width: 680px) {
+  body.loginMode .employeeHeader {
+    display: block;
+    padding: 1px 8px 8px;
+    text-align: center;
+  }
+  body.loginMode .employeeTitleBlock { width: 100%; }
+  body.loginMode .employeeHeader .eyebrow { margin-bottom: 1px; }
+  body.loginMode .employeeHeader .title { margin: 0; }
+  body.loginMode .employeeLead { margin: 2px 0 0; line-height: 1.35; }
+
+  .employeePage:not(.loginMode) .employeeHeader {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 64px;
+    padding: 10px 11px;
+  }
+  .employeePage:not(.loginMode) .employeeTitleBlock { min-width: 0; }
+  .employeePage:not(.loginMode) .employeeHeader .eyebrow { margin-bottom: 1px; font-size: 8px; }
+  .employeePage:not(.loginMode) .employeeHeader .title { margin: 0; font-size: 23px; line-height: 1.1; white-space: nowrap; }
+  .employeePage:not(.loginMode) .userbar {
+    display: flex !important;
+    max-width: 170px;
+    margin: 0 !important;
+    padding: 5px 5px 5px 9px;
+    align-items: center;
+    gap: 5px;
+    box-shadow: none;
+    background: rgba(245, 245, 247, .94);
+  }
+  .employeePage:not(.loginMode) #loginUserLabel {
+    min-width: 0;
+    overflow: hidden;
+    color: #3a3a3c;
+    font-size: 11px;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .employeePage:not(.loginMode) #employeeLogoutBtn {
+    min-height: 30px;
+    margin-left: 0 !important;
+    padding: 0 9px;
+    border: 0;
+    background: #fff;
+    color: #57575f;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .shiftEntryCard { padding: 14px 11px; }
+  .shiftEntryHeader { align-items: flex-start; }
+  .shiftEntryHeader .sectionHeading h2 { font-size: 21px; line-height: 1.15; }
+  .shiftEntryHeader .sectionHeading > p:last-child { line-height: 1.45; }
+  .sectionHelp { margin-bottom: 8px; line-height: 1.45; }
+
+  .timeColumnGuide {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr) minmax(0, 1fr) 30px;
+    gap: 5px;
+    padding: 0 7px 5px;
+    color: #8a8a91;
+    font-size: 9px;
+    font-weight: 750;
+    text-align: center;
+  }
+  .timeColumnGuide span:first-child { text-align: left; }
+  .employeePage #shiftTable { border-radius: 13px; }
+  .employeePage #shiftTable thead { display: none; }
+  .employeePage #shiftTable tbody { display: block; }
+  .employeePage #shiftTable tbody tr {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    min-height: 54px;
+    padding: 6px 7px;
+    align-items: center;
+    border-bottom: 1px solid #ededf0;
+  }
+  .employeePage #shiftTable tbody tr:last-child { border-bottom: 0; }
+  .employeePage #shiftTable tbody td {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .employeePage #shiftTable tbody td:first-child {
+    margin: 0;
+    padding-right: 5px;
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+  .employeePage .time-range {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 30px;
+    gap: 5px;
+  }
+  .employeePage .time-separator { display: none; }
+  .employeePage .timeSelect {
+    height: 38px;
+    min-height: 38px;
+    padding: 0 23px 0 7px;
+    border-radius: 9px;
+    font-size: 13px;
+  }
+  .employeePage .time-range button[data-clear-day] {
+    grid-column: 3;
+    grid-row: 1;
+    width: 30px;
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0;
+    align-self: center;
+    border: 0;
+    border-radius: 50%;
+    color: #777780;
+    font-size: 17px;
+    font-weight: 500;
+  }
+  #shiftTable tbody tr.isFilled td:first-child::after,
+  #shiftTable tbody tr.isPartial td:first-child::after { float: none; }
+  #shiftTable tbody tr.isFilled td:first-child::after { width: 15px; height: 15px; margin-left: 4px; font-size: 8px; }
+  #shiftTable tbody tr.isPartial td:first-child::after { display: block; width: fit-content; margin: 3px 0 0; padding: 2px 4px; font-size: 7px; }
+}
+
+/* Phone balance refinements after checking on an actual iPhone viewport. */
+@media (max-width: 680px) {
+  body.loginMode .employeeShell {
+    min-height: 100svh;
+    padding-top: max(22px, env(safe-area-inset-top));
+    padding-bottom: 18px;
+    justify-content: flex-start;
+  }
+  body.loginMode .employeeHeader { flex: 0 0 auto; padding-bottom: 12px; }
+  body.loginMode .employeeLoginCard { max-height: none; }
+  body.loginMode .rulesCardBody { padding: 2px 10px 8px; }
+  body.loginMode .rulesCard .ruleLine { margin: 5px 0; font-size: 10px; line-height: 1.42; }
+
+  .shiftEntryHeader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+  }
+  .shiftEntryHeader .sectionHeading { width: 100%; }
+  .shiftEntryHeader .sectionHeading > p:last-child { margin-inline: auto; }
+  .shiftEntryHeader .weekField {
+    width: min(290px, 100%);
+    margin-inline: auto;
+    text-align: left;
+  }
+  .shiftEntryHeader .weekField .fieldControl { text-align: center; }
+  .shiftGuideGrid { width: min(100%, 540px); margin-inline: auto; }
+  .shiftQuickActions { justify-content: center; text-align: center; }
+  .shiftQuickActions #copyPreviousWeek { width: min(100%, 360px); }
+  .shiftQuickActions #copyPreviousStatus { flex-basis: 100%; }
+  .shiftQuickActions .draftStatus { width: auto; margin: 0 auto; }
+
+  .shiftSimulatorCard {
+    min-height: 0;
+    padding: 11px 12px;
+    border-radius: 15px;
+  }
+  .shiftSimulatorCard strong { margin: 3px 0 6px; font-size: 24px; line-height: 1; }
+  .shiftSimulatorCard small { padding: 4px 7px; font-size: 9px; }
+  .shiftSimulatorCard .inputProgressTrack { height: 4px; margin-top: 8px; }
+  .shiftSimulatorCard .simulatorInsight { margin-top: 6px; font-size: 9px; line-height: 1.35; }
+
+  .timeColumnGuide { grid-template-columns: 94px minmax(0, 1fr) minmax(0, 1fr) 30px; }
+  .employeePage #shiftTable tbody tr { grid-template-columns: 94px minmax(0, 1fr); }
+  .employeePage #shiftTable tbody td:first-child {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 4px;
+    padding-right: 7px;
+  }
+  #shiftTable tbody tr.isFilled td:first-child::after {
+    flex: 0 0 15px;
+    margin-left: auto;
+  }
+  #shiftTable tbody tr.isPartial td:first-child { flex-wrap: wrap; }
+  #shiftTable tbody tr.isPartial td:first-child::after { flex-basis: auto; }
+  #shiftTable tbody tr.isFilled,
+  #shiftTable tbody tr.isFilled td { background: #f4fbf6; }
+  #shiftTable tbody tr.isFilled.sat,
+  #shiftTable tbody tr.isFilled.sat td { background: #edf7ff; }
+  #shiftTable tbody tr.isFilled.sun,
+  #shiftTable tbody tr.isFilled.sun td,
+  #shiftTable tbody tr.isFilled.holiday,
+  #shiftTable tbody tr.isFilled.holiday td { background: #fff0f3; }
+}
+
+/* iOS keeps the visual viewport zoomed after focusing controls below 16px. */
+html, body { max-width: 100%; overflow-x: clip; }
+.employeePage { width: 100%; }
+
+@media (max-width: 680px) {
+  .employeePage input,
+  .employeePage select,
+  .employeePage textarea,
+  .employeePage .fieldControl,
+  .employeePage .timeSelect,
+  body.loginMode .loginInputWrap .fieldControl { font-size: 16px; }
+
+  body.loginMode .employeeShell {
+    width: min(100% - 16px, 820px);
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-bottom: 12px;
+  }
+  body.loginMode .employeeHeader { padding-bottom: 8px; }
+  body.loginMode .employeeLoginCard { border-radius: 18px; }
+  body.loginMode .loginWelcome { min-height: 96px; padding: 11px 16px; }
+  body.loginMode .loginWelcome h2 { font-size: 18px; }
+  body.loginMode .loginWelcome > p { margin-top: 2px; font-size: 9px; line-height: 1.35; }
+  body.loginMode .loginWelcomeSky { left: 47%; }
+  body.loginMode .loginWelcomeMascot { right: 34px; bottom: 18px; transform: scale(.54); }
+  body.loginMode .loginFormPane { padding: 11px 14px 9px; }
+  body.loginMode .loginFormHeading { display: flex; margin-bottom: 7px; align-items: baseline; gap: 7px; }
+  body.loginMode .loginFormHeading h2 { flex: 0 0 auto; font-size: 18px; }
+  body.loginMode .loginFormHeading > p:last-child { min-width: 0; font-size: 10px; line-height: 1.35; }
+  body.loginMode .loginFieldLabel { margin-top: 7px; font-size: 11px; }
+  body.loginMode .loginInputWrap .fieldControl {
+    min-height: 44px;
+    padding-left: 46px;
+    border-width: 1px;
+    border-radius: 12px;
+  }
+  body.loginMode .loginInputWrap .fieldControl:focus {
+    border-color: #0071e3;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, .12);
+  }
+  body.loginMode .loginActions { margin-top: 9px; }
+  body.loginMode .loginButton { min-height: 44px; }
+  body.loginMode .rulesCard { margin-top: 8px !important; }
+  body.loginMode .rulesCard summary { min-height: 34px; }
+  body.loginMode .rulesCardBody { padding-bottom: 6px; }
+  body.loginMode .rulesCard .ruleLine { margin: 4px 0; }
+  body.loginMode #employeeAuthMsg:empty { display: none; }
+  body.loginMode .loginMeta { min-height: 38px; padding-block: 5px; }
+
+  .employeePage .timeSelect { font-size: 16px; }
+  .employeePage #shiftTable,
+  .employeePage #shiftTable tbody,
+  .employeePage #shiftTable tbody tr { max-width: 100%; }
+}
+
+/* Unified step cards and a softer layered page rhythm. */
+.employeePage::before {
+  background: radial-gradient(ellipse at center, rgba(202, 236, 255, .86) 0 62%, rgba(202, 236, 255, .34) 70%, transparent 76%);
+}
+.employeePage::after {
+  background: radial-gradient(ellipse at center, rgba(231, 216, 255, .76) 0 62%, rgba(231, 216, 255, .28) 70%, transparent 77%);
+}
+.employeeShell::before { background: radial-gradient(ellipse at center, rgba(211,244,222,.68) 0 64%, transparent 76%); }
+.employeeShell::after { background: radial-gradient(ellipse at center, rgba(255,221,225,.66) 0 64%, transparent 76%); }
+
+.employeePage:not(.loginMode) .employeeHeader {
+  display: block;
+  position: relative;
+  margin: 0 auto 12px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.employeePage:not(.loginMode) .employeeHeader .title { margin: 1px 0 3px; }
+.employeePage:not(.loginMode) .userbar {
+  display: inline-flex !important;
+  width: auto;
+  max-width: min(100%, 260px);
+  margin: 8px auto 0 !important;
+  padding: 2px 0;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.employeePage:not(.loginMode) #loginUserLabel { display: inline-flex; min-width: 0; align-items: center; gap: 6px; font-weight: 750; }
+.employeePage:not(.loginMode) #loginUserLabel::before {
+  content: "";
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 33%, #fff 0 3px, transparent 3.5px), radial-gradient(circle at 50% 78%, #fff 0 6px, transparent 6.5px), linear-gradient(145deg,#86c8ff,#8b9cff);
+}
+.employeePage:not(.loginMode) #employeeLogoutBtn {
+  min-height: 29px;
+  margin: 0 !important;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.92);
+  color: #1769ba;
+  box-shadow: 0 2px 7px rgba(30,90,140,.08);
+}
+
+/* Keep the signed-in identity open and light; only the action remains a button. */
+.employeePage:not(.loginMode) #loginUserLabel {
+  padding: 0 3px 0 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* A holiday name gets its own line instead of being clipped beside the date. */
+.employeePage:not(.loginMode) #shiftTable tbody td:first-child {
+  position: relative;
+  flex-wrap: wrap;
+  align-content: center;
+  white-space: normal;
+}
+.shiftDateLabel { white-space: nowrap; }
+.shiftHolidayName {
+  display: block;
+  flex: 0 0 100%;
+  margin-top: 2px;
+  overflow: visible;
+  color: #c6283d;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: keep-all;
+}
+.employeePage:not(.loginMode) #shiftTable tbody tr.holiday {
+  min-height: 62px;
+}
+.employeePage:not(.loginMode) #shiftTable tbody tr.isFilled.holiday td:first-child::after {
+  position: absolute;
+  top: 8px;
+  right: 5px;
+}
+
+.employeePage:not(.loginMode) .shiftEntryCard {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.flowBlock {
+  position: relative;
+  z-index: 0;
+  margin: 0 0 22px;
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,.9);
+  border-radius: 22px;
+  background: rgba(255,255,255,.91);
+  box-shadow: 0 8px 0 rgba(211, 235, 250, .88), 0 17px 32px rgba(70, 88, 105, .08);
+}
+.copyStepBlock { box-shadow: 0 8px 0 rgba(229, 220, 250, .82), 0 17px 32px rgba(70, 88, 105, .07); }
+.shiftTimeBlock { box-shadow: 0 8px 0 rgba(214, 240, 224, .84), 0 17px 32px rgba(70, 88, 105, .07); }
+.commentStepBlock { box-shadow: 0 8px 0 rgba(255, 226, 230, .82), 0 17px 32px rgba(70, 88, 105, .07); }
+.submitStepBlock { box-shadow: 0 8px 0 rgba(212, 231, 255, .88), 0 17px 32px rgba(70, 88, 105, .07); }
+.flowStepHeading { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.flowStepHeading > span {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eaf4ff;
+  color: #0871d1;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+.flowStepHeading h3 { margin: 0; font-size: 17px; }
+.flowStepHeading p { margin: 3px 0 0; color: #777780; font-size: 10px; line-height: 1.45; }
+.copyStepBlock .btn { width: 100%; }
+.copyStepBlock #copyPreviousStatus { display: block; margin-top: 8px; text-align: center; }
+.copyStepBlock .draftStatus { display: flex; width: fit-content; margin: 8px auto 0; }
+.shiftTimeBlock .section { margin: 0; }
+.flowBlock > .shiftStepLabel { margin-bottom: 4px !important; }
+.flowBlock .shiftStepLabel {
+  display: inline-flex;
+  width: fit-content;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eaf4ff;
+  color: #0871d1 !important;
+  line-height: 1;
+}
+.weekStepBlock .shiftStepLabel { margin-inline: auto !important; }
+.flowBlock > .subsectionTitle { margin-top: 0; }
+.submitStepBlock { text-align: center; }
+.submitStepBlock > div { margin-top: 0 !important; }
+.submitStepBlock h3 { margin: 3px 0 12px; font-size: 18px; }
+
+.shiftInsights { margin: 4px 0 26px; }
+.mascotGrowthCard { box-shadow: 0 8px 0 rgba(202,226,244,.78), 0 17px 28px rgba(70,88,105,.07); }
+.shiftSimulatorCard { box-shadow: 0 8px 0 rgba(230,220,249,.76), 0 17px 28px rgba(70,88,105,.07); }
+
+@media (max-width: 680px) {
+  .employeePage:not(.loginMode) .employeeHeader { padding: 3px 4px 8px; }
+  .employeePage:not(.loginMode) .employeeTitleBlock { width: 100%; text-align: center; }
+  .employeePage:not(.loginMode) .employeeHeader .title { font-size: 27px; }
+  .employeePage:not(.loginMode) .userbar { max-width: 220px; }
+  .employeePage:not(.loginMode) #loginUserLabel { font-size: 11px; }
+  .employeePage:not(.loginMode) #employeeLogoutBtn { font-size: 10px; }
+
+  .flowBlock { margin-bottom: 19px; padding: 15px 13px; border-radius: 18px; box-shadow: 0 6px 0 rgba(211,235,250,.9), 0 12px 24px rgba(70,88,105,.07); }
+  .copyStepBlock { box-shadow: 0 6px 0 rgba(229,220,250,.86), 0 12px 24px rgba(70,88,105,.07); }
+  .shiftTimeBlock { box-shadow: 0 6px 0 rgba(214,240,224,.88), 0 12px 24px rgba(70,88,105,.07); }
+  .commentStepBlock { box-shadow: 0 6px 0 rgba(255,226,230,.86), 0 12px 24px rgba(70,88,105,.07); }
+  .submitStepBlock { box-shadow: 0 6px 0 rgba(212,231,255,.9), 0 12px 24px rgba(70,88,105,.07); }
+  .shiftEntryHeader { gap: 10px; }
+  .shiftEntryHeader .weekField { text-align: center; }
+  .shiftEntryHeader .weekField .fieldControl { margin-top: 6px; }
+  .shiftEntryHeader .weekField .hint { text-align: center; }
+  .shiftEntryHeader .shiftGuideGrid { width: 100%; margin: 2px 0 0; }
+  .copyStepBlock .flowStepHeading { text-align: left; }
+  .shiftInsights { margin-top: 2px; }
+  .shiftTimeBlock .subsectionTitle,
+  .commentStepBlock .subsectionTitle { font-size: 18px; }
+}
+
+/* Keep step headings on the page; reserve cards for actual controls and content. */
+.flowBlock,
+.copyStepBlock,
+.shiftTimeBlock,
+.commentStepBlock,
+.submitStepBlock {
+  margin-bottom: 24px;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.weekStepBlock { padding-top: 8px; }
+.copyStepBlock .btn {
+  width: min(100%, 420px);
+  margin-inline: auto;
+}
+.flowStepHeading { justify-content: center; text-align: center; }
+.shiftTimeBlock > .section { padding: 0; }
+.submissionStateMessage.isEditable,
+.submissionStateMessage.isLocked {
+  display: block;
+  max-width: 720px;
+  margin: 8px auto 18px !important;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+}
+.submitWrap > div { display: grid; justify-items: center; }
+.submitButton {
+  width: min(100%, 290px);
+  min-height: 44px;
+  margin: 0 auto;
+  padding-inline: 38px;
+  font-size: 13px;
+}
+.submitButton::after { right: 14px; font-size: 15px; }
+
+@media (max-width: 680px) {
+  .flowBlock,
+  .copyStepBlock,
+  .shiftTimeBlock,
+  .commentStepBlock,
+  .submitStepBlock {
+    margin-bottom: 22px;
+    padding: 3px 2px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .submissionStateMessage.isEditable,
+  .submissionStateMessage.isLocked {
+    width: calc(100% - 18px);
+    margin-bottom: 15px !important;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .submitButton { width: min(100%, 260px); }
+}
+
+/* Every submission step uses one left-aligned title system. */
+.stepTitle {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  width: 100%;
+  margin: 0 0 14px;
+  align-items: baseline;
+  gap: 3px 10px;
+  text-align: left;
+}
+.stepTitle .shiftStepLabel,
+.flowBlock .stepTitle .shiftStepLabel,
+.weekStepBlock .stepTitle .shiftStepLabel {
+  display: block;
+  width: auto;
+  margin: 0 !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #0871d1 !important;
+  font-size: 9px !important;
+  line-height: 1.2;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+.stepTitle h2,
+.stepTitle h3,
+.stepTitle .subsectionTitle {
+  grid-column: 2;
+  margin: 0;
+  color: #1d1d1f;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+  text-align: left;
+}
+.stepTitle .stepDescription {
+  grid-column: 2;
+  margin: 2px 0 0;
+  color: #777780;
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: left;
+}
+.stepTitle.stepRevealReady {
+  opacity: 0;
+  filter: blur(13px);
+  transform: translate3d(76px, 0, 0);
+  transition: opacity .7s ease, filter .75s ease, transform .78s cubic-bezier(.16,.8,.24,1);
+  will-change: opacity, filter, transform;
+}
+.stepTitle.stepRevealReady.isVisible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+}
+.shiftEntryHeader .sectionHeading.stepTitle { margin-bottom: 2px; }
+.copyStepBlock .stepTitle { margin-bottom: 12px; }
+.submitStepBlock .stepTitle { margin-bottom: 12px; }
+
+@media (max-width: 680px) {
+  .stepTitle { grid-template-columns: 52px minmax(0, 1fr); gap: 3px 8px; margin-bottom: 12px; }
+  .stepTitle h2,
+  .stepTitle h3,
+  .stepTitle .subsectionTitle { font-size: 18px; }
+  .stepTitle .stepDescription { font-size: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepTitle.stepRevealReady { opacity: 1; filter: none; transform: none; transition: none; }
+}
+
+/* Stagger each step's controls after its title, then alternate weekday rows. */
+.flowBlock { margin-bottom: 46px; }
+.weekStepBlock { margin-bottom: 54px; }
+.copyStepBlock { margin-bottom: 52px; }
+.stepContentRevealReady {
+  opacity: 0;
+  filter: blur(11px);
+  transform: translate3d(64px, 0, 0);
+  transition: opacity .56s ease, filter .62s ease, transform .66s cubic-bezier(.16,.8,.24,1);
+  transition-delay: calc(var(--step-content-order, 0) * 65ms);
+  will-change: opacity, filter, transform;
+}
+.stepContentRevealReady.isVisible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+}
+.weekdayRevealReady {
+  opacity: 0;
+  filter: blur(10px);
+  transform: translate3d(-58px, 0, 0);
+  transition: opacity .42s ease, filter .5s ease, transform .54s cubic-bezier(.16,.82,.24,1);
+  transition-delay: calc(var(--weekday-order, 0) * 72ms + 80ms);
+  will-change: opacity, filter, transform;
+}
+.weekdayRevealReady:nth-child(even) { transform: translate3d(58px, 0, 0); }
+.weekdayRevealReady.isVisible { opacity: 1; filter: blur(0); transform: translate3d(0, 0, 0); }
+
+@media (max-width: 680px) {
+  .flowBlock { margin-bottom: 42px; }
+  .weekStepBlock { margin-bottom: 50px; }
+  .copyStepBlock { margin-bottom: 48px; }
+
+  body.loginMode .employeeLoginCard {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  body.loginMode .loginWelcome {
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.8);
+    border-radius: 18px;
+    box-shadow: 0 10px 25px rgba(74,94,112,.08);
+  }
+  body.loginMode .loginFormPane {
+    width: 100%;
+    margin-top: 10px;
+    border: 1px solid rgba(255,255,255,.86);
+    border-radius: 18px;
+    background: rgba(255,255,255,.88);
+    box-shadow: 0 10px 25px rgba(74,94,112,.07);
+  }
+  body.loginMode .loginFormHeading,
+  body.loginMode .loginFieldLabel,
+  body.loginMode #storePreview,
+  body.loginMode .loginActions,
+  body.loginMode .rulesCard,
+  body.loginMode #employeeAuthMsg {
+    width: min(100%, 344px);
+    margin-inline: auto;
+  }
+  body.loginMode .loginFormHeading { text-align: left; }
+  body.loginMode .loginActions { display: flex; justify-content: center; }
+  body.loginMode .loginButton { width: min(100%, 290px); }
+  body.loginMode .loginMeta {
+    margin-top: 9px;
+    border: 0;
+    border-radius: 16px;
+    background: rgba(255,255,255,.72);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepContentRevealReady,
+  .weekdayRevealReady,
+  .weekdayRevealReady:nth-child(even) { opacity: 1; filter: none; transform: none; transition: none; }
+}
+
+/* STEP 1 and 2 introduce the flow more deliberately. */
+.shiftEntryHeader .sectionHeading.stepTitle .stepDescription {
+  width: 100%;
+  margin: 2px 0 0;
+  text-align: left;
+}
+.weekStepBlock .stepTitle.stepRevealReady,
+.copyStepBlock .stepTitle.stepRevealReady {
+  filter: blur(18px);
+  transform: translate3d(112px, 0, 0);
+  transition-duration: 1.12s, 1.18s, 1.2s;
+}
+.weekStepBlock .stepTitle.stepRevealReady.isVisible,
+.copyStepBlock .stepTitle.stepRevealReady.isVisible {
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+}
+.weekStepBlock .stepContentRevealReady,
+.copyStepBlock .stepContentRevealReady {
+  filter: blur(15px);
+  transform: translate3d(92px, 0, 0);
+  transition-duration: .88s, .96s, 1.02s;
+}
+.weekStepBlock .stepContentRevealReady.isVisible,
+.copyStepBlock .stepContentRevealReady.isVisible {
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+}
+.weekStepBlock .weekField.stepContentRevealReady {
+  filter: blur(20px);
+  transform: translate3d(126px, 0, 0) scale(.97);
+  transition-duration: 1.02s, 1.08s, 1.14s;
+  transition-delay: .08s;
+}
+.weekStepBlock .weekField.stepContentRevealReady.isVisible {
+  filter: blur(0);
+  transform: translate3d(0, 0, 0) scale(1);
+}
+.weekStepBlock .shiftGuideGrid.stepContentRevealReady { transition-delay: .34s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .weekStepBlock .stepTitle.stepRevealReady,
+  .copyStepBlock .stepTitle.stepRevealReady,
+  .weekStepBlock .stepContentRevealReady,
+  .copyStepBlock .stepContentRevealReady { opacity: 1; filter: none; transform: none; transition: none; }
+}
+
+/* History sits directly on the page instead of inside another white card. */
+.employeePage:not(.loginMode) .submissionHistory {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.employeePage .submissionHistoryHeader { padding-inline: 2px; }
+.employeePage .submissionHistoryList {
+  border-top-color: rgba(120,120,128,.2);
+  background: transparent;
+}
+.employeePage .submissionHistoryList article { border-bottom-color: rgba(120,120,128,.18); }
+
+.employeePage:not(.loginMode) .employeeCalendar {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.ambientRevealReady {
+  opacity: 0;
+  filter: blur(16px);
+  transform: translate3d(92px, 0, 0);
+  transition: opacity .76s ease, filter .88s ease, transform .92s cubic-bezier(.16,.8,.24,1);
+  will-change: opacity, filter, transform;
+}
+.ambientRevealReady.isVisible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambientRevealReady { opacity: 1; filter: none; transform: none; transition: none; }
+}
+
+.mascotGrowthCard.stepContentRevealReady {
+  filter: blur(20px);
+  transform: translate3d(118px, 0, 0) scale(.97);
+  transition-duration: .92s, 1.02s, 1.08s;
+}
+.mascotGrowthCard.stepContentRevealReady.isVisible {
+  filter: blur(0);
+  transform: translate3d(0, 0, 0) scale(1);
+}
+.shiftSimulatorCard.stepContentRevealReady { transition-delay: .3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mascotGrowthCard.stepContentRevealReady { opacity: 1; filter: none; transform: none; transition: none; }
+}
+
+/* History-inspired surface system: no outer white cards, only useful controls. */
+.employeePage:not(.loginMode) .deadlineBox,
+.employeePage:not(.loginMode) .hoursPreview {
+  border: 0;
+  background: rgba(245, 247, 250, .72);
+  box-shadow: none;
+}
+.employeePage:not(.loginMode) .shiftSimulatorCard {
+  border: 0;
+  background: linear-gradient(145deg, rgba(225,241,255,.76), rgba(242,235,255,.72));
+  box-shadow: none;
+}
+.employeePage:not(.loginMode) .mascotGrowthCard {
+  border: 0;
+  box-shadow: none;
+}
+.employeePage:not(.loginMode) #shiftTable {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.employeePage:not(.loginMode) #shiftTable tbody tr {
+  border-bottom: 1px solid rgba(120,120,128,.18);
+  background: rgba(255,255,255,.24);
+}
+.employeePage:not(.loginMode) #shiftTable tbody tr:last-child { border-bottom: 0; }
+.employeePage:not(.loginMode) #shiftTable td { background-color: transparent; }
+
+.employeePage:not(.loginMode) .calendarGrid {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 0;
+}
+.employeePage:not(.loginMode) .calendarWeekday {
+  border-bottom: 1px solid rgba(120,120,128,.2);
+  background: transparent;
+}
+.employeePage:not(.loginMode) .calendarDay {
+  border-right: 1px solid rgba(120,120,128,.16);
+  border-bottom: 1px solid rgba(120,120,128,.16);
+  background: rgba(255,255,255,.2);
+}
+.employeePage:not(.loginMode) .calendarDay:nth-child(7n) { border-right: 0; }
+.employeePage:not(.loginMode) .calendarDay.sat { background: rgba(224,239,255,.48); }
+.employeePage:not(.loginMode) .calendarDay.sun,
+.employeePage:not(.loginMode) .calendarDay.holiday { background: rgba(255,225,231,.5); }
+.employeePage:not(.loginMode) .calendarDay.today { box-shadow: inset 0 0 0 2px rgba(0,113,227,.75); }
+
+@media (max-width: 680px) {
+  .employeePage:not(.loginMode) #shiftTable { border-radius: 0; }
+  .employeePage:not(.loginMode) #shiftTable tbody tr { padding-inline: 5px; }
+}
+
+/* Login follows the same open, cardless surface system. */
+body.loginMode .employeeLoginCard {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.loginMode .loginWelcome {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+body.loginMode .loginFormPane {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.loginMode .loginMeta {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Login copy follows the same left-aligned, blurred entrance as the steps. */
+@keyframes loginFieldReveal {
+  from { opacity: 0; filter: blur(14px); transform: translate3d(82px, 0, 0); }
+  to { opacity: 1; filter: blur(0); transform: translate3d(0, 0, 0); }
+}
+body.loginMode .loginFormHeading,
+body.loginMode .loginFieldLabel,
+body.loginMode .loginActions,
+body.loginMode .rulesCard,
+body.loginMode .loginMeta {
+  opacity: 0;
+  animation: loginFieldReveal .9s cubic-bezier(.16,.8,.24,1) forwards;
+  will-change: opacity, filter, transform;
+}
+body.loginMode .loginFormHeading { animation-delay: .18s; }
+body.loginMode .loginFormPane > .loginFieldLabel:nth-of-type(1) { animation-delay: .38s; }
+body.loginMode .loginFormPane > .loginFieldLabel:nth-of-type(2) { animation-delay: .6s; }
+body.loginMode .loginActions { animation-delay: .82s; }
+body.loginMode .rulesCard { animation-delay: 1.02s; }
+body.loginMode .loginMeta { animation-delay: 1.18s; }
+
+@media (max-width: 680px) {
+  body.loginMode .loginFormHeading {
+    display: block;
+    text-align: left;
+  }
+  body.loginMode .loginFormHeading h2 {
+    display: block;
+    margin: 0 0 3px;
+    text-align: left;
+  }
+  body.loginMode .loginFormHeading > p:last-child {
+    display: block;
+    margin: 0;
+    text-align: left;
+  }
+  body.loginMode .loginFieldLabel > span:first-child,
+  body.loginMode .rulesCard summary { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.loginMode .loginFormHeading,
+  body.loginMode .loginFieldLabel,
+  body.loginMode .loginActions,
+  body.loginMode .rulesCard,
+  body.loginMode .loginMeta { opacity: 1; animation: none; }
+}
+
+body.loginMode .rulesCard.rulesText {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow: visible;
+}
+body.loginMode .rulesTextHeading {
+  margin-bottom: 5px;
+  color: #3a3a3c;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: left;
+}
+body.loginMode .rulesText .rulesCardBody {
+  padding: 0;
+  border: 0;
+}
+body.loginMode .rulesText .ruleLine {
+  margin: 3px 0;
+  color: #6e6e73;
+  font-size: 9px;
+  line-height: 1.4;
+}
+body.loginMode .rulesText .ruleLine > i {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(120,120,128,.1);
+  font-size: 7px;
+}
+
+/* Quiet separators keep the five-step flow readable without adding more cards. */
+.employeePage:not(.loginMode) .flowBlock:not(.submitStepBlock)::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: -34px;
+  width: min(72%, 430px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(87, 151, 205, .28) 20%, rgba(139, 116, 211, .32) 50%, rgba(87, 151, 205, .28) 80%, transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.employeePage:not(.loginMode) .weekStepBlock::after { bottom: -37px; }
+.employeePage:not(.loginMode) .copyStepBlock::after { bottom: -36px; }
+.employeePage:not(.loginMode) .weekStepBlock::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: -30px;
+  left: 50%;
+  width: min(72%, 430px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(87, 151, 205, .28) 20%, rgba(139, 116, 211, .32) 50%, rgba(87, 151, 205, .28) 80%, transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Give each separator enough breathing room on both sides. */
+.employeePage:not(.loginMode) .flowBlock { margin-bottom: 66px; }
+.employeePage:not(.loginMode) .weekStepBlock { margin-top: 34px; margin-bottom: 72px; }
+.employeePage:not(.loginMode) .copyStepBlock { margin-bottom: 70px; }
+
+@media (max-width: 680px) {
+  .employeePage:not(.loginMode) .flowBlock { margin-bottom: 60px; }
+  .employeePage:not(.loginMode) .weekStepBlock { margin-top: 32px; margin-bottom: 66px; }
+  .employeePage:not(.loginMode) .copyStepBlock { margin-bottom: 64px; }
+  .employeePage:not(.loginMode) .flowBlock:not(.submitStepBlock)::after {
+    bottom: -31px;
+    width: min(76%, 300px);
+  }
+  .employeePage:not(.loginMode) .weekStepBlock::after { bottom: -34px; }
+  .employeePage:not(.loginMode) .copyStepBlock::after { bottom: -33px; }
+  .employeePage:not(.loginMode) .weekStepBlock::before {
+    top: -27px;
+    width: min(76%, 300px);
+  }
+}
+
+/* Present logout as a quiet navigation action beside the employee name. */
+.employeePage:not(.loginMode) #employeeLogoutBtn {
+  min-height: 34px;
+  margin: 0 0 0 3px !important;
+  padding: 0 3px 0 11px;
+  border: 0;
+  border-left: 1px solid rgba(80, 105, 130, .2);
+  border-radius: 0;
+  background: transparent;
+  color: #2874b7;
+  box-shadow: none;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+.employeePage:not(.loginMode) #employeeLogoutBtn span {
+  display: inline-block;
+  margin-left: 2px;
+  transition: transform .18s ease;
+}
+.employeePage:not(.loginMode) #employeeLogoutBtn:hover span,
+.employeePage:not(.loginMode) #employeeLogoutBtn:focus-visible span { transform: translateX(3px); }
+.employeePage:not(.loginMode) #employeeLogoutBtn:focus-visible {
+  outline: 2px solid rgba(0,113,227,.35);
+  outline-offset: 3px;
+}
+
+/* Let the pastel scenery show through the actual entry controls. */
+.employeePage:not(.loginMode) .timeSelect,
+.employeePage:not(.loginMode) .commentInput {
+  border-color: rgba(105, 119, 139, .32);
+  background-color: rgba(255, 255, 255, .58);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.employeePage:not(.loginMode) .commentSuggestions button {
+  border-color: rgba(105, 119, 139, .28);
+  background: rgba(255,255,255,.52);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.employeePage:not(.loginMode) .time-range button[data-clear-day] {
+  background: rgba(242,244,247,.58);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.employeePage:not(.loginMode) .timeSelect:focus,
+.employeePage:not(.loginMode) .commentInput:focus {
+  border-color: rgba(0,113,227,.7);
+  background-color: rgba(255,255,255,.86);
+  box-shadow: 0 0 0 3px rgba(0,113,227,.1);
+}
+
+/* Shared employee UI language: pastel actions and translucent controls. */
+.employeePage .btnPrimary {
+  border: 1px solid rgba(46,126,194,.3);
+  background: linear-gradient(120deg, rgba(213,237,255,.9), rgba(230,222,255,.88));
+  color: #075c9f;
+  box-shadow: 0 7px 20px rgba(44,105,157,.12), inset 0 1px 0 rgba(255,255,255,.72);
+  font-weight: 800;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.employeePage .btnPrimary:hover {
+  border-color: rgba(27,109,181,.42);
+  background: linear-gradient(120deg, rgba(202,232,255,.96), rgba(220,211,255,.94));
+  color: #064f89;
+  box-shadow: 0 9px 23px rgba(44,105,157,.16), inset 0 1px 0 rgba(255,255,255,.8);
+}
+.employeePage .btnPrimary:focus-visible,
+.employeePage .btnGhost:focus-visible,
+.employeePage .calendarTodayButton:focus-visible,
+.employeePage .calendarArrowButton:focus-visible,
+.employeePage .submissionHistoryToggle:focus-visible {
+  outline: 3px solid rgba(0,113,227,.18);
+  outline-offset: 3px;
+}
+
+.employeePage .btnGhost:not(#employeeLogoutBtn):not([data-clear-day]),
+.employeePage .calendarTodayButton,
+.employeePage .calendarArrowButton,
+.employeePage .submissionHistoryToggle {
+  border: 1px solid rgba(105,119,139,.26);
+  background: rgba(255,255,255,.52);
+  color: #405f7a;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.employeePage .btnGhost:not(#employeeLogoutBtn):not([data-clear-day]):hover,
+.employeePage .calendarTodayButton:hover,
+.employeePage .calendarArrowButton:hover,
+.employeePage .submissionHistoryToggle:hover {
+  border-color: rgba(46,126,194,.36);
+  background: rgba(230,242,255,.76);
+  color: #075c9f;
+}
+
+.employeePage .fieldControl,
+.employeePage .feedbackField select,
+.employeePage .feedbackField textarea {
+  border-color: rgba(105,119,139,.3);
+  background-color: rgba(255,255,255,.58);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.employeePage.loginMode .loginInputWrap .fieldControl {
+  border-color: rgba(105,119,139,.3);
+  background-color: rgba(255,255,255,.58);
+}
+.employeePage .fieldControl:focus,
+.employeePage .feedbackField select:focus,
+.employeePage .feedbackField textarea:focus {
+  border-color: rgba(0,113,227,.7);
+  background-color: rgba(255,255,255,.86);
+  box-shadow: 0 0 0 3px rgba(0,113,227,.1);
+}
+.employeePage.loginMode .loginInputWrap .fieldControl:focus {
+  border-color: rgba(0,113,227,.7);
+  background-color: rgba(255,255,255,.86);
+}
+
+.employeePage .btnPrimary:disabled,
+.employeePage .btnGhost:disabled {
+  border-color: rgba(125,135,148,.18);
+  background: rgba(238,240,244,.55);
+  color: rgba(80,86,96,.54);
+  box-shadow: none;
+}
+
+/* History may be loaded while its parent is hidden during login; keyframes still
+   guarantee a visible reveal when it enters the rendered page. */
+@keyframes submissionHistoryReveal {
+  0% {
+    opacity: 0;
+    filter: blur(18px);
+    transform: translate3d(100px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+.employeePage:not(.loginMode) .submissionHistory.ambientRevealReady.isVisible {
+  animation: submissionHistoryReveal 1.05s cubic-bezier(.16,.8,.24,1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .employeePage:not(.loginMode) .submissionHistory.ambientRevealReady.isVisible { animation: none; }
+}
+
+/* Re-introduce the signed-in heading after the login screen has transitioned. */
+.employeePage:not(.loginMode) .postLoginRevealReady {
+  opacity: 0;
+  filter: blur(17px);
+  transform: translate3d(88px, 0, 0);
+  transition:
+    opacity .72s ease,
+    filter .84s ease,
+    transform .9s cubic-bezier(.16,.8,.24,1);
+  transition-delay: calc(var(--post-login-order, 0) * 150ms + 80ms);
+  will-change: opacity, filter, transform;
+}
+.employeePage:not(.loginMode) .postLoginRevealReady.isVisible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .employeePage:not(.loginMode) .postLoginRevealReady,
+  .employeePage:not(.loginMode) .postLoginRevealReady.isVisible {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* One clear title scale across all five submission steps. */
+.employeePage:not(.loginMode) .stepTitle h2,
+.employeePage:not(.loginMode) .stepTitle h3,
+.employeePage:not(.loginMode) .stepTitle .subsectionTitle {
+  margin-top: 0;
+  font-size: clamp(20px, 3vw, 23px);
+  font-weight: 820;
+  line-height: 1.24;
+  letter-spacing: -.025em;
+}
+
+/* Typography roles shared across the employee experience. */
+.employeePage {
+  --sf-type-page: clamp(27px, 5vw, 36px);
+  --sf-type-step: clamp(20px, 3vw, 23px);
+  --sf-type-section: clamp(18px, 2.6vw, 21px);
+  --sf-type-control: 16px;
+  --sf-type-label: 13px;
+  --sf-type-body: 12px;
+  --sf-type-help: 11px;
+  --sf-type-meta: 9px;
+  --sf-text-main: #202124;
+  --sf-text-subtle: #666b73;
+  --sf-text-muted: #858992;
+  color: var(--sf-text-main);
+}
+
+/* Page identity */
+.employeePage .employeeHeader .title {
+  font-size: var(--sf-type-page);
+  font-weight: 840;
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+.employeePage .eyebrow,
+.employeePage .shiftStepLabel,
+.employeePage .loginWelcomeLabel,
+.employeePage .dailyFactLabel {
+  font-size: var(--sf-type-meta);
+  font-weight: 850;
+  line-height: 1.2;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+/* Standalone section headings */
+.employeePage .loginFormHeading h2,
+.employeePage .submissionHistoryHeader h2,
+.employeePage .calendarHeader h2,
+.employeePage .employeeAnnouncement h2,
+.employeePage .feedbackCard h2,
+.employeePage .submissionConfirmCard h2,
+.employeePage .submissionSuccessCard h2 {
+  font-size: var(--sf-type-section);
+  font-weight: 820;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+}
+
+/* Field and summary labels */
+.employeePage .fieldLabel > span:first-child,
+.employeePage .deadlineBox > span,
+.employeePage .hoursPreview::before,
+.employeePage .simulatorHeading,
+.employeePage .timeColumnGuide,
+.employeePage .calendarMonthLabel > span,
+.employeePage .feedbackField > span {
+  color: var(--sf-text-subtle);
+  font-size: var(--sf-type-label);
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+/* User-entered values */
+.employeePage .fieldControl,
+.employeePage .timeSelect,
+.employeePage .commentInput,
+.employeePage .feedbackField select,
+.employeePage .feedbackField textarea {
+  color: var(--sf-text-main);
+  font-size: var(--sf-type-control);
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+/* Descriptions and supporting copy */
+.employeePage .employeeLead,
+.employeePage .stepDescription,
+.employeePage .sectionHelp,
+.employeePage .loginFormHeading > p,
+.employeePage .calendarHeader .sectionHeading > p,
+.employeePage .simulatorInsight,
+.employeePage .rulesCardBody,
+.employeePage .hint {
+  color: var(--sf-text-subtle);
+  font-size: var(--sf-type-help);
+  font-weight: 520;
+  line-height: 1.55;
+}
+.employeePage .muted,
+.employeePage .calendarStatus,
+.employeePage .feedbackMeta,
+.employeePage .feedbackStatus {
+  color: var(--sf-text-muted);
+  font-size: var(--sf-type-help);
+  line-height: 1.45;
+}
+
+/* Actions */
+.employeePage .btnPrimary,
+.employeePage .btnGhost:not([data-clear-day]),
+.employeePage .calendarTodayButton,
+.employeePage .submissionHistoryToggle,
+.employeePage .commentSuggestions button {
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 1.2;
+}
+.employeePage:not(.loginMode) #submitStatus {
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.55;
+}
+
+@media (max-width: 680px) {
+  .employeePage {
+    --sf-type-page: 27px;
+    --sf-type-section: 19px;
+    --sf-type-label: 12px;
+    --sf-type-body: 11px;
+    --sf-type-help: 10px;
+  }
+}
+
+/* Inline validation points to the exact weekday instead of interrupting with an alert. */
+.shiftValidationMessage {
+  display: none;
+  width: min(100%, 520px);
+  margin: 0 auto 10px;
+  padding: 9px 12px;
+  border: 1px solid rgba(198,40,61,.2);
+  border-radius: 12px;
+  background: rgba(255,236,239,.72);
+  color: #a52236;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.45;
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
+}
+.shiftValidationMessage.isVisible { display: block; }
+@keyframes shiftValidationPulse {
+  0%, 100% { box-shadow: inset 3px 0 0 rgba(217,64,83,.66), 0 0 0 rgba(217,64,83,0); }
+  45% { box-shadow: inset 3px 0 0 rgba(217,64,83,.9), 0 0 0 5px rgba(217,64,83,.09); }
+}
+.employeePage:not(.loginMode) #shiftTable tbody tr.hasValidationError,
+.employeePage:not(.loginMode) #shiftTable tbody tr.hasValidationError td {
+  background-color: rgba(255,230,234,.64);
+}
+.employeePage:not(.loginMode) #shiftTable tbody tr.hasValidationError {
+  animation: shiftValidationPulse 1.15s ease 2;
+}
+
+/* Compact live summary remains available while moving through the long form. */
+.shiftMiniSummary {
+  position: fixed;
+  z-index: 70;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex;
+  width: min(calc(100% - 28px), 390px);
+  min-height: 48px;
+  padding: 6px 7px 6px 13px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(85,126,164,.24);
+  border-radius: 999px;
+  background: linear-gradient(120deg, rgba(236,247,255,.88), rgba(241,235,255,.86));
+  box-shadow: 0 10px 28px rgba(45,73,101,.16), inset 0 1px 0 rgba(255,255,255,.72);
+  color: #304b63;
+  -webkit-backdrop-filter: blur(15px);
+  backdrop-filter: blur(15px);
+  transform: translateX(-50%);
+}
+.shiftMiniSummary > span {
+  color: #75808b;
+  font-size: 9px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+.shiftMiniSummary > strong,
+.shiftMiniSummary > b {
+  font-size: 12px;
+  font-weight: 820;
+  white-space: nowrap;
+}
+.shiftMiniSummary > i {
+  width: 1px;
+  height: 18px;
+  background: rgba(83,105,126,.18);
+}
+.shiftMiniSummary > button {
+  min-height: 34px;
+  margin-left: auto;
+  padding: 0 13px;
+  border: 1px solid rgba(46,126,194,.27);
+  border-radius: 999px;
+  background: rgba(213,237,255,.78);
+  color: #075c9f;
+  font-size: 10px;
+  font-weight: 820;
+  white-space: nowrap;
+}
+.shiftMiniSummary > button:focus-visible {
+  outline: 3px solid rgba(0,113,227,.18);
+  outline-offset: 2px;
+}
+.shiftMiniSummary.isSubmitted {
+  border-color: rgba(73,146,105,.24);
+  background: linear-gradient(120deg, rgba(232,249,239,.9), rgba(235,242,255,.86));
+}
+.shiftMiniSummary.isSubmitted > button {
+  border-color: rgba(54,139,91,.25);
+  background: rgba(218,244,229,.8);
+  color: #267044;
+}
+.shiftMiniSummary.isLocked {
+  border-color: rgba(151,123,75,.22);
+  background: linear-gradient(120deg, rgba(250,244,229,.92), rgba(241,238,249,.88));
+}
+.shiftMiniSummary.isLocked > button {
+  border-color: rgba(117,94,61,.23);
+  background: rgba(244,235,216,.82);
+  color: #73572d;
+}
+.employeePage.loginMode .shiftMiniSummary,
+.employeePage.employeeModalOpen .shiftMiniSummary { display: none; }
+.employeePage:not(.loginMode) .employeeShell { padding-bottom: 84px; }
+
+@media (max-width: 380px) {
+  .shiftMiniSummary { width: calc(100% - 20px); gap: 6px; padding-left: 10px; }
+  .shiftMiniSummary > span { display: none; }
+  .shiftMiniSummary > button { padding-inline: 11px; }
+}
+
+/* STEP 1: keep only the date as a control; present guidance as one open list. */
+.employeePage:not(.loginMode) .weekStepBlock .shiftGuideGrid {
+  display: grid;
+  width: min(100%, 520px);
+  max-width: 520px;
+  margin: 7px auto 0;
+  padding: 0;
+  gap: 0;
+}
+.employeePage:not(.loginMode) .weekStepBlock .deadlineBox,
+.employeePage:not(.loginMode) .weekStepBlock .hoursPreview {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 9px 2px;
+  align-items: start;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #4f5963;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: left;
+}
+.employeePage:not(.loginMode) .weekStepBlock .deadlineBox {
+  border-bottom: 1px solid rgba(95,115,135,.16);
+}
+.employeePage:not(.loginMode) .weekStepBlock .deadlineBox > span,
+.employeePage:not(.loginMode) .weekStepBlock .hoursPreview::before {
+  margin: 0;
+  color: #7a838c;
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: left;
+}
+.employeePage:not(.loginMode) .weekStepBlock #deadlineLine {
+  color: #394957;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.employeePage:not(.loginMode) .weekStepBlock .hoursPreview { white-space: pre-line; }
+
+@media (max-width: 380px) {
+  .employeePage:not(.loginMode) .weekStepBlock .deadlineBox,
+  .employeePage:not(.loginMode) .weekStepBlock .hoursPreview {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 7px;
+  }
+}
+
+/* Anchor the week picker to the section's true center, independent of the
+   two-column STEP heading and its reveal transform. */
+.employeePage:not(.loginMode) .weekStepBlock .weekField {
+  position: static;
+  width: min(100%, 520px);
+  margin-right: auto !important;
+  margin-left: auto !important;
+  justify-self: center;
+  justify-items: stretch;
+  text-align: center;
+  translate: none;
+}
+.employeePage:not(.loginMode) .weekStepBlock .weekField .fieldControl,
+.employeePage:not(.loginMode) .weekStepBlock .weekField .hint {
+  width: 100%;
+  margin-inline: 0;
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  .employeePage:not(.loginMode) .weekStepBlock .weekField { width: min(100%, 290px); }
+}
+
+.employeePage:not(.loginMode) .weekStepBlock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+}
+.employeePage:not(.loginMode) .weekStepBlock .stepTitle { justify-self: stretch; }
+
+.employeePage:not(.loginMode) .weekStepBlock .shiftGuideGrid {
+  width: min(calc(100% - 68px), 520px);
+  margin-right: 0;
+  margin-left: 68px;
+  justify-self: start;
+}
+
+@media (max-width: 680px) {
+  .employeePage:not(.loginMode) .weekStepBlock .shiftGuideGrid {
+    width: min(calc(100% - 60px), 330px);
+    margin-left: 60px;
+    justify-self: start;
+  }
+}

@@ -245,6 +245,20 @@ orderRoutes.delete("/admin/items/:itemCode", async (c) => {
         .maybeSingle();
     if (error) return orderDatabaseFailure(c, error);
     if (!data) return c.json({ ok: false, error: "削除対象のアイテムが見つかりません" }, 404);
+    // The calculation view is driven by yield_rates. Remove the active
+    // calculation setting as well so a retired item cannot remain on the
+    // order form while inventory validation correctly treats it as inactive.
+    const yieldDelete = await supabase.from("yield_rates")
+        .delete()
+        .eq("store_id", storeId)
+        .eq("item_code", itemCode);
+    if (yieldDelete.error) {
+        await supabase.from("inventory_items")
+            .update({ is_active: true, updated_at: new Date().toISOString() })
+            .eq("store_id", storeId)
+            .eq("item_code", itemCode);
+        return orderDatabaseFailure(c, yieldDelete.error);
+    }
     return c.json({ ok: true, item_code: itemCode });
 });
 
@@ -305,7 +319,7 @@ orderRoutes.get("/admin/report", async (c) => {
     const start = `${month}-01`;
     const next = new Date(year, monthNumber, 1);
     const end = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
-    const [budgetResult, calcResult, countResult, activityResult] = await Promise.all([
+    const [budgetResult, calcResult, countResult, activityResult, activeItemsResult] = await Promise.all([
         supabase.from("order_budgets")
             .select("order_date,base_budget,onion_budget,mushroom_budget")
             .eq("store_id", storeId).gte("order_date", start).lt("order_date", end)
@@ -320,14 +334,18 @@ orderRoutes.get("/admin/report", async (c) => {
         supabase.from("inventory_counts")
             .select("updated_at")
             .eq("store_id", storeId).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("inventory_items")
+            .select("item_code")
+            .eq("store_id", storeId).eq("is_active", true),
     ]);
-    const error = budgetResult.error || calcResult.error || countResult.error || activityResult.error;
+    const error = budgetResult.error || calcResult.error || countResult.error || activityResult.error || activeItemsResult.error;
     if (error) return orderDatabaseFailure(c, error);
 
     const countKeys = new Set((countResult.data ?? []).map((row) => `${row.date}:${row.item_code}`));
     const latestActivityAt = activityResult.data?.updated_at ? String(activityResult.data.updated_at) : null;
     const inactiveDays = latestActivityAt ? Math.max(0, Math.floor((Date.now() - Date.parse(latestActivityAt)) / 86400000)) : null;
-    const calcRows = calcResult.data ?? [];
+    const activeItemCodes = new Set((activeItemsResult.data ?? []).map((row) => String(row.item_code)));
+    const calcRows = (calcResult.data ?? []).filter((row) => activeItemCodes.has(String(row.item_code)));
     const itemTotals = new Map<string, { item_code: string; name: string; required_qty: number; stock_qty: number; order_qty: number }>();
     for (const row of calcRows) {
         const itemCode = String(row.item_code);
@@ -416,17 +434,20 @@ orderRoutes.get("/calc", async (c) => {
             return c.json({ ok: false, error: "store_id and date required" }, 400);
         }
 
-        const { data, error } = await supabase 
-            .from("order_calc_view")
-            .select("*")
-            .eq("store_id", store_id)
-            .eq("order_date", date)
-            .order("display_order", { ascending: true });
-
-        if (error) {
-            return c.json({ ok: false, error: error.message }, 500);
-        }
-
+        const [calculationResult, activeItemsResult] = await Promise.all([
+            supabase.from("order_calc_view")
+                .select("*")
+                .eq("store_id", store_id)
+                .eq("order_date", date)
+                .order("display_order", { ascending: true }),
+            supabase.from("inventory_items")
+                .select("item_code")
+                .eq("store_id", store_id).eq("is_active", true),
+        ]);
+        const error = calculationResult.error || activeItemsResult.error;
+        if (error) return orderDatabaseFailure(c, error);
+        const activeItemCodes = new Set((activeItemsResult.data ?? []).map((row) => String(row.item_code)));
+        const data = (calculationResult.data ?? []).filter((row) => activeItemCodes.has(String(row.item_code)));
         return c.json({ ok: true, data, input_token: signOrderInputToken(store_id, date) });
     } catch (e: any) {
         return c.json({ ok: false, error: e.message }, 500);
@@ -455,13 +476,16 @@ orderRoutes.post("/input", async (c) => {
         || new Set(normalized.map((item) => item.item_code)).size !== normalized.length) {
         return c.json({ ok: false, error: "在庫数を確認してください" }, 400);
     }
-    const allowedItems = await supabase.from("inventory_items").select("item_code")
-        .eq("store_id", storeId).eq("is_active", true).in("item_code", normalized.map((item) => item.item_code));
-    if (allowedItems.error) return orderDatabaseFailure(c, allowedItems.error);
-    if ((allowedItems.data ?? []).length !== normalized.length) {
+    const knownItems = await supabase.from("inventory_items").select("item_code,is_active")
+        .eq("store_id", storeId).in("item_code", normalized.map((item) => item.item_code));
+    if (knownItems.error) return orderDatabaseFailure(c, knownItems.error);
+    const knownItemCodes = new Set((knownItems.data ?? []).map((item) => String(item.item_code)));
+    if (knownItemCodes.size !== normalized.length) {
         return c.json({ ok: false, error: "無効な食材が含まれています" }, 400);
     }
-    const payload = normalized.map((item) => ({
+    const activeItemCodes = new Set((knownItems.data ?? []).filter((item) => item.is_active).map((item) => String(item.item_code)));
+    const activeItems = normalized.filter((item) => activeItemCodes.has(item.item_code));
+    const payload = activeItems.map((item) => ({
         store_id: storeId,
         date,
         item_code: item.item_code,
@@ -469,7 +493,9 @@ orderRoutes.post("/input", async (c) => {
         freezer_qty: item.freezer_qty,
         stock_qty: item.fridge_qty + item.freezer_qty,
     }));
-    const result = await supabase.from("inventory_counts").upsert(payload, { onConflict: "store_id,date,item_code" });
-    if (result.error) return orderDatabaseFailure(c, result.error);
-    return c.json({ ok: true, count: payload.length });
+    if (payload.length) {
+        const result = await supabase.from("inventory_counts").upsert(payload, { onConflict: "store_id,date,item_code" });
+        if (result.error) return orderDatabaseFailure(c, result.error);
+    }
+    return c.json({ ok: true, count: payload.length, ignored_inactive: normalized.length - payload.length });
 });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useMemo, } from "react";
 import type { InventoryState, InventoryViewResponse, WeatherNow, RainHour, CleaningState, CleaningTask, } from "./types";
 
-const API_BASE = "/api";
+import { API_BASE } from "../config";
 
 export default function InventoryApp() {
   const storeId = "7249";

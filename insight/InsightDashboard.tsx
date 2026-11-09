@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { InsightDashboardResponse } from "./types";
 import { fetchInsightDashboard } from "./api";
 import { SalesCard } from "./components/SalesCard";

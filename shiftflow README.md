@@ -65,7 +65,7 @@
 
 # 今後の改善
 
-・通知機能
+・LINEグループ通知（設計案: `docs/SHIFTFLOW-ROADMAP.md`）
 ・管理画面のUX改善
 ・権限の強化
 

@@ -8,7 +8,7 @@ type DateItem = {
   store_id: string;
 };
 
-const API_BASE = "/api";
+import { API_BASE } from "../config";
 const today = new Date().toISOString().slice(0, 10);
 const params = new URLSearchParams(window.location.search);
 const STORE_ID = params.get("store_id") || "7249";
@@ -41,7 +41,7 @@ export default function InventoryDateApp() {
 
         try {
             const res = await fetch(
-            `/api/inventory-date/items?store_id=${encodeURIComponent(STORE_ID)}`
+            `${API_BASE}/inventory-date/items?store_id=${encodeURIComponent(STORE_ID)}`
             );
 
             const json = await res.json();

@@ -81,6 +81,12 @@ const loginTransitionOverlay = document.getElementById("loginTransitionOverlay")
 const employeeLoginButton = document.getElementById("employeeLoginBtn") as HTMLButtonElement | null;
 const employeeAnnouncement = document.getElementById("employeeAnnouncement") as HTMLElement | null;
 const employeeAnnouncementText = document.getElementById("employeeAnnouncementText") as HTMLParagraphElement | null;
+const feedbackOverlay = document.getElementById("feedbackOverlay") as HTMLElement | null;
+const feedbackMessage = document.getElementById("feedbackMessage") as HTMLTextAreaElement | null;
+const feedbackCategory = document.getElementById("feedbackCategory") as HTMLSelectElement | null;
+const feedbackStatus = document.getElementById("feedbackStatus") as HTMLParagraphElement | null;
+const feedbackSubmitButton = document.getElementById("feedbackShareButton") as HTMLButtonElement | null;
+const feedbackWebsite = document.getElementById("feedbackWebsite") as HTMLInputElement | null;
 let submissionCount = 0;
 let calendarEntries: Record<string, { requested?: string }> = {};
 let calendarHolidays = new Map<string, string>();
@@ -116,15 +122,152 @@ function recordMascotEvent(eventType: MascotTelemetryEvent) {
 }
 
 function setLoginUserLabell(name: string) {
-  if (loginUserLabel) loginUserLabel.textContent = `👤 ${name}`;
+  if (loginUserLabel) loginUserLabel.textContent = name;
 }
 
 function updateAuthUI() {
   const loggedIn = !!currentEmployee && !!localStorage.getItem(EMP_TOKEN_KEY);
+  const submissionHistory = document.getElementById("submissionHistory");
+  document.body.classList.toggle("loginMode", !loggedIn);
   if (loginArea) loginArea.style.display = loggedIn ? "none" : "block";
   if (userBar) userBar.style.display = loggedIn ? "block" : "none";
   if (shiftArea) shiftArea.style.display = loggedIn ? "block" : "none";
   if (employeeCalendar) employeeCalendar.style.display = loggedIn ? "block" : "none";
+  if (!loggedIn && submissionHistory) submissionHistory.style.display = "none";
+}
+
+function scrollEmployeePageToTop() {
+  const reset = () => {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  };
+  reset();
+  window.requestAnimationFrame(() => {
+    reset();
+    window.requestAnimationFrame(reset);
+  });
+}
+
+function revealLoggedInIntro() {
+  const elements = [
+    document.querySelector<HTMLElement>(".employeeHeader .employeeTitleBlock"),
+    document.getElementById("userBar"),
+    document.getElementById("submitStatus"),
+  ].filter((element): element is HTMLElement => Boolean(element));
+
+  elements.forEach((element, index) => {
+    element.classList.add("postLoginRevealReady");
+    element.classList.remove("isVisible");
+    element.style.setProperty("--post-login-order", String(index));
+  });
+  // Force the hidden starting state to paint before beginning the stagger.
+  void document.body.offsetHeight;
+  window.requestAnimationFrame(() => elements.forEach((element) => element.classList.add("isVisible")));
+}
+
+function setupStepTitleReveal() {
+  const titles = Array.from(document.querySelectorAll<HTMLElement>(".stepTitle"));
+  if (!titles.length) return;
+  const blocks = Array.from(document.querySelectorAll<HTMLElement>(".flowBlock"));
+  blocks.forEach((block) => {
+    const content = block.querySelectorAll<HTMLElement>(
+      ".weekField, .shiftGuideGrid, #copyPreviousWeek, #copyPreviousStatus, #draftStatus, .timeColumnGuide, #shiftTable, .commentSuggestions, .commentInput, #commentCount, .submitButton",
+    );
+    content.forEach((element, index) => {
+      element.classList.add("stepContentRevealReady");
+      element.style.setProperty("--step-content-order", String(index));
+    });
+  });
+  const weekdayRows = Array.from(document.querySelectorAll<HTMLElement>("#shiftTable tbody tr"));
+  weekdayRows.forEach((row, index) => {
+    row.classList.add("weekdayRevealReady");
+    row.style.setProperty("--weekday-order", String(index));
+  });
+  const insightCards = Array.from(document.querySelectorAll<HTMLElement>(".shiftInsights > section"));
+  insightCards.forEach((card, index) => {
+    card.classList.add("stepContentRevealReady");
+    card.style.setProperty("--step-content-order", String(index + 2));
+  });
+  const ambientSections = Array.from(document.querySelectorAll<HTMLElement>(
+    ".employeeHeader, .loginWelcome, .employeeAnnouncement, .employeeCalendar",
+  ));
+  ambientSections.forEach((section) => section.classList.add("ambientRevealReady"));
+
+  const revealContents = (title: HTMLElement) => {
+    const block = title.closest<HTMLElement>(".flowBlock");
+    if (!block) return;
+    const isOpeningStep = block.classList.contains("weekStepBlock") || block.classList.contains("copyStepBlock");
+    window.setTimeout(() => {
+      block.querySelectorAll<HTMLElement>(".stepContentRevealReady").forEach((element) => element.classList.add("isVisible"));
+      if (block.classList.contains("shiftTimeBlock")) {
+        weekdayRows.forEach((row) => row.classList.add("isVisible"));
+      }
+      if (block.classList.contains("copyStepBlock")) {
+        insightCards.forEach((card) => card.classList.add("isVisible"));
+      }
+    }, isOpeningStep ? 390 : 190);
+  };
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reducedMotion || !("IntersectionObserver" in window)) {
+    titles.forEach((title) => {
+      title.classList.add("isVisible");
+      revealContents(title);
+    });
+    ambientSections.forEach((section) => section.classList.add("isVisible"));
+    return;
+  }
+  titles.forEach((title) => title.classList.add("stepRevealReady"));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      const title = entry.target as HTMLElement;
+      title.classList.add("isVisible");
+      revealContents(title);
+      observer.unobserve(entry.target);
+    });
+  }, { rootMargin: "0px 0px -8%", threshold: 0.16 });
+  titles.forEach((title) => observer.observe(title));
+  const ambientObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      (entry.target as HTMLElement).classList.add("isVisible");
+      ambientObserver.unobserve(entry.target);
+    });
+  }, { rootMargin: "0px 0px -6%", threshold: 0.1 });
+  ambientSections.forEach((section) => ambientObserver.observe(section));
+}
+
+function prepareSubmissionHistoryReveal(section: HTMLElement) {
+  section.classList.add("ambientRevealReady");
+  section.classList.remove("isVisible");
+
+  const reveal = () => section.classList.add("isVisible");
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) {
+    reveal();
+    return;
+  }
+
+  const observe = () => {
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      window.requestAnimationFrame(reveal);
+      observer.disconnect();
+    }, { rootMargin: "0px 0px -6%", threshold: 0.1 });
+    observer.observe(section);
+  };
+
+  // Login data is fetched while the form is still hidden. Wait until layout is
+  // restored so IntersectionObserver receives the history's real position.
+  let attempts = 0;
+  const observeWhenRendered = () => {
+    if (section.getClientRects().length && section.offsetHeight > 0) {
+      observe();
+      return;
+    }
+    if (attempts++ < 120) window.requestAnimationFrame(observeWhenRendered);
+  };
+  observeWhenRendered();
 }
 
 function currentMonthValue(date = new Date()) {
@@ -282,7 +425,7 @@ function updateDayDatesByInputs(weekStartStr: string) {
     const dow = jpWeek[i]; // 月〜日
     const ymd = toISODate(d);
     const holidayName = holidayDates.get(ymd);
-    const label = `${mm}/${dd}（${dow}）${holidayName ? ` ${holidayName}` : ""}`;
+    const label = `${mm}/${dd}（${dow}）`;
 
     // その曜日の input を拾って行を特定
     const input = document.querySelector<HTMLInputElement>(
@@ -296,8 +439,18 @@ function updateDayDatesByInputs(weekStartStr: string) {
     const dayTd = tr.querySelector<HTMLTableCellElement>("td");
     if (!dayTd) return;
 
-    // 1列目を「日付（曜日）」にする
-    dayTd.textContent = label;
+    // 日付と祝日名を分け、携帯でも祝日名を省略せず表示する
+    dayTd.replaceChildren();
+    const dateLabel = document.createElement("span");
+    dateLabel.className = "shiftDateLabel";
+    dateLabel.textContent = label;
+    dayTd.append(dateLabel);
+    if (holidayName) {
+      const holidayLabel = document.createElement("small");
+      holidayLabel.className = "shiftHolidayName";
+      holidayLabel.textContent = holidayName;
+      dayTd.append(holidayLabel);
+    }
 
     // 土日色（class付与）
     tr.classList.toggle("sat", day === "sat");
@@ -314,8 +467,41 @@ function validateShiftData(data: ShiftData): boolean {
     holidayDays,
     currentBusinessHours ?? undefined,
   );
-  if (error) alert(error);
+  if (error) showShiftValidationError(error);
   return !error;
+}
+
+function clearShiftValidationError() {
+  document.querySelectorAll("#shiftTable tbody tr.hasValidationError").forEach((row) => row.classList.remove("hasValidationError"));
+  const message = document.getElementById("shiftValidationMessage");
+  if (message) {
+    message.textContent = "";
+    message.classList.remove("isVisible");
+  }
+}
+
+function showShiftValidationError(error: string) {
+  clearShiftValidationError();
+  const match = /^(mon|tue|wed|thu|fri|sat|sun):\s*(.+)$/.exec(error);
+  const dayNames: Record<ShiftDayKey, string> = { mon: "月曜日", tue: "火曜日", wed: "水曜日", thu: "木曜日", fri: "金曜日", sat: "土曜日", sun: "日曜日" };
+  const message = document.getElementById("shiftValidationMessage");
+  const day = match?.[1] as ShiftDayKey | undefined;
+  const detail = match?.[2] ?? error;
+  if (message) {
+    message.textContent = day ? `${dayNames[day]}：${detail}` : detail;
+    message.classList.add("isVisible");
+  }
+
+  const row = day ? document.querySelector<HTMLElement>(`select[data-day="${day}"]`)?.closest<HTMLElement>("tr") : null;
+  const target = row ?? message;
+  row?.classList.add("hasValidationError");
+  target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  if (day) {
+    const start = document.querySelector<HTMLSelectElement>(`select[data-day="${day}"][data-kind="start"]`);
+    const end = document.querySelector<HTMLSelectElement>(`select[data-day="${day}"][data-kind="end"]`);
+    const focusTarget = !start?.value ? start : !end?.value ? end : start;
+    window.setTimeout(() => focusTarget?.focus({ preventScroll: true }), 520);
+  }
 }
 
 function totalShiftMinutes(data: ShiftData) {
@@ -334,16 +520,70 @@ function formatMinutes(minutes: number) {
   return rest ? `${hours}時間${rest}分` : `${hours}時間`;
 }
 
+function updateShiftMiniSummary(days: number, total: number) {
+  const summary = document.getElementById("shiftMiniSummary");
+  const label = summary?.querySelector<HTMLElement>(":scope > span");
+  const daysEl = document.getElementById("miniSummaryDays");
+  const totalEl = document.getElementById("miniSummaryTotal");
+  const action = document.getElementById("miniSummaryReview") as HTMLButtonElement | null;
+  if (!summary || !label || !daysEl || !totalEl || !action) return;
+
+  summary.classList.toggle("isSubmitted", submissionState === "submitted");
+  summary.classList.toggle("isLocked", submissionState === "updated");
+  if (submissionState === "updated") {
+    label.textContent = "提出状況";
+    daysEl.textContent = "再提出済み";
+    totalEl.textContent = "変更上限";
+    action.textContent = "提出履歴へ";
+    action.dataset.action = "history";
+  } else if (submissionState === "submitted") {
+    label.textContent = "提出状況";
+    daysEl.textContent = "修正可能";
+    totalEl.textContent = `合計${formatMinutes(total)}`;
+    action.textContent = "修正へ";
+    action.dataset.action = "edit";
+  } else {
+    label.textContent = "入力状況";
+    daysEl.textContent = `${days}/7日`;
+    totalEl.textContent = `合計${formatMinutes(total)}`;
+    action.textContent = "確認へ";
+    action.dataset.action = "review";
+  }
+}
+
 function updateShiftSimulator() {
   const data = collectShiftData();
   const total = totalShiftMinutes(data);
-  const days = Object.values(data).filter(Boolean).length;
+  const completeTime = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
+  const days = Object.values(data).filter((value) => completeTime.test(value)).length;
+  const weekendDays = [data.sat, data.sun].filter((value) => completeTime.test(value)).length;
   const totalEl = document.getElementById("simulatorTotal");
   const daysEl = document.getElementById("simulatorDays");
   const averageEl = document.getElementById("simulatorAverage");
+  const progressLabel = document.getElementById("inputProgressLabel");
+  const progressBar = document.getElementById("inputProgressBar") as HTMLElement | null;
+  const insight = document.getElementById("simulatorInsight");
   if (totalEl) totalEl.textContent = formatMinutes(total);
   if (daysEl) daysEl.textContent = `希望 ${days}日`;
   if (averageEl) averageEl.textContent = `1日平均 ${days ? formatMinutes(Math.round(total / days / 15) * 15) : "0時間"}`;
+  if (progressLabel) progressLabel.textContent = `${days} / 7日入力`;
+  if (progressBar) progressBar.style.width = `${Math.round(days / 7 * 100)}%`;
+  if (insight) {
+    insight.textContent = days === 0
+      ? "勤務できる曜日を選ぶと、ここに要約が表示されます。"
+      : days === 7
+        ? `全曜日入力済みです。合計${formatMinutes(total)}で提出できます。`
+        : weekendDays > 0
+          ? `週末を含む${days}日・合計${formatMinutes(total)}の希望です。`
+          : `平日${days}日・合計${formatMinutes(total)}の希望です。`;
+  }
+  updateShiftMiniSummary(days, total);
+  DAY_KEYS.forEach((day) => {
+    const row = document.querySelector(`select[data-day="${day}"]`)?.closest("tr");
+    const value = data[day];
+    row?.classList.toggle("isFilled", completeTime.test(value));
+    row?.classList.toggle("isPartial", Boolean(value) && !completeTime.test(value));
+  });
 }
 
 let mascotWakeTimer: number | undefined;
@@ -793,6 +1033,7 @@ function initWeekStart() {
   const iso = toISODate(monday);
   weekStartInput.value = iso;
   updateWeekLabel(iso);
+  applyDeadlineUI(iso);
   updateDayDatesByInputs(weekStartInput.value);
 }
 
@@ -862,7 +1103,6 @@ function openConfirm(payload: any): Promise<boolean> {
     }
 
     confirmSummary.innerHTML = buildConfirmHtml(payload);
-
     const cleanup = () => {
       confirmOverlay.style.display = "none";
       confirmSubmitBtn.onclick = null;
@@ -919,8 +1159,8 @@ function applyBusinessHoursToTimeInputs(storeId: string) {
   if (hoursPreview) {
     const w = def.weekday, h = def.weekendHoliday;
     hoursPreview.textContent =
-      `営業時間（平日 ${w.open}~${w.close} / 金土日祝 ${h.open}~${h.close}）` +
-      `／入力は閉店1時間後まで（最長24:30）。祝日は日ごとに自動判定します`;
+      `平日 ${w.open}〜${w.close}　金土日祝 ${h.open}〜${h.close}\n` +
+      `15分単位・最長24:30`;
   }
 }
 
@@ -952,6 +1192,7 @@ function clearDay(day: DayKey) {
     el.value = "";
     el.setCustomValidity("");
   });
+  updateShiftSimulator();
 }
 
 document.querySelectorAll<HTMLButtonElement>("[data-clear-day]").forEach((btn) => {
@@ -1025,6 +1266,9 @@ function updateSubmissionStateUI() {
   }
   if (copyBtn) copyBtn.disabled = hasExistingSubmission;
   if (copyStatus) copyStatus.textContent = hasExistingSubmission ? "提出済みの週にはコピーできません" : "";
+  const currentData = collectShiftData();
+  const completeTime = /^\d{2}:\d{2}-\d{2}:\d{2}$/;
+  updateShiftMiniSummary(Object.values(currentData).filter((value) => completeTime.test(value)).length, totalShiftMinutes(currentData));
 
   if (!submitStatusEl) return;
   submitStatusEl.className = "submissionStateMessage";
@@ -1050,7 +1294,7 @@ function applyDeadlineUI(weekStartYMD: string) {
   if (line) {
     // 「木曜0:00で締切」を分かりやすく
     const limit = new Date(deadline.getTime() - 1); // 水曜23:59:59相当の見せ方
-    line.textContent = `提出期限：${formatJP(limit)} まで（木曜0:00で締切）`;
+    line.textContent = `${formatJP(limit)} 23:59まで`;
   }
 
   const blocked = isAfterDeadline(weekStartYMD);
@@ -1206,7 +1450,7 @@ async function handleEmployeeLogin() {
   try {
     await refreshSchedule().catch((error) => console.error("refreshSchedule error:", error));
     setAuthMsg(`ログインしました: ${result.employee_name}`);
-    setLoginUserLabell(`${result.employee_name} (${result.store_id})`);
+    setLoginUserLabell(result.employee_name);
     await loadExistingSubmissionIfAny().catch((error) => console.error("loadExistingSubmission error:", error));
     await loadEmployeeCalendar().catch((error) => console.error("loadEmployeeCalendar error:", error));
     await loadSubmissionHistory().catch((error) => console.error("loadSubmissionHistory error:", error));
@@ -1215,7 +1459,10 @@ async function handleEmployeeLogin() {
     await loadEmployeeAnnouncement();
     const remaining = Math.max(0, 700 - (performance.now() - transitionStarted));
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
+    (document.activeElement as HTMLElement | null)?.blur();
     updateAuthUI();
+    scrollEmployeePageToTop();
+    revealLoggedInIntro();
   } finally {
     if (loginTransitionOverlay) loginTransitionOverlay.style.display = "none";
     if (employeeLoginButton) { employeeLoginButton.disabled = false; employeeLoginButton.textContent = "ログイン"; }
@@ -1234,6 +1481,7 @@ async function loadSubmissionHistory() {
     section.style.display = "block";
     list.innerHTML = `<div class="inlineError"><span>提出履歴を取得できませんでした</span><button type="button" class="inlineRetry">再読み込み</button></div>`;
     list.querySelector("button")?.addEventListener("click", () => void loadSubmissionHistory());
+    prepareSubmissionHistoryReveal(section);
     return;
   }
   const rows = Array.isArray(json.submissions) ? json.submissions : [];
@@ -1254,6 +1502,7 @@ async function loadSubmissionHistory() {
   };
   if (toggle) toggle.onclick = () => { expanded = !expanded; render(); };
   render();
+  prepareSubmissionHistoryReveal(section);
 }
 
 let mascotTelemetryReady = false;
@@ -1365,7 +1614,7 @@ function handleEmployeeLogout() {
   holidayDays.clear();
 
   // 表示系
-  setAuthMsg("ログアウトしました");
+  setAuthMsg("");
   if (hoursPreview) hoursPreview.textContent = "";
   if (storePreview) storePreview.textContent = "";
   if (employeeNameInput) employeeNameInput.value = "";
@@ -1383,6 +1632,97 @@ function handleEmployeeLogout() {
 
 document.getElementById("employeeLoginBtn")?.addEventListener("click", handleEmployeeLogin);
 document.getElementById("employeeLogoutBtn")?.addEventListener("click", handleEmployeeLogout);
+employeeIdInput?.addEventListener("input", () => {
+  employeeIdInput.value = employeeIdInput.value.replace(/\D/g, "").slice(0, 9);
+  if (!storePreview) return;
+  const length = employeeIdInput.value.length;
+  storePreview.textContent = length === 0
+    ? ""
+    : length < 8
+      ? `あと${8 - length}桁入力してください`
+      : length === 8
+        ? "8桁の従業員番号です"
+        : "湖西用の9桁番号です";
+  storePreview.classList.toggle("isReady", length >= 8);
+});
+const employeePinInput = document.getElementById("pinInput") as HTMLInputElement | null;
+employeePinInput?.addEventListener("input", () => { employeePinInput.value = employeePinInput.value.replace(/\D/g, "").slice(0, 4); });
+[employeeIdInput, employeePinInput].forEach((input) => input?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  void handleEmployeeLogin();
+}));
+
+function openFeedback() {
+  if (!feedbackOverlay) return;
+  feedbackOverlay.style.display = "grid";
+  if (feedbackStatus) feedbackStatus.textContent = "";
+  document.body.style.setProperty("--employee-modal-scroll", `-${window.scrollY}px`);
+  document.body.dataset.modalScrollY = String(window.scrollY);
+  document.body.classList.add("employeeModalOpen");
+  window.setTimeout(() => feedbackMessage?.focus(), 80);
+}
+
+function closeFeedback() {
+  if (feedbackOverlay) feedbackOverlay.style.display = "none";
+  const scrollY = Number(document.body.dataset.modalScrollY ?? 0);
+  document.body.classList.remove("employeeModalOpen");
+  document.body.style.removeProperty("--employee-modal-scroll");
+  delete document.body.dataset.modalScrollY;
+  window.scrollTo(0, scrollY);
+}
+
+async function submitFeedback() {
+  const message = feedbackMessage?.value.trim() ?? "";
+  if (!message) {
+    if (feedbackStatus) feedbackStatus.textContent = "要望の内容を入力してください";
+    feedbackMessage?.focus();
+    return;
+  }
+  const category = feedbackCategory?.value ?? "その他";
+  if (feedbackSubmitButton) {
+    feedbackSubmitButton.disabled = true;
+    feedbackSubmitButton.textContent = "送信中…";
+  }
+  if (feedbackStatus) feedbackStatus.textContent = "開発者へ送信しています";
+  try {
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category,
+        message,
+        app_version: "1.1.0",
+        website: feedbackWebsite?.value ?? "",
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.error ?? "送信に失敗しました");
+    if (feedbackStatus) feedbackStatus.textContent = "送信しました。ご意見ありがとうございます";
+    if (feedbackMessage) feedbackMessage.value = "";
+    const count = document.getElementById("feedbackCount");
+    if (count) count.textContent = "0 / 500";
+    window.setTimeout(closeFeedback, 900);
+  } catch (error) {
+    if (feedbackStatus) feedbackStatus.textContent = error instanceof Error ? error.message : "送信に失敗しました。時間を置いてお試しください";
+  } finally {
+    if (feedbackSubmitButton) {
+      feedbackSubmitButton.disabled = false;
+      feedbackSubmitButton.textContent = "開発者に送る";
+    }
+  }
+}
+
+document.getElementById("feedbackOpenButton")?.addEventListener("click", openFeedback);
+document.getElementById("feedbackCloseButton")?.addEventListener("click", closeFeedback);
+document.getElementById("feedbackCancelButton")?.addEventListener("click", closeFeedback);
+feedbackSubmitButton?.addEventListener("click", () => void submitFeedback());
+feedbackOverlay?.addEventListener("click", (event) => { if (event.target === feedbackOverlay) closeFeedback(); });
+feedbackMessage?.addEventListener("input", () => {
+  const count = document.getElementById("feedbackCount");
+  if (count) count.textContent = `${feedbackMessage.value.length} / 500`;
+  if (feedbackStatus) feedbackStatus.textContent = "";
+});
 
 
 //shiftDate → time inputへ反映
@@ -1517,9 +1857,19 @@ function saveDraft() {
   const hasContent = Object.values(data).some(Boolean) || Boolean(comment.trim());
   if (!hasContent) {
     localStorage.removeItem(key);
+    updateDraftStatus("この端末に自動保存");
     return;
   }
   localStorage.setItem(key, JSON.stringify({ data, comment, savedAt: new Date().toISOString() }));
+  updateDraftStatus("保存しました");
+}
+
+function updateDraftStatus(message: string) {
+  const status = document.getElementById("draftStatus");
+  if (!status) return;
+  status.innerHTML = `<i>✓</i> ${escapeHtml(message)}`;
+  status.classList.add("saved");
+  window.setTimeout(() => status.classList.remove("saved"), 900);
 }
 
 function restoreDraft() {
@@ -1534,6 +1884,7 @@ function restoreDraft() {
     updateCommentCount();
     const status = document.getElementById("submitStatus");
     if (status) status.textContent = "保存していた下書きを復元しました";
+    updateDraftStatus("下書きを復元しました");
   } catch {
     localStorage.removeItem(key);
   }
@@ -1545,9 +1896,18 @@ function clearDraft() {
 }
 
 document.querySelectorAll<HTMLSelectElement>('select[data-day][data-kind]').forEach((select) => {
-  select.addEventListener("change", () => { saveDraft(); updateShiftSimulator(); });
+  select.addEventListener("change", () => { clearShiftValidationError(); saveDraft(); updateShiftSimulator(); });
 });
 commentEl?.addEventListener("input", saveDraft);
+document.querySelectorAll<HTMLButtonElement>("[data-comment-template]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!commentEl) return;
+    commentEl.value = String(button.dataset.commentTemplate ?? "").slice(0, 300);
+    updateCommentCount();
+    saveDraft();
+    commentEl.focus();
+  });
+});
 
 let isSubmitting = false;
 
@@ -1577,10 +1937,10 @@ shiftForm.addEventListener("submit", async (event) => {
     mode: hasExistingSubmission ? "update" : "submitted",
   };
 
+  if (!validateShiftData(payload.data)) return;
+
   const ok = await openConfirm(payload);
   if (!ok) return;
-
-  if (!validateShiftData(payload.data)) return;
 
   const submitBtn = shiftForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
   submitBtn && (submitBtn.disabled = true);
@@ -1611,7 +1971,6 @@ shiftForm.addEventListener("submit", async (event) => {
     const savedMode = json.mode === "updated" ? "updated" : "submitted";
     if (savedMode === "submitted") submissionCount += 1;
     showSubmissionSuccess(currentEmployee.employee_name, payload.data, payload.comment, savedMode);
-
     clearDraft();
     await loadExistingSubmissionIfAny();
     await loadSubmissionHistory();
@@ -1619,6 +1978,16 @@ shiftForm.addEventListener("submit", async (event) => {
     isSubmitting = false;
     updateSubmissionStateUI();
   }
+});
+
+document.getElementById("miniSummaryReview")?.addEventListener("click", () => {
+  const action = (document.getElementById("miniSummaryReview") as HTMLButtonElement | null)?.dataset.action;
+  const target = action === "history"
+    ? document.getElementById("submissionHistory")
+    : action === "edit"
+      ? document.querySelector<HTMLElement>(".shiftTimeBlock")
+      : document.querySelector<HTMLElement>(".submitStepBlock");
+  target?.scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
 
@@ -1673,4 +2042,6 @@ weekStartInput.addEventListener("change", async () => {
   await loadExistingSubmissionIfAny();
 });
 
+updateAuthUI();
+setupStepTitleReveal();
 initWeekStart();

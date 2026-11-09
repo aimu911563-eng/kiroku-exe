@@ -41,14 +41,6 @@ button:active {
   overflow-x: auto;
 }
 
-.hourBox {
-  min-width: 70px;
-  padding: 8px;
-  border: 1px solid #333;
-  border-radius: 10px;
-  text-align: center;
-  background: #fafafa;
-}
 
 .hour {
   font-size: 13px;

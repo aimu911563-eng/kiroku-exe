@@ -1,5 +1,4 @@
-import React from "react";
-import { InsightDashboardResponse } from "../types";
+import type { InsightDashboardResponse } from "../types";
 
 type Props = {
     weather: InsightDashboardResponse ["weather"]
@@ -15,7 +14,7 @@ export function WeatherCard({ weather }: Props ) {
         <div className="insight-card insight-card-weather">
           <h2>天気予報</h2>
             <div className="card-inner card-inner-weather">
-                <div>{weatherlabel[weather.condition]} / 降水確率 {weather.rainProbability}% </div>
+                <div>{weatherlabel[weather.condition as keyof typeof weatherlabel] ?? weather.condition} / 降水確率 {weather.rainProbability}% </div>
                 <div>気温：{weather.temperature}℃</div>
                 {weather.warningTime && <div>注意時間 : {weather.warningTime}</div>}
             </div>

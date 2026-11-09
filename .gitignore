@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Supabase CLI local connection metadata
+supabase/.temp/

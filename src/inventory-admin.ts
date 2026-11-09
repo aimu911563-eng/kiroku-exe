@@ -1,5 +1,5 @@
 const STORE_ID = "7249";
-const API_BASE = "/api";
+import { API_BASE } from "./config";
 
 type SummaryResponse = {
     ok: boolean;
@@ -22,6 +22,7 @@ type SummaryResponse = {
         employee_id: string | null;
         employee_name: string;
         count: number;
+        points: number;
     }>;
     items: Array<{
         item_code: string;

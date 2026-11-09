@@ -1,5 +1,4 @@
-import React from "react";
-import { InsightDashboardResponse } from "../types";
+import type { InsightDashboardResponse } from "../types";
 
 type Props = {
     alerts: InsightDashboardResponse["alerts"]

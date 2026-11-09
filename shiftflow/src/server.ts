@@ -205,6 +205,13 @@ const shiftSchema = z.object({
   comment: z.string().max(300).optional().nullable(),
 });
 
+const feedbackSchema = z.object({
+  category: z.enum(["改善してほしい", "新しい機能", "不具合", "その他"]),
+  message: z.string().trim().min(1).max(500),
+  app_version: z.string().trim().min(1).max(30).default("unknown"),
+  website: z.string().max(200).optional(),
+});
+
 
 
 
@@ -216,6 +223,24 @@ app.use("/api/*", async (c, next) => {
   c.header("X-Frame-Options", "DENY");
   c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   await next();
+});
+
+app.post("/api/feedback", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = feedbackSchema.safeParse(body);
+  if (!parsed.success) return c.json({ ok: false, error: "入力内容を確認してください" }, 400);
+
+  // Invisible field filled by simple form bots. Return success without storing it.
+  if (parsed.data.website) return c.json({ ok: true });
+
+  const { error } = await supabase.from("employee_feedback").insert({
+    category: parsed.data.category,
+    message: parsed.data.message,
+    app_version: parsed.data.app_version,
+    source: "employee_web",
+  });
+  if (error) return c.json({ ok: false, error: "要望を保存できませんでした" }, 500);
+  return c.json({ ok: true }, 201);
 });
 
 import bcrypt from 'bcryptjs'
