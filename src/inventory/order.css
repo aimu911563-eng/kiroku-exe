@@ -108,3 +108,306 @@ button:disabled { cursor: default; opacity: .45; }
 .yieldAnalysisCard { margin-top: 14px; } .yieldCollecting { display: grid; gap: 7px; padding: 18px; } .yieldCollecting span { color: #0071e3; font-size: 18px; font-weight: 800; } .yieldCollecting small { color: #6e6e73; line-height: 1.5; }
 .orderUsageWarning { display: grid; gap: 5px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid #ffd59a; border-radius: 15px; background: #fff8e8; color: #7a4b00; }.orderUsageWarning span { font-size: 12px; line-height: 1.5; }
 .databaseRestNote { margin: 14px 2px 0; padding: 11px 13px; border-radius: 13px; background: #f5f5f7; color: #6e6e73; font-size: 11px; line-height: 1.6; }
+
+/* Order admin — ShiftFlow visual language */
+.orderAdminPage {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: #fff5e9;
+  color: #202124;
+}
+.orderAdminPage::before {
+  content: "";
+  position: fixed;
+  inset: -18vmax;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 28% 23% at 20% 15%, rgba(175,225,249,.68), transparent 72%),
+    radial-gradient(ellipse 27% 23% at 80% 34%, rgba(255,211,216,.56), transparent 72%),
+    radial-gradient(ellipse 28% 23% at 22% 68%, rgba(204,239,207,.58), transparent 72%),
+    radial-gradient(ellipse 30% 24% at 77% 85%, rgba(226,207,250,.6), transparent 72%);
+  animation: orderAdminDrift 22s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes orderAdminDrift {
+  from { transform: translate3d(-1.5%,-1%,0) scale(1); }
+  to { transform: translate3d(2%,1.5%,0) scale(1.04); }
+}
+.orderAdminPage .orderAdminShell { width: min(1080px, calc(100% - 40px)); padding: 52px 0 86px; }
+.orderAdminPage .orderHero {
+  align-items: flex-end;
+  margin-bottom: 25px;
+  padding: 0 4px 23px;
+  border-bottom: 1px solid rgba(87,111,137,.18);
+  animation: orderAdminReveal .85s cubic-bezier(.2,.75,.25,1) both;
+}
+.orderAdminPage .orderHero h1 { font-size: clamp(34px,5vw,48px); letter-spacing: -.055em; }
+.orderAdminPage .orderHero p { font-size: 14px; }
+.orderAdminPage .orderEyebrow { color: #1478d4; letter-spacing: .16em; }
+.orderAdminPage .orderHero .ghost {
+  padding-right: 3px;
+  padding-left: 14px;
+  border-left: 1px solid rgba(87,111,137,.18);
+  border-radius: 0;
+  background: transparent;
+  color: #386685;
+}
+.orderAdminPage .orderTabs {
+  margin-bottom: 22px;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,.65);
+  background: rgba(255,255,255,.36);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.62);
+  backdrop-filter: blur(14px);
+  animation: orderAdminReveal .85s .08s cubic-bezier(.2,.75,.25,1) both;
+}
+.orderAdminPage .orderTabs button.active { background: rgba(255,255,255,.8); color: #245a7c; }
+.orderAdminPage .orderPanel {
+  border-color: rgba(255,255,255,.64);
+  border-radius: 26px;
+  background: rgba(255,255,255,.52);
+  box-shadow: 0 18px 46px rgba(79,89,105,.08), inset 0 1px 0 rgba(255,255,255,.72);
+  backdrop-filter: blur(18px) saturate(115%);
+  animation: orderAdminReveal .9s .15s cubic-bezier(.2,.75,.25,1) both;
+}
+.orderAdminPage .orderSectionHeader h2 { font-size: 26px; }
+.orderAdminPage .orderSectionHeader p { max-width: 650px; color: #676b73; }
+.orderAdminPage .orderButton.primary {
+  border: 1px solid rgba(74,148,202,.38);
+  background: linear-gradient(135deg,rgba(212,237,251,.94),rgba(223,220,250,.9));
+  color: #215979;
+  box-shadow: 0 9px 24px rgba(69,119,160,.1);
+}
+.orderAdminPage .orderButton.ghost { background: rgba(255,255,255,.5); color: #456074; }
+.orderAdminPage .orderField input,
+.orderAdminPage .orderField select,
+.orderAdminPage .itemEditorCard input,
+.orderAdminPage .itemEditorCard select,
+.orderAdminPage .budgetInputs input {
+  border-color: rgba(90,111,133,.24);
+  background: rgba(255,255,255,.58);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.72);
+}
+.orderAdminPage .orderDaySettings,
+.orderAdminPage .reportMetrics article,
+.orderAdminPage .reportCard,
+.orderAdminPage .newItemForm {
+  border-color: rgba(90,111,133,.15);
+  background: rgba(255,255,255,.38);
+}
+.orderAdminPage .budgetDay { background: rgba(255,255,255,.3); }
+.orderAdminPage .budgetDay.orderDay { background: rgba(255,255,255,.6); }
+.orderAdminPage .budgetDay:not(.outside):not(.orderDay) {
+  background: rgba(55,64,76,.2);
+  box-shadow: inset 0 0 0 1px rgba(55,64,76,.08);
+}
+.orderAdminPage .budgetDay:not(.outside):not(.orderDay) .budgetDayNumber strong { color: #656b73; }
+.orderAdminPage .budgetDay:not(.outside):not(.orderDay) .extraDateButton {
+  border-color: rgba(57,72,88,.28);
+  background: rgba(255,255,255,.24);
+  color: #505c68;
+}
+.orderAdminPage .budgetDay.orderDay.emptyBudget {
+  background: rgba(100,111,124,.1);
+  box-shadow: inset 0 0 0 1px rgba(69,77,88,.08);
+}
+.orderAdminPage .budgetDay.orderDay.emptyBudget .budgetDayNumber strong { color: #6d7279; }
+.orderAdminPage .budgetDay.orderDay.emptyBudget .budgetInputs { opacity: .72; }
+
+.reorderGuide {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -3px 0 16px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(20,120,212,.32);
+  border-radius: 15px;
+  background: rgba(220,240,252,.42);
+  color: #315f7d;
+}
+.reorderGuideIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(255,255,255,.72);
+  color: #1478d4;
+  font-size: 25px;
+  box-shadow: 0 5px 15px rgba(58,112,150,.1);
+}
+.reorderGuide > span:nth-child(2) { display: grid; gap: 2px; }
+.reorderGuide small { color: #607582; font-size: 11px; line-height: 1.4; }
+.reorderGuideActions { display: flex; gap: 7px; margin-left: auto; }
+.reorderResetButton,
+.reorderPreviewButton {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid rgba(52,102,135,.24);
+  border-radius: 999px;
+  background: rgba(255,255,255,.66);
+  color: #386685;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.reorderPreviewButton { border-color: rgba(20,120,212,.34); background: rgba(225,242,252,.76); color: #215f88; }
+.reorderResetButton:hover,
+.reorderPreviewButton:hover { border-color: rgba(20,120,212,.48); background: rgba(255,255,255,.9); }
+.orderAdminPage .itemCategoryList { gap: 18px; }
+.orderAdminPage .itemCategorySection {
+  border-color: rgba(90,111,133,.15);
+  background: rgba(255,255,255,.3);
+  box-shadow: 0 10px 28px rgba(75,89,106,.045);
+}
+.orderAdminPage .itemCategorySection > header { border-color: rgba(90,111,133,.12); }
+.orderAdminPage .itemEditorList { gap: 8px; padding: 9px; }
+.orderAdminPage .itemEditorCard {
+  grid-template-columns: 48px minmax(0,1fr) 130px 78px 54px;
+  border-color: rgba(90,111,133,.16);
+  background: rgba(255,255,255,.62);
+  box-shadow: 0 4px 14px rgba(57,73,92,.035);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, opacity .18s ease;
+}
+.orderAdminPage .itemEditorCard[draggable="true"] { cursor: grab; }
+.orderAdminPage .itemEditorCard[draggable="true"]:active { cursor: grabbing; }
+.orderAdminPage .dragHandle {
+  display: grid;
+  width: 44px;
+  min-height: 50px;
+  align-content: center;
+  justify-items: center;
+  gap: 0;
+  border: 1px solid rgba(20,120,212,.2);
+  background: rgba(226,242,252,.7);
+  color: #1478d4;
+  line-height: 1;
+}
+.orderAdminPage .dragHandle > span { font-size: 25px; }
+.orderAdminPage .dragHandle small { color: #47728e; font-size: 8px; font-weight: 800; }
+.orderAdminPage .itemEditorCard.touchDragging {
+  z-index: 10;
+  border-color: rgba(20,120,212,.64);
+  background: rgba(235,247,253,.94);
+  box-shadow: 0 18px 40px rgba(45,111,158,.22);
+  opacity: .94;
+  transform: scale(1.025) rotate(.25deg);
+}
+.orderAdminPage .itemCategoryList:has(.itemEditorCard.touchDragging) .itemEditorCard:not(.touchDragging) {
+  opacity: .34;
+  filter: brightness(.74) saturate(.58);
+  transform: scale(.992);
+}
+.orderAdminPage .itemCategoryList:has(.itemEditorCard.touchDragging) .itemEditorCard.dragTarget:not(.touchDragging) {
+  opacity: .7;
+  filter: brightness(.9) saturate(.82);
+}
+.orderAdminPage .itemEditorCard.dragTarget {
+  border-top-color: #1478d4;
+  box-shadow: inset 0 4px 0 rgba(20,120,212,.62), 0 10px 24px rgba(45,111,158,.09);
+  transform: translateY(4px);
+}
+.itemSaveConfirmBackdrop {
+  z-index: 100;
+  align-items: start;
+  justify-items: center;
+  padding: max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.itemSaveConfirmSheet { width: min(620px,100%); max-height: calc(100dvh - 32px); }
+.itemOrderPreview {
+  display: grid;
+  max-height: min(58vh,620px);
+  gap: 12px;
+  padding-right: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.itemOrderPreview > section {
+  overflow: hidden;
+  border: 1px solid rgba(90,111,133,.15);
+  border-radius: 15px;
+  background: rgba(255,255,255,.48);
+}
+.itemOrderPreviewHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 13px;
+  border-bottom: 1px solid rgba(90,111,133,.12);
+  background: rgba(220,239,250,.42);
+}
+.itemOrderPreviewHeading span {
+  color: #6c7680;
+  font-size: 11px;
+  font-weight: 750;
+}
+.itemOrderPreview ol {
+  margin: 0;
+  padding: 5px 12px 7px 42px;
+}
+.itemOrderPreview li {
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(90,111,133,.1);
+  color: #315f7d;
+  font-weight: 800;
+}
+.itemOrderPreview li:last-child { border-bottom: 0; }
+.itemOrderPreview li::marker { color: #1478d4; font-variant-numeric: tabular-nums; }
+.itemOrderPreview li span { color: #25292d; }
+.itemOrderPreview li small { float: right; color: #747b83; font-size: 10px; font-weight: 650; }
+.itemOrderPreview section > p { margin: 0; padding: 13px; color: #86868b; font-size: 12px; }
+.itemSaveConfirmActions { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; margin-top: 18px; }
+
+@keyframes orderAdminReveal {
+  from { opacity: 0; filter: blur(14px); transform: translateX(48px); }
+  to { opacity: 1; filter: blur(0); transform: translateX(0); }
+}
+
+@media (max-width: 720px) {
+  .orderAdminPage .orderAdminShell { width: min(100% - 20px,1080px); padding: 28px 0 60px; }
+  .orderAdminPage .orderHero { margin-bottom: 18px; padding-bottom: 18px; }
+  .orderAdminPage .orderHero h1 { font-size: 32px; }
+  .orderAdminPage .orderPanel { padding: 16px 12px; border-radius: 22px; }
+  .orderAdminPage .orderTabs { overflow-x: auto; }
+  .orderAdminPage .orderTabs button { min-width: max-content; }
+  .orderAdminPage .orderSectionHeader h2 { font-size: 23px; }
+  .reorderGuide { margin-bottom: 12px; padding: 10px; }
+  .reorderGuide small { font-size: 10px; }
+  .reorderGuide { flex-wrap: wrap; }
+  .reorderGuide > span:nth-child(2) { min-width: 0; flex: 1; }
+  .reorderGuideActions { display: grid; width: 100%; grid-template-columns: 1.35fr 1fr; margin-left: 0; }
+  .reorderResetButton,
+  .reorderPreviewButton { width: 100%; padding-inline: 7px; font-size: 10px; }
+  .orderAdminPage .itemEditorCard { grid-template-columns: 46px minmax(72px,1fr) 64px 50px 58px 38px; gap: 4px; }
+  .orderAdminPage .dragHandle { width: 42px; min-height: 40px; }
+  .orderAdminPage .dragHandle > span { font-size: 21px; }
+  .orderAdminPage .dragHandle small { display: block; font-size: 7px; }
+  .itemSaveConfirmSheet { max-height: calc(100dvh - 16px); }
+  .itemSaveConfirmBackdrop { align-items: start; padding: max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom)); }
+  .itemOrderPreview { max-height: 55dvh; }
+  .itemOrderPreview li { font-size: 13px; }
+  .itemOrderPreview li small { display: block; float: none; margin-top: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orderAdminPage::before,
+  .orderAdminPage .orderHero,
+  .orderAdminPage .orderTabs,
+  .orderAdminPage .orderPanel { animation: none; }
+}
+
+/* Prevent iOS Safari from zooming when a form control receives focus. */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 720px) {
+    .orderAdminPage input,
+    .orderAdminPage select,
+    .orderAdminPage textarea,
+    .orderShell input,
+    .orderShell select,
+    .orderShell textarea {
+      font-size: 16px !important;
+    }
+  }
+}

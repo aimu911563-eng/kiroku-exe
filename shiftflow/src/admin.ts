@@ -633,7 +633,20 @@ function getToken() {
 function setLoggedInUI(isLoggedIn: boolean) {
   loginBox.style.display = isLoggedIn ? "none" : "block";
   adminBox.style.display = isLoggedIn ? "block" : "none";
+  document.body.classList.toggle("adminLoggedIn", isLoggedIn);
   loginMsg.textContent = "";
+
+  if (isLoggedIn) {
+    const sections = Array.from(adminBox.querySelectorAll<HTMLElement>(":scope > .surface"));
+    sections.forEach((section, index) => {
+      section.style.setProperty("--admin-reveal-order", String(index));
+      section.classList.remove("adminRevealVisible");
+    });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => sections.forEach((section) => section.classList.add("adminRevealVisible")));
+    });
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
 }
 
 async function api(path: string, init: RequestInit = {}) {

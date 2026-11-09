@@ -46,12 +46,15 @@ export default function OrderAdminApp() {
   const [budgets, setBudgets] = useState<Record<string, Budget>>({});
   const [touchedDates, setTouchedDates] = useState<Set<string>>(new Set());
   const [items, setItems] = useState<Item[]>([]);
+  const savedItemsRef = useRef<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [touchDragCode, setTouchDragCode] = useState<string | null>(null);
+  const [dragOverCode, setDragOverCode] = useState<string | null>(null);
   const touchDragCodeRef = useRef<string | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [newItem, setNewItem] = useState(emptyNewItem);
   const [orderDays, setOrderDays] = useState(DEFAULT_ORDER_DAYS[STORE_ID] ?? [1, 4]);
   const [savedOrderDays, setSavedOrderDays] = useState(DEFAULT_ORDER_DAYS[STORE_ID] ?? [1, 4]);
@@ -60,6 +63,11 @@ export default function OrderAdminApp() {
   const [activeBudgetDate, setActiveBudgetDate] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
   const [report, setReport] = useState<Report | null>(null);
+
+  useEffect(() => {
+    document.body.classList.add("orderAdminPage");
+    return () => document.body.classList.remove("orderAdminPage");
+  }, []);
 
   async function login(event: React.FormEvent) {
     event.preventDefault(); setLoginError("");
@@ -84,7 +92,7 @@ export default function OrderAdminApp() {
 
   async function loadItems() {
     setLoading(true); setMessage("");
-    try { const data = await request("/admin/items"); setItems(data.items ?? []); }
+    try { const data = await request("/admin/items"); const loadedItems = (data.items ?? []) as Item[]; savedItemsRef.current = loadedItems.map((item) => ({ ...item })); setItems(loadedItems); }
     catch (error) { setMessage((error as Error).message); }
     finally { setLoading(false); }
   }
@@ -156,6 +164,40 @@ export default function OrderAdminApp() {
     if (to < 0 || to >= items.length || from === to) return;
     setItems((current) => { const next = [...current]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next; });
   }
+  function resetItemOrder() {
+    const saved = savedItemsRef.current;
+    if (!saved.length) return;
+    setItems((current) => {
+      const currentByCode = new Map(current.map((item) => [item.item_code, item]));
+      const restored = saved.flatMap((savedItem) => {
+        const currentItem = currentByCode.get(savedItem.item_code);
+        if (!currentItem) return [];
+        return [{ ...currentItem, category: savedItem.category, budget_type: savedItem.budget_type }];
+      });
+      const savedCodes = new Set(saved.map((item) => item.item_code));
+      return [...restored, ...current.filter((item) => !savedCodes.has(item.item_code))];
+    });
+    setDragIndex(null);
+    setTouchDragCode(null);
+    setDragOverCode(null);
+    setMessage("並び順を最後に保存した状態へ戻しました");
+  }
+  function moveItemToTarget(itemCode: string, targetCode: string) {
+    if (itemCode === targetCode) return;
+    setItems((current) => {
+      const from = current.findIndex((item) => item.item_code === itemCode);
+      const target = current.find((item) => item.item_code === targetCode);
+      if (from < 0 || !target) return current;
+      const next = [...current];
+      const [moving] = next.splice(from, 1);
+      const nextCategory = target.category as ItemCategory;
+      moving.category = nextCategory;
+      moving.budget_type = nextCategory === "fresh_veg" ? "onion" : nextCategory === "mushroom" ? "mushroom" : "base";
+      const to = next.findIndex((item) => item.item_code === targetCode);
+      next.splice(Math.max(0, to), 0, moving);
+      return next;
+    });
+  }
   function startTouchReorder(event: React.PointerEvent<HTMLButtonElement>, itemCode: string) {
     if (event.pointerType === "mouse") return;
     event.preventDefault();
@@ -173,21 +215,15 @@ export default function OrderAdminApp() {
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-item-code]");
     const targetCode = target?.dataset.itemCode;
     if (!targetCode || targetCode === itemCode) return;
-    setItems((current) => {
-      const from = current.findIndex((item) => item.item_code === itemCode);
-      const to = current.findIndex((item) => item.item_code === targetCode);
-      if (from < 0 || to < 0 || current[from].category !== current[to].category) return current;
-      const next = [...current];
-      const [moving] = next.splice(from, 1);
-      next.splice(to, 0, moving);
-      return next;
-    });
+    setDragOverCode(targetCode);
+    moveItemToTarget(itemCode, targetCode);
   }
   function endTouchReorder(event: React.PointerEvent<HTMLButtonElement>) {
     if (event.pointerType === "mouse") return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     touchDragCodeRef.current = null;
     setTouchDragCode(null);
+    setDragOverCode(null);
     navigator.vibrate?.(10);
   }
   function addItem(event: React.FormEvent) {
@@ -212,7 +248,7 @@ export default function OrderAdminApp() {
   }
   async function saveItems() {
     setLoading(true);
-    try { await request("/admin/items", { method: "PUT", body: JSON.stringify({ items }) }); setMessage(`${items.length}件の食材設定を保存しました`); await loadItems(); }
+    try { await request("/admin/items", { method: "PUT", body: JSON.stringify({ items }) }); setShowSaveConfirm(false); setMessage(`${items.length}件の食材設定を保存しました`); await loadItems(); }
     catch (error) { setMessage((error as Error).message); setLoading(false); }
   }
 
@@ -268,7 +304,8 @@ export default function OrderAdminApp() {
       <div className="budgetLegend"><span className="base">食材</span><span className="onion">オニ＆ピーマン</span><span className="mushroom">マッシュ</span></div>
       <div className="budgetCalendar"><div className="calendarWeekdays">{["日","月","火","水","木","金","土"].map((d) => <span key={d}>{d}</span>)}</div><div className="calendarGrid">{calendarDays.map((day) => {
         const key = dateKey(day); const currentMonth = key.startsWith(month); const recurringDay = orderDays.includes(day.getDay()); const extraDay = extraOrderDates.includes(key); const orderDay = recurringDay || extraDay; const row = budgets[key];
-        return <article key={key} className={`budgetDay ${!currentMonth ? "outside" : ""} ${orderDay && currentMonth ? "orderDay" : ""} ${extraDay ? "extraDay" : ""}`}><div className="budgetDayNumber"><strong>{day.getDate()}</strong><div>{extraDay && <span>限定</span>}{row && <span>保存済</span>}</div></div>{currentMonth && orderDay ? <><button type="button" className="budgetDayOpen" onClick={() => setActiveBudgetDate(key)} aria-label={`${day.getMonth() + 1}月${day.getDate()}日の予算を入力`}><span className="budgetMobileValue base"><i />{row?.base_budget ?? "−"}</span><span className="budgetMobileValue onion"><i />{row?.onion_budget ?? "−"}</span><span className="budgetMobileValue mushroom"><i />{row?.mushroom_budget ?? "−"}</span><small>{row ? "タップして編集" : "予算を入力"}</small></button><div className="budgetInputs budgetInputsInline">
+        const hasBudgetValues = Boolean(row && [row.base_budget, row.onion_budget, row.mushroom_budget].some((value) => value !== "" && value !== null && value !== undefined));
+        return <article key={key} className={`budgetDay ${!currentMonth ? "outside" : ""} ${orderDay && currentMonth ? "orderDay" : ""} ${orderDay && currentMonth && !hasBudgetValues ? "emptyBudget" : ""} ${extraDay ? "extraDay" : ""}`}><div className="budgetDayNumber"><strong>{day.getDate()}</strong><div>{extraDay && <span>限定</span>}{hasBudgetValues && <span>保存済</span>}</div></div>{currentMonth && orderDay ? <><button type="button" className="budgetDayOpen" onClick={() => setActiveBudgetDate(key)} aria-label={`${day.getMonth() + 1}月${day.getDate()}日の予算を入力`}><span className="budgetMobileValue base"><i />{row?.base_budget ?? "−"}</span><span className="budgetMobileValue onion"><i />{row?.onion_budget ?? "−"}</span><span className="budgetMobileValue mushroom"><i />{row?.mushroom_budget ?? "−"}</span><small>{hasBudgetValues ? "タップして編集" : "予算を入力"}</small></button><div className="budgetInputs budgetInputsInline">
           {(["base_budget","onion_budget","mushroom_budget"] as const).map((field) => <label key={field} className={field.split("_")[0]}><span>{field === "base_budget" ? "食材" : field === "onion_budget" ? "オニ・ピーマン" : "マッシュ"}</span><input inputMode="decimal" value={row?.[field] ?? ""} placeholder="0" onChange={(e) => updateBudget(key, field, e.target.value)} /></label>)}
         </div>{extraDay && !recurringDay && <button type="button" className="extraDateButton remove" onClick={() => toggleExtraOrderDate(key)}>一日限定を解除</button>}</> : currentMonth ? <button type="button" className="extraDateButton" onClick={() => toggleExtraOrderDate(key)}>＋ この日だけ追加</button> : null}</article>;
       })}</div></div>
@@ -277,14 +314,16 @@ export default function OrderAdminApp() {
       </div><button type="button" className="orderButton primary sheetDone" onClick={() => setActiveBudgetDate(null)}>入力を完了</button></section></div>; })()}
       <div className="stickySave"><button className="orderButton primary" disabled={loading || !touchedDates.size} onClick={saveBudgets}>{loading ? "保存中…" : `${touchedDates.size || 0}日分を保存`}</button></div>
     </section> : <section className="orderPanel">
-      <div className="orderSectionHeader"><div><span className="orderEyebrow">ITEM MASTER</span><h2>食材・イールド</h2><p>左のつまみを押したまま上下へ動かすと、同じ区分内で並び替えできます。</p></div><div className="itemHeaderActions"><button className="orderButton ghost" onClick={() => setShowAddItem((current) => !current)}>{showAddItem ? "閉じる" : "＋ 新しいアイテム"}</button><button className="orderButton primary" disabled={loading} onClick={saveItems}>{loading ? "保存中…" : "変更を保存"}</button></div></div>
+      <div className="orderSectionHeader"><div><span className="orderEyebrow">ITEM MASTER</span><h2>食材・イールド</h2><p>カード左の「長押しで移動」をつかみ、好きな位置へ動かせます。別の区分へ移動することもできます。</p></div><div className="itemHeaderActions"><button className="orderButton ghost" onClick={() => setShowAddItem((current) => !current)}>{showAddItem ? "閉じる" : "＋ 新しいアイテム"}</button><button className="orderButton primary" disabled={loading} onClick={() => setShowSaveConfirm(true)}>{loading ? "保存中…" : "変更を確認"}</button></div></div>
       {showAddItem && <form className="newItemForm" onSubmit={addItem}><div className="newItemTitle"><div><strong>新しいアイテム</strong><p>商品コードは区分から自動発行されます。追加後に「変更を保存」を押すとDBへ登録されます。</p></div><span className="generatedCode">{nextItemCode(newItem.category)}</span></div><div className="newItemFields"><label className="orderField">食材名<input autoFocus value={newItem.name} placeholder="例：モッツァレラチーズ" onChange={(e) => setNewItem((current) => ({ ...current, name: e.target.value }))} /></label><label className="orderField">区分<select value={newItem.category} onChange={(e) => setNewItem((current) => ({ ...current, category: e.target.value as ItemCategory }))}>{categoryOrder.map((category) => <option key={category} value={category}>{categoryLabels[category]}</option>)}</select></label><label className="orderField">イールド数<input inputMode="decimal" value={newItem.per_100k} placeholder="0" onChange={(e) => { const value = e.target.value; if (!value || /^\d*\.?\d*$/.test(value)) setNewItem((current) => ({ ...current, per_100k: value })); }} /></label></div><div className="newItemActions"><button type="button" className="orderButton ghost" onClick={() => { setNewItem(emptyNewItem); setShowAddItem(false); }}>キャンセル</button><button className="orderButton primary" type="submit">一覧に追加</button></div></form>}
-      <div className="itemCategoryList">{groupedItems.map(({ category, items: sectionItems }) => <section className={`itemCategorySection category-${category}`} key={category}><header><div><span>{categoryLabels[category]}</span><small>{sectionItems.length}件</small></div><p>{category === "main" || category === "side" ? "食材予算" : budgetLabels[category === "fresh_veg" ? "onion" : "mushroom"]}</p></header><div className="itemEditorList">{sectionItems.map(({ item, index }, sectionIndex) => <article key={item.item_code} data-item-code={item.item_code} draggable onDragStart={() => setDragIndex(index)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragIndex !== null && items[dragIndex]?.category === category) moveItem(dragIndex, index); setDragIndex(null); }} className={`itemEditorCard ${touchDragCode === item.item_code ? "touchDragging" : ""}`}>
-        <button type="button" className="dragHandle" aria-label={`${item.name}を並び替え`} onPointerDown={(event) => startTouchReorder(event, item.item_code)} onPointerMove={continueTouchReorder} onPointerUp={endTouchReorder} onPointerCancel={endTouchReorder}>⠿</button><div className="itemEditorMain"><span className={`budgetBadge ${item.budget_type}`}>{budgetLabels[item.budget_type]}</span><small>{item.item_code}</small><input aria-label="食材名" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} /><select aria-label="区分" value={item.category} onChange={(e) => { const category = e.target.value as ItemCategory; updateItem(index, { category, budget_type: category === "fresh_veg" ? "onion" : category === "mushroom" ? "mushroom" : "base" }); }}>{categoryOrder.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}</select></div>
+      <div className="reorderGuide"><span className="reorderGuideIcon">⠿</span><span><strong>カードを自由に並び替え</strong><small>スマホは左端を長押ししたまま移動、パソコンはカードをドラッグ</small></span><div className="reorderGuideActions"><button type="button" className="reorderPreviewButton" onClick={() => setShowSaveConfirm(true)}>現在の並び順を確認</button><button type="button" className="reorderResetButton" onClick={resetItemOrder}>並びをリセット</button></div></div>
+      <div className="itemCategoryList">{groupedItems.map(({ category, items: sectionItems }) => <section className={`itemCategorySection category-${category}`} key={category}><header><div><span>{categoryLabels[category]}</span><small>{sectionItems.length}件</small></div><p>{category === "main" || category === "side" ? "食材予算" : budgetLabels[category === "fresh_veg" ? "onion" : "mushroom"]}</p></header><div className="itemEditorList">{sectionItems.map(({ item, index }, sectionIndex) => <article key={item.item_code} data-item-code={item.item_code} draggable onDragStart={() => { setDragIndex(index); setTouchDragCode(item.item_code); }} onDragEnd={() => { setDragIndex(null); setTouchDragCode(null); setDragOverCode(null); }} onDragEnter={() => setDragOverCode(item.item_code)} onDragOver={(e) => e.preventDefault()} onDrop={() => { const source = dragIndex === null ? null : items[dragIndex]; if (source) moveItemToTarget(source.item_code, item.item_code); setDragIndex(null); setTouchDragCode(null); setDragOverCode(null); }} className={`itemEditorCard ${touchDragCode === item.item_code ? "touchDragging" : ""} ${dragOverCode === item.item_code && touchDragCode !== item.item_code ? "dragTarget" : ""}`}>
+        <button type="button" className="dragHandle" aria-label={`${item.name}を長押しして並び替え`} onPointerDown={(event) => startTouchReorder(event, item.item_code)} onPointerMove={continueTouchReorder} onPointerUp={endTouchReorder} onPointerCancel={endTouchReorder}><span aria-hidden="true">⠿</span><small>移動</small></button><div className="itemEditorMain"><span className={`budgetBadge ${item.budget_type}`}>{budgetLabels[item.budget_type]}</span><small>{item.item_code}</small><input aria-label="食材名" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} /><select aria-label="区分" value={item.category} onChange={(e) => { const category = e.target.value as ItemCategory; updateItem(index, { category, budget_type: category === "fresh_veg" ? "onion" : category === "mushroom" ? "mushroom" : "base" }); }}>{categoryOrder.map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}</select></div>
         <label className="yieldField"><span>イールド数</span><input inputMode="decimal" value={item.per_100k} onChange={(e) => { const value = e.target.value; if (!value || /^\d*\.?\d*$/.test(value)) updateItem(index, { per_100k: value }); }} /></label>
         <div className="moveButtons"><button onClick={() => moveItem(index, sectionItems[sectionIndex - 1]?.index ?? -1)} disabled={sectionIndex === 0}>↑</button><button onClick={() => moveItem(index, sectionItems[sectionIndex + 1]?.index ?? items.length)} disabled={sectionIndex === sectionItems.length - 1}>↓</button></div>
         <button type="button" className="deleteItemButton" onClick={() => setDeleteTarget(item)} aria-label={`${item.name}を削除`}>削除</button>
       </article>)}</div></section>)}</div>
+      {showSaveConfirm && <div className="budgetEditorBackdrop itemSaveConfirmBackdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !loading) setShowSaveConfirm(false); }}><section className="budgetEditorSheet itemSaveConfirmSheet" role="dialog" aria-modal="true" aria-labelledby="item-save-confirm-title"><header><div><span className="orderEyebrow">SAVE ORDER</span><h3 id="item-save-confirm-title">この並びで保存しますか？</h3><small>発注画面にも、この上からの順番で表示されます。</small></div><button type="button" className="sheetClose" disabled={loading} onClick={() => setShowSaveConfirm(false)} aria-label="閉じる">×</button></header><div className="itemOrderPreview">{groupedItems.map(({ category, items: sectionItems }) => <section key={category}><div className="itemOrderPreviewHeading"><strong>{categoryLabels[category]}</strong><span>{sectionItems.length}件</span></div>{sectionItems.length ? <ol>{sectionItems.map(({ item }) => <li key={item.item_code}><span>{item.name || "名称未入力"}</span><small>イールド {item.per_100k === "" ? "未入力" : item.per_100k}</small></li>)}</ol> : <p>アイテムなし</p>}</section>)}</div><div className="itemSaveConfirmActions"><button type="button" className="orderButton ghost" disabled={loading} onClick={() => setShowSaveConfirm(false)}>並び直す</button><button type="button" className="orderButton primary" disabled={loading} onClick={saveItems}>{loading ? "保存中…" : "この並びで保存"}</button></div></section></div>}
       {deleteTarget && <div className="budgetEditorBackdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !loading) setDeleteTarget(null); }}><section className="budgetEditorSheet deleteItemSheet" role="dialog" aria-modal="true" aria-labelledby="delete-item-title"><header><div><span className="orderEyebrow">DELETE ITEM</span><h3 id="delete-item-title">このアイテムを削除しますか？</h3></div><button type="button" className="sheetClose" disabled={loading} onClick={() => setDeleteTarget(null)} aria-label="閉じる">×</button></header><div className="deleteItemSummary"><strong>{deleteTarget.name}</strong><small>{deleteTarget.item_code}</small></div><p>発注画面と管理一覧から非表示になります。過去の発注履歴は削除されません。</p><div className="deleteItemActions"><button type="button" className="orderButton ghost" disabled={loading} onClick={() => setDeleteTarget(null)}>キャンセル</button><button type="button" className="orderButton danger" disabled={loading} onClick={deleteItem}>{loading ? "削除中…" : "削除する"}</button></div></section></div>}
     </section>}
   </main>;

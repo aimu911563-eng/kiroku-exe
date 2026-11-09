@@ -4274,3 +4274,257 @@ body.loginMode .rulesText .ruleLine > i {
     justify-self: start;
   }
 }
+
+/* ShiftFlow admin — employee experience alignment */
+.adminPage {
+  --admin-ink: #202124;
+  --admin-muted: #676b73;
+  --admin-blue: #1478d4;
+  --admin-line: rgba(87, 111, 137, .18);
+  position: relative;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: #fff5e9;
+  color: var(--admin-ink);
+}
+
+.adminPage::before {
+  content: "";
+  position: fixed;
+  inset: -18vmax;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 28% 24% at 22% 17%, rgba(175, 225, 249, .7), transparent 72%),
+    radial-gradient(ellipse 28% 24% at 79% 35%, rgba(255, 211, 216, .58), transparent 72%),
+    radial-gradient(ellipse 27% 22% at 24% 66%, rgba(204, 239, 207, .62), transparent 72%),
+    radial-gradient(ellipse 30% 24% at 76% 83%, rgba(226, 207, 250, .62), transparent 72%);
+  animation: adminPastelDrift 22s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes adminPastelDrift {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 1.5%, 0) scale(1.04); }
+}
+
+.adminPage .adminShell {
+  width: min(1080px, calc(100% - 40px));
+  padding: 56px 0 88px;
+}
+
+.adminPage .adminHeader {
+  display: flex;
+  width: 100%;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 auto 30px;
+  padding: 0 4px 24px;
+  border-bottom: 1px solid var(--admin-line);
+  animation: adminBlurFromRight .85s cubic-bezier(.2,.75,.25,1) both;
+}
+
+.adminPage .adminHeader h1 {
+  margin: 5px 0 7px;
+  font-size: clamp(34px, 5vw, 48px);
+  letter-spacing: -.055em;
+}
+
+.adminPage .eyebrow {
+  color: var(--admin-blue);
+  letter-spacing: .16em;
+}
+
+.adminPage .adminLead { font-size: 14px; }
+
+.adminLogout {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 2px 8px 14px;
+  border: 0;
+  border-left: 1px solid var(--admin-line);
+  background: transparent;
+  color: #386685;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.adminLoggedIn .adminLogout { display: inline-flex; }
+.adminLogout span { color: var(--admin-blue); font-size: 19px; transition: transform .18s ease; }
+.adminLogout:hover span { transform: translateX(3px); }
+
+.adminPage .surface {
+  border: 1px solid rgba(255, 255, 255, .62);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, .54);
+  box-shadow: 0 18px 46px rgba(79, 89, 105, .08), inset 0 1px 0 rgba(255,255,255,.7);
+  backdrop-filter: blur(18px) saturate(115%);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+}
+
+.adminPage #loginBox {
+  width: min(480px, 100%);
+  max-width: 480px;
+  padding: 30px;
+  animation: adminBlurFromRight 1s .12s cubic-bezier(.2,.75,.25,1) both;
+}
+
+.adminPage .sectionHeading { max-width: 680px; }
+.adminPage .sectionHeading h2 {
+  margin: 0 0 7px;
+  font-size: 23px;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+}
+.adminPage .sectionHeading p { font-size: 13px; }
+
+.adminPage .fieldLabel { color: #43474d; font-size: 13px; }
+.adminPage .fieldControl,
+.adminPage .input,
+.adminPage .modalCard input,
+.adminPage .modalCard select,
+.adminPage .modalCard textarea {
+  border: 1px solid rgba(90, 111, 133, .25);
+  background: rgba(255, 255, 255, .62);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.72);
+}
+.adminPage .fieldControl:focus,
+.adminPage .input:focus,
+.adminPage .modalCard input:focus,
+.adminPage .modalCard select:focus,
+.adminPage .modalCard textarea:focus {
+  border-color: rgba(20, 120, 212, .58);
+  box-shadow: 0 0 0 4px rgba(20, 120, 212, .1);
+}
+
+.adminPage .btnPrimary {
+  border-color: rgba(74, 148, 202, .42);
+  background: linear-gradient(135deg, rgba(212, 237, 251, .92), rgba(223, 220, 250, .88));
+  color: #215979;
+  box-shadow: 0 9px 24px rgba(69, 119, 160, .1);
+}
+.adminPage .btnPrimary:hover { background: linear-gradient(135deg, #c9e9fa, #d8d4f7); }
+.adminPage .btnGhost { background: rgba(255,255,255,.52); color: #456074; }
+
+.adminPage .adminContent > .surface {
+  margin-top: 28px;
+  padding: 28px;
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateX(42px);
+  transition:
+    opacity .72s cubic-bezier(.2,.75,.25,1),
+    filter .72s cubic-bezier(.2,.75,.25,1),
+    transform .72s cubic-bezier(.2,.75,.25,1);
+  transition-delay: calc(var(--admin-reveal-order, 0) * 85ms);
+}
+.adminPage .adminContent > .surface.adminRevealVisible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateX(0);
+}
+
+.adminPage .businessHoursCard { border-top-color: rgba(133, 199, 235, .62); }
+.adminPage .employeeManagementCard { border-top-color: rgba(157, 218, 170, .64); }
+.adminPage .announcementAdminCard { border-top-color: rgba(236, 184, 202, .62); }
+.adminPage .submissionCard { border-top-color: rgba(192, 169, 235, .62); }
+.adminPage .plannerCard { border-top-color: rgba(247, 199, 131, .62); }
+
+.adminPage .businessHoursGrid fieldset,
+.adminPage .actionButton,
+.adminPage .plannerEmpty,
+.adminPage .staffingChartCard {
+  border-color: rgba(90, 111, 133, .15);
+  background: rgba(255,255,255,.4);
+}
+
+.adminPage .actionButton { box-shadow: none; }
+.adminPage .actionButtonPrimary:hover { background: rgba(223, 243, 251, .66); }
+.adminPage .actionButtonDanger:hover { background: rgba(255, 232, 234, .62); }
+
+.adminPage .toolbar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-top: 20px;
+}
+.adminPage .toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.adminPage .toolbarRight .input { min-height: 44px; }
+.adminPage #summaryLine { color: var(--admin-muted) !important; }
+.adminPage #tableWrap { overflow-x: auto; border-radius: 16px; }
+.adminPage #tableWrap table { width: 100%; border-collapse: separate !important; border-spacing: 0; overflow: hidden; }
+.adminPage #tableWrap th {
+  background: rgba(224, 238, 248, .7) !important;
+  color: #456074;
+  font-size: 12px;
+}
+.adminPage #tableWrap td,
+.adminPage #tableWrap th { border-color: rgba(89, 108, 128, .13) !important; }
+.adminPage #tableWrap tr:nth-child(even) td { background: rgba(255,255,255,.28); }
+.adminPage #tableWrap tr:hover td { background: rgba(228, 242, 250, .46); }
+
+.adminPage #out { background: rgba(255,255,255,.36) !important; }
+.adminPage #detailModal { z-index: 1000; backdrop-filter: blur(8px); }
+.adminPage #detailModal > div { border: 1px solid rgba(255,255,255,.7); background: rgba(255,252,248,.94) !important; }
+
+.adminPage .plannerHeader { align-items: flex-end; }
+.adminPage .plannerControls { flex-wrap: wrap; justify-content: flex-end; }
+.adminPage .plannerControls .input { min-height: 42px; }
+.adminPage .staffingChartCard { box-shadow: none; }
+.adminPage .staffingChartDays button { background: rgba(255,255,255,.56); }
+.adminPage .staffingChartDays button.active { background: #4d7895; }
+
+@keyframes adminBlurFromRight {
+  from { opacity: 0; filter: blur(14px); transform: translateX(48px); }
+  to { opacity: 1; filter: blur(0); transform: translateX(0); }
+}
+
+@media (max-width: 720px) {
+  .adminPage .adminShell { width: min(100% - 24px, 1080px); padding: 30px 0 64px; }
+  .adminPage .adminHeader { align-items: center; margin-bottom: 22px; padding: 0 2px 20px; }
+  .adminPage .adminHeader h1 { font-size: 34px; }
+  .adminPage .adminLead { max-width: 240px; font-size: 12px; }
+  .adminLogout { padding-left: 10px; font-size: 12px; }
+  .adminPage #loginBox { padding: 24px 20px; border-radius: 22px; }
+  .adminPage .adminContent > .surface { margin-top: 20px; padding: 20px 16px; border-radius: 22px; }
+  .adminPage .sectionHeading h2 { font-size: 21px; }
+  .adminPage .businessHoursGrid { grid-template-columns: 1fr; }
+  .adminPage .employeeActions { grid-template-columns: 1fr; }
+  .adminPage .announcementAdminFooter { align-items: stretch; }
+  .adminPage .toolbarRight { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .adminPage .plannerHeader { display: grid; align-items: stretch; }
+  .adminPage .plannerControls { display: grid; grid-template-columns: 1fr 1fr; }
+  .adminPage .plannerControls label { min-width: 0; }
+  .adminPage .plannerControls input { width: 100%; }
+  .adminPage .plannerControls button { grid-column: 1 / -1; }
+  .adminPage .staffingChartHeader { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adminPage::before,
+  .adminPage .adminHeader,
+  .adminPage #loginBox { animation: none; }
+  .adminPage .adminContent > .surface { transition: none; }
+}
+
+/* Prevent iOS Safari from zooming when a form control receives focus. */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 720px) {
+    .employeePage input,
+    .employeePage select,
+    .employeePage textarea,
+    .adminPage input,
+    .adminPage select,
+    .adminPage textarea {
+      font-size: 16px !important;
+    }
+  }
+}

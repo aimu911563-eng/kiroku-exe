@@ -16,6 +16,7 @@
         <h1>シフト管理</h1>
         <p class="adminLead">提出状況と従業員を、ひとつの画面で管理できます。</p>
       </div>
+      <button id="logoutBtn" class="adminLogout">ログアウト <span aria-hidden="true">→</span></button>
     </header>
 
     <section id="loginBox" class="surface loginCard">
@@ -194,14 +195,14 @@
         </section>
 
         <section class="surface submissionCard">
+        <div class="sectionHeading">
+          <h2>提出一覧</h2>
+          <p>対象週の提出状況と、従業員ごとの希望時間を確認できます。</p>
+        </div>
         <div class="toolbar">
-            <div class="toolbarLeft">
-                <button id="logoutBtn" class="btn btnGhost">ログアウト</button>
-            </div>
-            
             <div class="toolbarRight">
                 <input id="weekStart" type="date" class="input">
-                <button id="loadSubmissionsBtn" class="btn btnPrimary">提出一覧</button>
+                <button id="loadSubmissionsBtn" class="btn btnPrimary">一覧を更新</button>
             </div>
         
             <div id="summaryLine" style="margin: 8px 0 12px; font-size: 13px; color: #333;"></div>
