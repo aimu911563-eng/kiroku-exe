@@ -22,7 +22,19 @@ async function fetchWithTimeout(fetchImpl: typeof fetch, input: RequestInfo | UR
 function shouldRetry(response: Response) {
   if ([502, 503, 504].includes(response.status)) return true;
   const contentType = response.headers.get("content-type") ?? "";
+  // Cloudflare can return an HTML challenge with 429 while the Render
+  // upstream is waking. A JSON 429 is an intentional application rate limit
+  // and must be returned without retrying.
+  if (response.status === 429 && !contentType.toLowerCase().includes("application/json")) return true;
   return response.ok && !contentType.toLowerCase().includes("application/json");
+}
+
+function unavailableResponse(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (response.status === 429 && !contentType.toLowerCase().includes("application/json")) {
+    return Response.json({ ok: false, error: "発注サーバーを起動しています。少し待ってから再読み込みしてください" }, { status: 503 });
+  }
+  return response;
 }
 
 export async function orderApiFetch(input: RequestInfo | URL, init: RequestInit = {}, options: RetryOptions = {}) {
@@ -42,5 +54,5 @@ export async function orderApiFetch(input: RequestInfo | URL, init: RequestInit 
   }
 
   await wait(options.retryDelayMs ?? 1_500);
-  return fetchWithTimeout(fetchImpl, input, init, options.secondTimeoutMs ?? 65_000);
+  return unavailableResponse(await fetchWithTimeout(fetchImpl, input, init, options.secondTimeoutMs ?? 65_000));
 }

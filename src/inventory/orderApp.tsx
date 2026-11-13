@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { orderApiFetch } from "./order-api-fetch";
+import { isOrderDate, nextOrderDate } from "./order-date";
 
 type OrderRow = {
   store_id: string; order_date: string; display_order: number; item_code: string; name: string; category: string;
@@ -13,13 +14,6 @@ const STORE_ID = params.get("store_id") || "7249";
 const STORE_NAMES: Record<string, string> = { "7249": "寺島", "7539": "浜北小松" };
 const STORE_CONFIG: Record<string, { orderDays: number[] }> = { "7249": { orderDays: [2, 5] }, "7539": { orderDays: [1, 4] } };
 const defaultOrderDays = (STORE_CONFIG[STORE_ID] ?? STORE_CONFIG["7249"]).orderDays;
-
-function localDateKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
-function nextOrderDate(orderDays: number[], extraOrderDates: string[] = []) {
-  const date = new Date();
-  for (let i = 0; i < 370; i += 1) { if (orderDays.includes(date.getDay()) || extraOrderDates.includes(localDateKey(date))) return localDateKey(date); date.setDate(date.getDate() + 1); }
-  return localDateKey(new Date());
-}
 
 export default function OrderInputPage() {
   const [orderDays, setOrderDays] = useState(defaultOrderDays);
@@ -39,7 +33,7 @@ export default function OrderInputPage() {
     return () => document.body.classList.remove("orderInputPage");
   }, []);
 
-  async function loadDate(targetDate = date) {
+  const loadDate = useCallback(async (targetDate = date) => {
     setLoading(true); setMessage("");
     try {
       const response = await orderApiFetch(`/api/order/calc?store_id=${encodeURIComponent(STORE_ID)}&date=${encodeURIComponent(targetDate)}`);
@@ -50,10 +44,10 @@ export default function OrderInputPage() {
       setRows(data);
       setFridgeDrafts(Object.fromEntries(data.map((row) => [row.item_code, row.has_input ? String(Number(row.fridge_qty || 0)) : Number(row.fridge_qty) ? String(row.fridge_qty) : ""])));
       setFreezerDrafts(Object.fromEntries(data.map((row) => [row.item_code, row.has_input ? String(Number(row.freezer_qty || 0)) : Number(row.freezer_qty) ? String(row.freezer_qty) : ""])));
-      if (!data.length) setMessage(orderDays.includes(new Date(`${targetDate}T12:00:00`).getDay()) || extraOrderDates.includes(targetDate) ? "この発注日の予算がまだ登録されていません。管理画面で予算を入力してください。" : "この日は発注日ではありません。案内されている曜日を選択してください。");
+      if (!data.length) setMessage(isOrderDate(targetDate, orderDays, extraOrderDates) ? "この発注日の予算がまだ登録されていません。管理画面で予算を入力してください。" : "この日は発注日ではありません。案内されている曜日を選択してください。");
     } catch (error) { setRows([]); setMessage(error instanceof Error ? error.message : "読み込みに失敗しました"); }
     finally { setLoading(false); }
-  }
+  }, [date, extraOrderDates, orderDays]);
 
   useEffect(() => {
     orderApiFetch(`/api/order/settings?store_id=${encodeURIComponent(STORE_ID)}`).then((response) => response.json()).then((data) => {
@@ -61,10 +55,10 @@ export default function OrderInputPage() {
       setOrderDays(data.order_days);
       const extraDates = Array.isArray(data.extra_order_dates) ? data.extra_order_dates : [];
       setExtraOrderDates(extraDates);
-      setDate((current) => data.order_days.includes(new Date(`${current}T12:00:00`).getDay()) || extraDates.includes(current) ? current : nextOrderDate(data.order_days, extraDates));
+      setDate((current) => isOrderDate(current, data.order_days, extraDates) ? current : nextOrderDate(data.order_days, extraDates));
     }).catch(() => undefined);
   }, []);
-  useEffect(() => { loadDate(date); }, [date, orderDays, extraOrderDates]);
+  useEffect(() => { loadDate(date); }, [date, loadDate]);
 
   async function saveAll() {
     setLoading(true);
