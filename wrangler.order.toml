@@ -1,0 +1,4 @@
+name = "kiroku-order-api"
+main = "server/order-worker.ts"
+compatibility_date = "2026-11-16"
+compatibility_flags = ["nodejs_compat"]

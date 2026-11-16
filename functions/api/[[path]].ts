@@ -7,7 +7,7 @@ export async function onRequest(context: {
   const incoming = new URL(context.request.url);
   let origin: URL;
   try {
-    origin = new URL(context.env?.API_ORIGIN || "https://kiroku-exe.onrender.com");
+    origin = new URL(context.env?.API_ORIGIN || "https://kiroku-order-api.aimu911563.workers.dev");
   } catch {
     return new Response("Invalid API_ORIGIN", { status: 503 });
   }

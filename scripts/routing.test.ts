@@ -4,7 +4,7 @@ import { onRequest as kiroku } from "../functions/api/[[path]]";
 import { onRequest as shiftflow } from "../shiftflow/functions/api/[[path]]";
 
 for (const [name, handler, origin] of [
-  ["kiroku", kiroku, "https://kiroku-exe.onrender.com"],
+  ["kiroku", kiroku, "https://kiroku-order-api.aimu911563.workers.dev"],
   ["shiftflow", shiftflow, "https://shiftflow-api.aimu911563.workers.dev"],
 ] as const) {
   test(`${name}: proxy preserves request and isolates the upstream`, async (t) => {

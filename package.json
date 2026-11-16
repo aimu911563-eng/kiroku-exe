@@ -41,6 +41,7 @@
     "dev:shiftflow": "node scripts/dev.mjs shiftflow",
     "dev:all": "node scripts/dev.mjs all",
     "dev:api": "tsx watch server/index.ts",
+    "deploy:order-api": "wrangler deploy --config wrangler.order.toml",
     "test:routing": "tsx --test scripts/*.test.ts",
     "verify": "npm run test:routing && npm run typecheck && npm run typecheck:server && npm run build && npm run test:production && npm run verify:shiftflow && npm audit --omit=dev",
     "verify:shiftflow": "npm --prefix shiftflow run test:time && npm --prefix shiftflow run typecheck && npm --prefix shiftflow run build && npm --prefix shiftflow audit --omit=dev",

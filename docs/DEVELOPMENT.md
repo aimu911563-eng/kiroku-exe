@@ -107,7 +107,8 @@ DOTENV_CONFIG_PATH=.env.development npm run dev:all
 |---|---|---|---|
 | kiroku Pages | リポジトリルート | `npm run build` | `dist` とルート `functions/` |
 | Shift Flow Pages | `shiftflow` | `npm run build` | `dist` と `shiftflow/functions/` |
-| Render API | リポジトリルート | install: `npm ci`、start: `npm start` | `server/index.ts` |
+| 発注 Workers | リポジトリルート | `npm run deploy:order-api` | `server/order-worker.ts` / `wrangler.order.toml` |
+| Render API（予備） | リポジトリルート | install: `npm ci`、start: `npm start` | `server/index.ts` |
 | Shift Flow Workers | `shiftflow` | Wrangler によるデプロイ | `wrangler.toml` |
 
 Render は `PORT` を使用します。API の実行に必要な `hono`、`@hono/node-server`、`tsx` は
