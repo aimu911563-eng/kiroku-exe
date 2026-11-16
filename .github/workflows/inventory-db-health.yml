@@ -1,9 +1,11 @@
-name: Inventory DB keepalive until inactive
+name: Order service availability until inactive
 
 on:
   schedule:
-    # 09:15 JST every day. The workflow disables itself after 14 inactive days.
-    - cron: "15 0 * * *"
+    # Keep the free API awake during the recurring order-day window
+    # (09:00-15:59 JST on Mon/Tue/Thu/Fri). GitHub schedules use UTC.
+    # The workflow still disables itself after 14 days without real input.
+    - cron: "*/10 0-6 * * 1,2,4,5"
   workflow_dispatch:
 
 permissions:
